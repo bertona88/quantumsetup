@@ -2,9 +2,12 @@
   "name": "quantumsetup",
   "version": "0.0.0",
   "private": true,
-  "description": "Preliminary Setup Universe wrapper for QuantumSetup.",
+  "description": "Audio-first endless generative techno instrument with a quantum-inspired contour.",
   "homepage": "https://quantumsetup.ai/",
   "scripts": {
+    "app:test": "npm --prefix app test",
+    "app:check": "npm --prefix app run check",
+    "app:serve": "npm --prefix app start",
     "prototype:test": "npm --prefix prototype test",
     "prototype:check": "npm --prefix prototype run check",
     "prototype:serve": "npm --prefix prototype run serve"

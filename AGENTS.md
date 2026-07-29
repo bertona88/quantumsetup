@@ -1,74 +1,84 @@
 # AGENTS.md
 
-## Repository status
+## Product authority
 
-This repository is the preliminary wrapper for **QuantumSetup** (quantumsetup.ai), one system in the **Setup Universe**.
+QuantumSetup is now primarily a **generative music project**: an endless,
+audio-first techno set at https://quantumsetup.ai/.
 
-The current browser demo is only a starting artifact. It is not the final product vision, not the final architecture, and not a commitment to the current UI, controls, numerical model, or source layout. The intended QuantumSetup simulator will be designed and implemented substantially from scratch.
+The user-supplied `infinite-hypnotic-techno.html` is the canonical musical starting
+point. Its source SHA-256 is
+`03014fca7b13962ca166090df82c8045e2ea9758c9dfa78e5c72ca575d57ed57`.
+The exact source is preserved at `reference/infinite-hypnotic-techno.html`; do not
+modify that reference copy.
+Preserve its good audio-clock, synthesis, routing, and cleanup ideas while improving
+long-form musical intelligence.
 
-Production release `20260726T002235Z-478235af2650` was verified at https://quantumsetup.ai/ on 2026-07-26. Current availability is external state and must be checked live rather than inferred from this repository.
+The quantum identity is a contour around the music:
 
-Its exact source snapshot is preserved under `prototype/` as immutable, reference-only prior art. It is not the architecture that future work should extend. Do not modify that snapshot as part of the rebuild. It may be moved, archived, or removed only with explicit user authorization after a successor has been accepted and its provenance retained.
+- welcome: spectral/probability language, real physics references used playfully,
+  analyser-driven visual form;
+- prohibited by default: presenting the audio as quantum computation, quantum
+  randomness, physical sonification, or a scientific simulator.
 
-## Core directive
+Music owns the product hierarchy. Do not let scientific UI, model controls, or
+Setup Universe doctrine displace the listening experience.
 
-- Approach the next simulator as a greenfield scientific product.
-- Do not optimize or expand the prototype merely because it already exists.
-- Before substantial implementation, establish the new product and model boundaries in repository-visible documents:
-  - `VISION.md`
-  - `QUANTUM_MODEL_CONTRACT.md`
-  - `INTERFACE_CONTRACT.md`
-  - `CLAIMS_AND_VALIDATION.md`
-  - `ACCEPTANCE_TESTS.md`
-- A convincing animation is not sufficient. The intended simulator needs explicit state, units, governing rules, numerical methods, direct manipulation, measurements, experiments, failure states, and validation appropriate to its claims.
-- Label qualitative, reduced-order, heuristic, and pedagogical behavior honestly. Never silently promote it to calibrated physical prediction.
-- Treat physical, biological, behavioral, social, operational, and performance predictions with the same evidence discipline: state the validity domain, uncertainty, and nonclaims.
+## Current implementation
 
-## QuantumSetup direction
+- `app/techno-model.js` owns deterministic musical planning.
+- `app/audio-engine.js` owns the Web Audio graph, hardware-clock scheduling, voices,
+  effects, and cleanup.
+- `app/main.js` owns the single audio-first UI and reactive contour.
+- `MUSICAL_SYSTEM.md` is the musical grammar and research basis.
+- `VISION.md`, `INTERFACE_CONTRACT.md`, `CLAIMS_AND_VALIDATION.md`, and
+  `ACCEPTANCE_TESTS.md` define the current product boundary.
 
-The intended QuantumSetup product is a quantum experiment builder with explicit states, operators, Hamiltonians, measurements, noise models, numerical solvers, and instrument boundaries.
+There must be one primary page, not LAB/TRIP modes or multiple product tabs.
+Controls stay high-level: transport, musical trajectory, techno vibe, and harmonic
+color. Arrangement fades, effect sends, filter sweeps, pattern density, and detailed
+synthesis remain the generator's responsibility.
 
-**First accepted end-to-end slice:** Build one wavepacket-and-barrier experiment with an inspectable Hamiltonian, normalized state evolution, measurement controls, and probability-accounting tests.
+## Musical quality directive
 
-**Ownership boundary:** QuantumSetup owns explicitly quantum state evolution; OpticalSetup and PicSetup own their classical instrument/network models; MolecularSetup owns classical molecular/material response unless a reviewed quantum interface is defined.
+- Preserve a strong four-on-the-floor anchor while varying secondary rhythm,
+  articulation, timbre, and harmony.
+- Make changes legible at musical boundaries: bar, 8-bar phrase, 8–32-bar section,
+  and 192-bar movement.
+- A user direction is an intent, not a preset switch. Morph it over 64–128 bars.
+- Do not regenerate every layer together.
+- Use deterministic seeds and coordinate-addressed randomness.
+- Prefer curated rhythmic vocabulary and bounded transformations over free random
+  masks.
+- Keep dramatic silence, risers, fills, and breakdowns on long cooldowns.
+- Treat multi-day recurrence, motif recall, and professional-set listening tests as
+  open quality frontiers until evidence exists.
 
-**Claim gate:** Hilbert-space truncation, Hamiltonian, boundary conditions, solver error, and open-system assumptions must be explicit; no hardware-fidelity or experimental-calibration claim is allowed by default.
+## Runtime and claim boundary
 
-Its Setup Universe interface should eventually connect quantum sources, samples, controls, and measurements to optical, electrical, molecular, and computational setups. This direction is provisional until a written interface contract is reviewed.
+Audio is synthesized locally and starts only from a user gesture. Temporary sources
+must have finite stop times and cleanup. Feedback, gain, MIDI, filter, voice-count,
+and scheduler values must remain bounded and finite.
 
-## Setup Universe doctrine
+Do not promise uninterrupted 24/7 playback through browser eviction, background
+throttling, operating-system sleep, audio-device changes, or mobile suspension. The
+design can be endless while the active browser audio context survives.
 
-- QuantumSetup is one composable setup inside a larger universe of scientific and systems workbenches.
-- Setup Universe repositories are independently deployed workbenches intended to become interoperable; that interoperability does not exist merely because the repositories share a family name.
-- Setups should eventually be able to contain, drive, observe, or exchange well-defined state with other setups. “Contain” means orchestrate or reference another independently owned setup through an interface; it does not mean vendor its source, copy its internal state, or transfer authority over it.
-- Cross-setup interoperability must use explicit, versioned interfaces. Every payload must identify schema version, units or an explicit dimensionless convention, coordinate frame where relevant, clock or timebase, uncertainty, provenance, and source-of-truth ownership.
-- Do not couple repositories through undocumented globals, copied internal state, visual imitation, or assumptions about another setup's private implementation.
-- There is no universal interface yet. Define only the ports and conversions justified by an actual use case; keep unknowns explicit.
-- OpticalSetup is externally owned and maintained in Luca Genchi's existing repository. Changes there require a focused proposal or pull request and must preserve Luca's ownership and review boundary.
-- Each Setup Universe repository remains independently understandable, testable, and deployable even when it participates in a larger composed experiment.
+Do not claim that deterministic tests, a successful deployment, or an attractive
+visual establishes professional-DJ musical quality. Those are separate completion
+boundaries.
 
 ## Prototype boundary
 
-- `prototype/` is the immutable reference snapshot associated with production release `20260726T002235Z-478235af2650`, verified on 2026-07-26.
-- The shared snapshot contains multiple Setup Universe demos because the current production deployment is a host-routed common runtime.
-- The snapshot's tests validate only the legacy prototype. They are not acceptance tests for the future QuantumSetup product.
-- Do not infer future APIs or styling from it.
-- Keep the live demo online unless the user explicitly authorizes a replacement deployment.
-- Do not deploy from this repository or change DNS as an incidental consequence of local development.
-
-## Scientific and engineering quality
-
-- Prefer primary scientific references and document modeling assumptions.
-- State coordinate systems, units, signs, time bases, boundary conditions, and solver stability limits.
-- Keep deterministic seeds or reproducible fixtures where stochastic behavior exists.
-- Test invariants and conservation or accounting laws where applicable, not only DOM presence.
-- Validate numerical behavior at parameter extremes and include adversarial or degenerate cases.
-- Distinguish model validation, browser smoke testing, deployment, and public acceptance as separate completion boundaries.
+`prototype/` is the immutable reference snapshot associated with production release
+`20260726T002235Z-478235af2650`. Do not modify it. The previous probability-field
+application is preserved in Git history and does not constrain the current music
+architecture.
 
 ## Working agreement
 
-- Read this file and the repository's current status documents before editing.
-- Preserve unrelated user work and inspect repository state before commits.
-- Keep changes scoped to this repository unless cross-repository work is explicitly requested.
-- Do not push, deploy, publish, message collaborators, or alter external services without authority for that action.
-- When the greenfield rebuild begins, prefer a small end-to-end scientific experiment over a broad mock interface.
+- Read this file and `MUSICAL_SYSTEM.md` before substantial changes.
+- Keep changes scoped; preserve unrelated user work.
+- Run deterministic tests and browser/audio smoke tests before release.
+- Verify the named public deployment rather than inferring it from local success.
+- Do not push, deploy, publish, message collaborators, or alter external services
+  without explicit user authority.

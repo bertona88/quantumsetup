@@ -1,65 +1,57 @@
-# QuantumSetup
+# QuantumSetup / Infinite Techno
 
-> **Preliminary Setup Universe wrapper.** The current demo is temporary; the full simulator is expected to be redesigned and rebuilt substantially from scratch.
+**An audio-first, endlessly evolving procedural techno set.**
 
-- **Live prototype:** https://quantumsetup.ai/
-- **Prototype release verified:** 2026-07-26 (`20260726T002235Z-478235af2650`); check the URL for current availability
-- **Field:** Quantum systems
-- **Status:** Greenfield planning wrapper with a preserved prototype snapshot
+- Live: https://quantumsetup.ai/
+- Audio: synthesized locally with the Web Audio API; no samples or network calls
+- Interaction: one music surface with Vibe and Harmonic Gravity direction
+- Visual: an analyser-driven quantum-inspired contour, explicitly artistic
 
-## Vision
+## Product direction
 
-The intended QuantumSetup product is a quantum experiment builder with explicit states, operators, Hamiltonians, measurements, noise models, numerical solvers, and instrument boundaries.
+QuantumSetup is a music project. Its primary job is to sustain a convincing,
+continuously evolving techno journey. Quantum language contributes atmosphere,
+names, and the spectral contour; it does not imply quantum computation or a
+scientific simulation.
 
-QuantumSetup is part of the **Setup Universe**: independently deployed scientific and systems workbenches intended to become interoperable. Over time, setups should be able to orchestrate or interface with one another through explicit, versioned, unit-aware ports without transferring ownership or copying private implementation state.
+The generator preserves the strong audio core of the supplied
+`infinite-hypnotic-techno.html` and expands its former 32-bar cycle into:
 
-**First accepted end-to-end slice:** Build one wavepacket-and-barrier experiment with an inspectable Hamiltonian, normalized state evolution, measurement controls, and probability-accounting tests.
+- 8-bar phrases;
+- 8–32-bar arrangement sections;
+- 192-bar movements;
+- five interpolated techno vocabularies;
+- Major, Minor, and Neutral tonal families;
+- 64–128-bar phrase-safe transitions.
 
-**Model boundary:** QuantumSetup owns explicitly quantum state evolution; OpticalSetup and PicSetup own their classical instrument/network models; MolecularSetup owns classical molecular/material response unless a reviewed quantum interface is defined.
+Read [MUSICAL_SYSTEM.md](./MUSICAL_SYSTEM.md) for the composition grammar and
+research basis.
 
-**Claim gate:** Hilbert-space truncation, Hamiltonian, boundary conditions, solver error, and open-system assumptions must be explicit; no hardware-fidelity or experimental-calibration claim is allowed by default.
-
-## Important starting point
-
-Read [AGENTS.md](./AGENTS.md) before planning or implementing work.
-
-The present browser demo should not constrain the next architecture. Before substantial implementation, this repository expects `VISION.md`, `QUANTUM_MODEL_CONTRACT.md`, `INTERFACE_CONTRACT.md`, `CLAIMS_AND_VALIDATION.md`, and `ACCEPTANCE_TESTS.md`.
-
-## Prototype model boundary
-
-The following describes only the current reference prototype, not the intended simulator.
-
-**Exact current scope:** The canvas solves a dimensionless one-dimensional time-dependent Schrödinger equation using Fourier split-step propagation.
-
-**Known limits:**
-
-- The model is one-dimensional, non-relativistic, and uses a periodic numerical grid with soft absorbing edges.
-- Position measurement is an idealized projective sample followed by a narrow Gaussian reset.
-- Displayed energies use reduced units; they are not calibrated to a laboratory particle.
-
-## Current prototype snapshot
-
-`prototype/` preserves the exact shared browser-prototype source associated with production release `20260726T002235Z-478235af2650`. Its recorded deployed-source SHA-256 is `478235af26508aa70aa2af5f0196c9868b92ded1bed88106a9aa1a1cd86f8ba5`.
-
-The snapshot contains all current Setup Universe demos because that release uses one shared, host-routed runtime. It is immutable, reference-only prior art: do not build the new architecture inside it. Moving, archiving, or removing it requires explicit user authorization after an accepted successor and preserved provenance.
-
-To run the snapshot locally:
+## Run
 
 ```sh
-npm run prototype:test
-npm run prototype:check
-npm run prototype:serve
+npm --prefix app start
+npm --prefix app run check
 ```
 
-Then open http://127.0.0.1:4173/?setup=quantum.
+Then open http://localhost:4173/. Audio requires a user gesture.
 
-These commands validate only the legacy prototype. This wrapper intentionally has no future-product test suite until the greenfield implementation begins.
+## Repository boundaries
+
+- `app/` is the current audio-first implementation.
+- `reference/infinite-hypnotic-techno.html` is the byte-identical canonical source
+  supplied by the user.
+- `prototype/` is an immutable reference snapshot of the earlier shared Setup
+  Universe prototype.
+- The previous qualitative probability-field app remains available through Git
+  history; it no longer defines the product.
+- No uninterrupted playback is promised through computer sleep, browser eviction,
+  background suspension, or audio-device changes.
 
 ## Setup Universe
 
-[PicSetup](https://github.com/bertona88/picsetup) · [ElectricalSetup](https://github.com/bertona88/electricalsetup) · [BiologicalSetup](https://github.com/bertona88/biologicalsetup) · [GravitySetup](https://github.com/bertona88/gravitysetup) · [TwoPhotonLithography](https://github.com/bertona88/twophotonlithography) · [EgoSetup](https://github.com/bertona88/egosetup) · [NoeticSetup](https://github.com/bertona88/noeticsetup) · [ComputationSetup](https://github.com/bertona88/computationsetup) · [LogisticSetup](https://github.com/bertona88/logisticsetup) · [MolecularSetup](https://github.com/bertona88/molecularsetup)
-
-OpticalSetup remains in [LucaGenchi/optics-sketch](https://github.com/LucaGenchi/optics-sketch).
+QuantumSetup remains independently deployed and can later expose a versioned music
+state or transport interface. No cross-setup interoperability is claimed today.
 
 ## License
 

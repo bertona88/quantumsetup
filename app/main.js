@@ -1,689 +1,402 @@
-import {
-  calculateTransmission,
-  collapseFieldState,
-  createFieldState,
-  createParticleDescriptors,
-  measurePosition,
-  sampleProbabilityField,
-  updateFieldState,
-} from "./field-model.js";
+import { InfiniteTechnoEngine, formatSeed } from "./audio-engine.js";
+import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js";
 
-const PRESETS = Object.freeze({
-  ghost: {
-    label: "Ghost tunnel",
-    energy: 0.48,
-    barrierHeight: 0.82,
-    coherence: 0.92,
-    exposure: 1.35,
-    barrierWidth: 0.13,
-  },
-  resonance: {
-    label: "Resonance",
-    energy: 0.89,
-    barrierHeight: 0.86,
-    coherence: 0.76,
-    exposure: 1.22,
-    barrierWidth: 0.18,
-  },
-  deep: {
-    label: "Deep barrier",
-    energy: 0.31,
-    barrierHeight: 1.06,
-    coherence: 0.64,
-    exposure: 1.62,
-    barrierWidth: 0.2,
-  },
-  plasma: {
-    label: "Plasma",
-    energy: 1.08,
-    barrierHeight: 0.52,
-    coherence: 0.47,
-    exposure: 1.74,
-    barrierWidth: 0.08,
-  },
-});
+const app = document.querySelector("#app");
+const transportButton = document.querySelector("#transport-button");
+const trajectoryButton = document.querySelector("#trajectory-button");
+const statusText = document.querySelector("#status-text");
+const nowVibe = document.querySelector("#now-vibe");
+const sectionReadout = document.querySelector("#section-readout");
+const keyReadout = document.querySelector("#key-readout");
+const bpmReadout = document.querySelector("#bpm-readout");
+const barReadout = document.querySelector("#bar-readout");
+const seedReadout = document.querySelector("#seed-readout");
+const transitionCopy = document.querySelector("#transition-copy");
+const transitionFill = document.querySelector("#transition-fill");
+const liveRegion = document.querySelector("#live-region");
+const vibeButtons = [...document.querySelectorAll("[data-vibe]")];
+const tonalityButtons = [...document.querySelectorAll("[data-tonality]")];
 
-const canvas = document.querySelector("#field-canvas");
-const context = canvas.getContext("2d", { alpha: false });
-const lowCanvas = document.createElement("canvas");
-const lowContext = lowCanvas.getContext("2d", { alpha: true });
-const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+const params = new URLSearchParams(window.location.search);
+const seedText = params.get("seed");
+const parsedSeed =
+  seedText && /^[0-9a-f]{1,8}$/i.test(seedText)
+    ? Number.parseInt(seedText, 16) >>> 0
+    : undefined;
 
-const elements = {
-  announcer: document.querySelector("#announcer"),
-  barrier: document.querySelector("#barrier"),
-  barrierOutput: document.querySelector("#barrier-output"),
-  barrierPhase: document.querySelector("#barrier-phase"),
-  coherence: document.querySelector("#coherence"),
-  coherenceOutput: document.querySelector("#coherence-output"),
-  energy: document.querySelector("#energy"),
-  energyOutput: document.querySelector("#energy-output"),
-  entropy: document.querySelector("#entropy-readout"),
-  exposure: document.querySelector("#exposure"),
-  exposureOutput: document.querySelector("#exposure-output"),
-  measurementLabel: document.querySelector("#measurement-label"),
-  measurementValue: document.querySelector("#measurement-value"),
-  norm: document.querySelector("#norm-readout"),
-  runButton: document.querySelector("#toggle-run"),
-  runIcon: document.querySelector("#toggle-run .transport-icon"),
-  runLabel: document.querySelector("#toggle-run-label"),
-  seed: document.querySelector("#seed-readout"),
-  stateIndex: document.querySelector("#state-index"),
-  statusLight: document.querySelector(".status-light"),
-  transmission: document.querySelector("#transmission-readout"),
-  transportLabel: document.querySelector("#transport-label"),
+const visualState = {
+  kick: 0,
+  bass: 0,
+  hat: 0,
+  chord: 0,
+  energy: 0.42,
+  bar: 0,
+  step: 0,
+  movement: 0,
+  sectionProgress: 0,
+  transitionProgress: 0,
+  seedFlash: 0,
+  running: false,
 };
 
-if (!context || !lowContext) {
-  canvas.hidden = true;
-  elements.transportLabel.textContent = "CANVAS UNAVAILABLE";
-  elements.announcer.textContent =
-    "The probability field could not start because Canvas 2D is unavailable.";
-  throw new Error("QuantumSetup requires a Canvas 2D rendering context");
-}
-
-const integrationPort = new EventTarget();
-const MAX_CANVAS_PIXELS = 4_194_304;
-let presetName = "ghost";
-let stateCounter = 1;
-let state = createFieldState(readInitialSeed(), PRESETS[presetName]);
-let particles = createParticleDescriptors(state.seed);
-let running = true;
-let mode = "lab";
-let clock = 0;
-let lastTimestamp = performance.now();
-let lastRenderedAt = -Infinity;
-let animationFrame = 0;
-let measurementFlash = null;
-let frameEventAt = -Infinity;
-let lastField = null;
-let viewport = { width: 1, height: 1, dpr: 1 };
-
-function readInitialSeed() {
-  const urlSeed = new URL(window.location.href).searchParams.get("seed");
-  return urlSeed || `QS-${new Date().toISOString().slice(0, 10)}-A`;
-}
-
-function generateSeed() {
-  const values = new Uint32Array(2);
-  if (window.crypto?.getRandomValues) {
-    window.crypto.getRandomValues(values);
-  } else {
-    values[0] = Date.now() >>> 0;
-    values[1] = Math.floor(performance.now() * 1000) >>> 0;
-  }
-  return `${values[0].toString(36)}-${values[1].toString(36)}`;
-}
-
-function publish(type, detail) {
-  const payload = Object.freeze({ ...detail });
-  integrationPort.dispatchEvent(new CustomEvent(type, { detail: payload }));
-  window.dispatchEvent(new CustomEvent(`quantumsetup:${type}`, { detail: payload }));
-}
-
-function currentSnapshot() {
-  return Object.freeze({
-    version: 1,
-    seed: state.seed,
-    seedLabel: state.seedLabel,
-    time: clock,
-    running,
-    mode,
-    preset: presetName,
-    controls: Object.freeze({
-      energy: state.energy,
-      barrierHeight: state.barrierHeight,
-      barrierWidth: state.barrierWidth,
-      coherence: state.coherence,
-      exposure: state.exposure,
-    }),
-    transmission: calculateTransmission(
-      state.energy,
-      state.barrierHeight,
-      state.barrierWidth,
-    ),
-  });
-}
-
-window.QuantumSetup = Object.freeze({
-  version: "0.2.0",
-  port: integrationPort,
-  getSnapshot: currentSnapshot,
-  subscribe(type, listener) {
-    integrationPort.addEventListener(type, listener);
-    return () => integrationPort.removeEventListener(type, listener);
-  },
+const engine = new InfiniteTechnoEngine(handleEngineEvent, {
+  seed: parsedSeed,
+  vibe: "hypnotic",
+  tonality: "minor",
 });
 
-function resize() {
-  const bounds = canvas.getBoundingClientRect();
-  const requestedDpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
-  const width = Math.max(1, Math.round(bounds.width));
-  const height = Math.max(1, Math.round(bounds.height));
-  let pixelWidth = Math.max(1, Math.round(width * requestedDpr));
-  let pixelHeight = Math.max(1, Math.round(height * requestedDpr));
+let uiBusy = false;
+let targetVibe = "hypnotic";
+let targetTonality = "minor";
 
-  if (pixelWidth * pixelHeight > MAX_CANVAS_PIXELS) {
-    const scale = Math.sqrt(MAX_CANVAS_PIXELS / (pixelWidth * pixelHeight));
-    pixelWidth = Math.max(1, Math.floor(pixelWidth * scale));
-    pixelHeight = Math.max(1, Math.floor(pixelHeight * scale));
-  }
-
-  viewport = {
-    width,
-    height,
-    dpr: Math.min(pixelWidth / width, pixelHeight / height),
-  };
-  canvas.width = pixelWidth;
-  canvas.height = pixelHeight;
-  context.setTransform(pixelWidth / width, 0, 0, pixelHeight / height, 0, 0);
-  restartRender();
+function titleCase(text) {
+  return String(text)
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function fieldDimensions() {
-  const aspect = viewport.width / Math.max(1, viewport.height);
-  const rows = reducedMotion.matches ? 42 : 58;
-  return {
-    columns: Math.round(rows * Math.max(1.2, Math.min(2.35, aspect))),
-    rows,
-  };
+function setStatus(message, state = "idle", announce = false) {
+  statusText.textContent = message;
+  app.classList.toggle("is-running", engine.running);
+  app.classList.toggle("is-error", state === "error");
+  visualState.running = engine.running;
+  if (announce) liveRegion.textContent = message;
 }
 
-function renderProbabilityTexture(field) {
-  if (lowCanvas.width !== field.columns || lowCanvas.height !== field.rows) {
-    lowCanvas.width = field.columns;
-    lowCanvas.height = field.rows;
-  }
-
-  const image = lowContext.createImageData(field.columns, field.rows);
-  const maximum = Math.max(1e-9, field.maximum);
-  const exposure = state.exposure;
-
-  for (let index = 0; index < field.density.length; index += 1) {
-    const normalized = Math.min(1, field.density[index] / maximum);
-    const light = Math.pow(normalized, 0.46) * exposure;
-    const phase = field.phase[index];
-    const spectral = Math.sin(phase * 0.37) * 0.5 + 0.5;
-    const flare = Math.max(0, Math.sin(phase * 0.19 + 1.4));
-    const offset = index * 4;
-
-    image.data[offset] = Math.min(255, 12 + light * (92 + spectral * 146 + flare * 34));
-    image.data[offset + 1] = Math.min(255, 7 + light * (54 + (1 - spectral) * 118));
-    image.data[offset + 2] = Math.min(255, 24 + light * (145 + spectral * 108));
-    image.data[offset + 3] = Math.min(255, 18 + light * 245);
-  }
-
-  lowContext.putImageData(image, 0, 0);
-}
-
-function drawGrid() {
-  if (mode !== "lab") return;
-
-  context.save();
-  context.strokeStyle = "rgba(188, 208, 255, 0.055)";
-  context.lineWidth = 1;
-  for (let column = 1; column < 12; column += 1) {
-    const x = (viewport.width * column) / 12;
-    context.beginPath();
-    context.moveTo(x, 88);
-    context.lineTo(x, viewport.height);
-    context.stroke();
-  }
-  for (let row = 1; row < 8; row += 1) {
-    const y = 88 + ((viewport.height - 88) * row) / 8;
-    context.beginPath();
-    context.moveTo(0, y);
-    context.lineTo(viewport.width, y);
-    context.stroke();
-  }
-  context.restore();
-}
-
-function drawField(field, forceClear) {
-  context.save();
-  context.globalCompositeOperation = "source-over";
-  context.fillStyle =
-    forceClear || !running || reducedMotion.matches ? "#06040d" : "rgba(6, 4, 13, 0.33)";
-  context.fillRect(0, 0, viewport.width, viewport.height);
-  context.restore();
-
-  drawGrid();
-  renderProbabilityTexture(field);
-
-  const destinationY = viewport.height * 0.09;
-  const destinationHeight = viewport.height * 0.77;
-  context.save();
-  context.globalCompositeOperation = "screen";
-  context.imageSmoothingEnabled = true;
-  context.globalAlpha = mode === "trip" ? 0.85 : 0.66;
-  context.filter = `blur(${mode === "trip" ? 18 : 12}px) saturate(150%)`;
-  context.drawImage(lowCanvas, 0, destinationY, viewport.width, destinationHeight);
-  context.globalAlpha = mode === "trip" ? 0.86 : 0.72;
-  context.filter = "none";
-  context.drawImage(lowCanvas, 0, destinationY, viewport.width, destinationHeight);
-  context.restore();
-}
-
-function drawRibbons(field) {
-  const maximum = Math.max(...field.marginalX);
-  const deckTop = Math.max(viewport.height * 0.63, viewport.height - 195);
-  const usableHeight = Math.max(150, deckTop - viewport.height * 0.2);
-  const ribbonCount = mode === "trip" ? 8 : 5;
-
-  context.save();
-  context.globalCompositeOperation = "screen";
-  context.lineWidth = mode === "trip" ? 1.15 : 0.8;
-
-  for (let ribbon = 0; ribbon < ribbonCount; ribbon += 1) {
-    const ratio = ribbon / Math.max(1, ribbonCount - 1);
-    const baseY = viewport.height * 0.27 + ratio * usableHeight * 0.67;
-    context.beginPath();
-    for (let column = 0; column < field.columns; column += 1) {
-      const x = (column / (field.columns - 1)) * viewport.width;
-      const probability = field.marginalX[column] / Math.max(1e-9, maximum);
-      const oscillation =
-        Math.sin(
-          column * (0.2 + state.energy * 0.16) -
-            clock * (1.2 + ratio * 0.36) +
-            ribbon * 1.47,
-        ) *
-        probability *
-        (12 + state.coherence * 32);
-      const y = baseY + oscillation;
-      if (column === 0) context.moveTo(x, y);
-      else context.lineTo(x, y);
-    }
-    const alpha = 0.09 + (1 - ratio) * 0.13 + state.coherence * 0.06;
-    context.strokeStyle =
-      ribbon % 2 === 0
-        ? `rgba(119, 239, 255, ${alpha})`
-        : `rgba(195, 128, 255, ${alpha})`;
-    context.stroke();
-  }
-  context.restore();
-}
-
-function drawBarrier(field) {
-  const center = state.barrierCenter * viewport.width;
-  const width = state.barrierWidth * viewport.width;
-  const top = viewport.height * 0.16;
-  const bottom = Math.max(viewport.height * 0.65, viewport.height - 175);
-
-  document.documentElement.style.setProperty("--barrier-screen-x", `${state.barrierCenter * 100}%`);
-
-  context.save();
-  context.globalCompositeOperation = "screen";
-  const gradient = context.createLinearGradient(center - width / 2, 0, center + width / 2, 0);
-  gradient.addColorStop(0, "rgba(255, 74, 179, 0.04)");
-  gradient.addColorStop(0.5, "rgba(190, 89, 255, 0.13)");
-  gradient.addColorStop(1, "rgba(112, 238, 255, 0.035)");
-  context.fillStyle = gradient;
-  context.fillRect(center - width / 2, top, width, bottom - top);
-
-  context.setLineDash(mode === "lab" ? [3, 7] : [2, 13]);
-  context.lineWidth = 1;
-  context.strokeStyle = `rgba(216, 162, 255, ${0.18 + field.transmission * 0.22})`;
-  context.beginPath();
-  context.moveTo(center - width / 2, top);
-  context.lineTo(center - width / 2, bottom);
-  context.moveTo(center + width / 2, top);
-  context.lineTo(center + width / 2, bottom);
-  context.stroke();
-
-  if (mode === "lab") {
-    context.setLineDash([]);
-    context.fillStyle = "rgba(216, 222, 245, 0.4)";
-    context.font = "500 9px ui-monospace, SFMono-Regular, Menlo, monospace";
-    context.textAlign = "center";
-    context.fillText(`T = ${field.transmission.toFixed(4)}`, center, bottom + 17);
-  }
-  context.restore();
-}
-
-function drawParticles(field) {
-  if (reducedMotion.matches) return;
-  const left = state.barrierCenter - state.barrierWidth / 2;
-  const right = state.barrierCenter + state.barrierWidth / 2;
-  const top = viewport.height * 0.18;
-  const height = Math.max(160, viewport.height * 0.42);
-
-  context.save();
-  context.globalCompositeOperation = "screen";
-  for (const particle of particles) {
-    let progress = (particle.start + clock * particle.speed * 0.045) % 1;
-    const tunnels = particle.gate <= field.transmission;
-
-    if (!tunnels && progress > left) {
-      const reflectedProgress = (progress - left) % Math.max(0.04, left);
-      progress = Math.max(0.01, left - reflectedProgress);
-    } else if (tunnels && progress > left && progress < right) {
-      progress = left + (progress - left) * (0.42 + field.transmission * 0.58);
-    }
-
-    const x = progress * viewport.width;
-    const laneCurve =
-      Math.sin(progress * Math.PI * (2 + state.transverse * 0.3) + particle.phase) *
-      (10 + state.coherence * 18);
-    const y = top + particle.lane * height + laneCurve;
-    const pulse = 0.55 + 0.45 * Math.sin(clock * 2.1 + particle.phase);
-    const alpha = (0.1 + pulse * 0.42) * (0.55 + state.exposure * 0.25);
-    context.fillStyle =
-      particle.hueMix > 0.62
-        ? `rgba(103, 244, 255, ${alpha})`
-        : particle.hueMix > 0.28
-          ? `rgba(180, 119, 255, ${alpha})`
-          : `rgba(255, 84, 190, ${alpha * 0.76})`;
-    context.beginPath();
-    context.arc(x, y, particle.size * (mode === "trip" ? 1.28 : 1), 0, Math.PI * 2);
-    context.fill();
-  }
-  context.restore();
-}
-
-function drawMeasurement(timestamp) {
-  if (!measurementFlash) return;
-  const age = (timestamp - measurementFlash.startedAt) / 1000;
-  const reduced = reducedMotion.matches;
-  const duration = reduced ? 0.65 : 2.2;
-  if (age > duration) {
-    measurementFlash = null;
-    elements.measurementLabel.classList.remove("is-visible");
-    return;
-  }
-
-  const x = measurementFlash.position * viewport.width;
-  const progress = Math.min(1, age / (reduced ? duration : 1.4));
-  const top = viewport.height * 0.14;
-  const bottom = Math.max(viewport.height * 0.67, viewport.height - 175);
-  const alpha = Math.max(0, 1 - progress);
-
-  context.save();
-  context.globalCompositeOperation = "screen";
-  if (!reduced) {
-    const beam = context.createLinearGradient(x - 30, 0, x + 30, 0);
-    beam.addColorStop(0, "rgba(100, 240, 255, 0)");
-    beam.addColorStop(0.5, `rgba(117, 246, 255, ${alpha * 0.5})`);
-    beam.addColorStop(1, "rgba(100, 240, 255, 0)");
-    context.fillStyle = beam;
-    context.fillRect(x - 30, top, 60, bottom - top);
-  }
-
-  context.strokeStyle = `rgba(177, 249, 255, ${alpha * (reduced ? 0.34 : 0.8)})`;
-  context.lineWidth = 1;
-  context.beginPath();
-  context.moveTo(x, top);
-  context.lineTo(x, bottom);
-  context.stroke();
-
-  if (!reduced) {
-    context.beginPath();
-    context.arc(x, viewport.height * 0.42, 18 + progress * 96, 0, Math.PI * 2);
-    context.strokeStyle = `rgba(190, 136, 255, ${alpha * 0.7})`;
-    context.stroke();
-  }
-  context.restore();
-}
-
-function updateReadouts(field) {
-  elements.seed.textContent = state.seedLabel;
-  elements.stateIndex.textContent = String(stateCounter).padStart(2, "0");
-  elements.transmission.textContent = field.transmission.toFixed(3);
-  elements.norm.textContent = field.norm.toFixed(3);
-  elements.entropy.textContent = field.entropy.toFixed(3);
-  elements.barrierPhase.textContent =
-    state.energy < state.barrierHeight ? "SUB-THRESHOLD" : "ABOVE-THRESHOLD";
-}
-
-function render(timestamp, forceClear = false) {
-  const minimumFrameInterval = reducedMotion.matches ? 1000 / 15 : 1000 / 60;
-  if (!forceClear && timestamp - lastRenderedAt < minimumFrameInterval) {
-    animationFrame = requestAnimationFrame(render);
-    return;
-  }
-
-  const elapsed = Math.min(0.05, Math.max(0, (timestamp - lastTimestamp) / 1000));
-  lastTimestamp = timestamp;
-  lastRenderedAt = timestamp;
-  if (running) clock += elapsed;
-
-  lastField = sampleProbabilityField(state, clock, fieldDimensions());
-  drawField(lastField, forceClear);
-  drawRibbons(lastField);
-  drawBarrier(lastField);
-  drawParticles(lastField);
-  drawMeasurement(timestamp);
-  updateReadouts(lastField);
-
-  if (timestamp - frameEventAt >= 100) {
-    frameEventAt = timestamp;
-    publish("frame", {
-      ...currentSnapshot(),
-      field: Object.freeze({
-        norm: lastField.norm,
-        entropy: lastField.entropy,
-        maximum: lastField.maximum,
-      }),
-    });
-  }
-
-  if (running || measurementFlash) {
-    animationFrame = requestAnimationFrame(render);
-  } else {
-    animationFrame = 0;
-  }
-}
-
-function restartRender() {
-  cancelAnimationFrame(animationFrame);
-  animationFrame = requestAnimationFrame((timestamp) => render(timestamp, true));
-}
-
-function syncControls() {
-  elements.energy.value = state.energy;
-  elements.barrier.value = state.barrierHeight;
-  elements.coherence.value = state.coherence;
-  elements.exposure.value = state.exposure;
-  elements.energyOutput.value = state.energy.toFixed(2);
-  elements.barrierOutput.value = state.barrierHeight.toFixed(2);
-  elements.coherenceOutput.value = `${Math.round(state.coherence * 100)}%`;
-  elements.exposureOutput.value = state.exposure.toFixed(2);
-}
-
-function setMode(nextMode) {
-  mode = nextMode === "trip" ? "trip" : "lab";
-  document.body.dataset.mode = mode;
-  document.querySelectorAll(".mode-button").forEach((button) => {
-    const active = button.dataset.mode === mode;
-    button.classList.toggle("is-active", active);
-    button.setAttribute("aria-pressed", String(active));
-  });
-  elements.announcer.textContent = `${mode.toUpperCase()} mode`;
-  publish("mode", currentSnapshot());
-  restartRender();
-}
-
-function setPreset(name) {
-  const preset = PRESETS[name];
-  if (!preset) return;
-  presetName = name;
-  state = updateFieldState(state, {
-    ...preset,
-    collapseCenter: null,
-    collapsedAt: null,
-  });
-  document.querySelectorAll(".preset").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.preset === name);
-  });
-  syncControls();
-  elements.announcer.textContent = `${preset.label} field loaded`;
-  publish("state", currentSnapshot());
-  restartRender();
-}
-
-function updateControl(control) {
-  const value = Number(control.value);
-  const changes =
-    control.id === "energy"
-      ? { energy: value }
-      : control.id === "barrier"
-        ? { barrierHeight: value }
-        : control.id === "coherence"
-          ? { coherence: value }
-          : { exposure: value };
-  state = updateFieldState(state, changes);
-  presetName = "custom";
-  document.querySelectorAll(".preset").forEach((button) => button.classList.remove("is-active"));
-  syncControls();
-  publish("controls", currentSnapshot());
-  restartRender();
-}
-
-function setRunning(nextRunning) {
-  running = Boolean(nextRunning);
-  elements.runLabel.textContent = running ? "PAUSE" : "RUN";
-  elements.runIcon.classList.toggle("pause-icon", running);
-  elements.runIcon.classList.toggle("play-icon", !running);
-  elements.transportLabel.textContent = running ? "FIELD RUNNING" : "FIELD PAUSED";
-  elements.statusLight.classList.toggle("is-paused", !running);
-  elements.runButton.setAttribute("aria-label", running ? "Pause field" : "Run field");
-  elements.announcer.textContent = running ? "Field running" : "Field paused";
-  publish("transport", currentSnapshot());
-  restartRender();
-}
-
-function measure() {
-  const result = measurePosition(state, clock, state.collapseNonce + 1);
-  state = collapseFieldState(state, result);
-  measurementFlash = {
-    position: result.position,
-    startedAt: performance.now(),
-  };
-  elements.measurementValue.textContent = `u = ${result.position.toFixed(3)}`;
-  elements.measurementLabel.style.left = `${result.position * 100}%`;
-  elements.measurementLabel.classList.add("is-visible");
-  elements.announcer.textContent = `Measurement collapsed at position ${result.position.toFixed(3)}`;
-  publish("measure", {
-    ...currentSnapshot(),
-    measurement: result,
-  });
-  restartRender();
-}
-
-function newState() {
-  stateCounter += 1;
-  const seed = generateSeed();
-  const controls = {
-    energy: state.energy,
-    barrierHeight: state.barrierHeight,
-    coherence: state.coherence,
-    exposure: state.exposure,
-  };
-  state = createFieldState(seed, controls);
-  presetName = "custom";
-  particles = createParticleDescriptors(seed);
-  clock = 0;
-  measurementFlash = null;
-  document.querySelectorAll(".preset").forEach((button) => button.classList.remove("is-active"));
-  elements.measurementLabel.classList.remove("is-visible");
+function updateSeed(seed) {
+  seedReadout.textContent = formatSeed(seed);
   const url = new URL(window.location.href);
-  url.searchParams.set("seed", seed);
+  url.searchParams.set("seed", (seed >>> 0).toString(16).padStart(8, "0"));
   window.history.replaceState(null, "", url);
-  elements.announcer.textContent = `New deterministic state ${state.seedLabel}`;
-  publish("state", currentSnapshot());
-  restartRender();
 }
 
-document.querySelectorAll(".mode-button").forEach((button) => {
-  button.addEventListener("click", () => setMode(button.dataset.mode));
-});
+function selectTarget(buttons, attribute, value) {
+  for (const button of buttons) {
+    const active = button.dataset[attribute] === value;
+    button.setAttribute("aria-pressed", String(active));
+  }
+}
 
-document.querySelectorAll(".preset").forEach((button) => {
-  button.addEventListener("click", () => setPreset(button.dataset.preset));
-});
+function describeIntent(event) {
+  if (event.immediate) {
+    transitionCopy.textContent = `${event.kind.toUpperCase()} SET · ${titleCase(event.active)}`;
+    transitionFill.style.width = "0%";
+    return;
+  }
+  const destination =
+    event.kind === "seed" ? formatSeed(event.seed) : titleCase(event.to);
+  transitionCopy.textContent = `QUEUED ${destination} · BAR ${event.startBar + 1} · ${event.duration || 16} BARS`;
+  transitionFill.style.width = "0%";
+  liveRegion.textContent = `${event.kind} change queued for bar ${event.startBar + 1}`;
+}
 
-[elements.energy, elements.barrier, elements.coherence, elements.exposure].forEach((control) => {
-  control.addEventListener("input", () => updateControl(control));
-});
+function handleEngineEvent(event) {
+  if (event.type === "state") {
+    transportButton.querySelector(".transport-icon").textContent = event.running ? "■" : "▶";
+    transportButton.querySelector("strong").textContent = event.running
+      ? "STOP THE SET"
+      : "START THE SET";
+    const interrupted = !event.running && event.reason === "interrupted";
+    setStatus(
+      event.running
+        ? "RUNNING — CONTINUOUS SET"
+        : interrupted
+          ? "PAUSED BY BROWSER — TAP START"
+          : "READY — TAP START",
+      interrupted ? "error" : event.running ? "running" : "idle",
+      true,
+    );
+    if (!event.running) sectionReadout.textContent = "DORMANT";
+  }
 
-elements.runButton.addEventListener("click", () => setRunning(!running));
-document.querySelector("#measure").addEventListener("click", measure);
-document.querySelector("#new-state").addEventListener("click", newState);
+  if (event.type === "error") {
+    setStatus(event.message.toUpperCase(), "error", true);
+  }
+
+  if (event.type === "intent") describeIntent(event);
+
+  if (event.type === "seed") {
+    updateSeed(event.seed);
+    visualState.seedFlash = 1;
+    transitionCopy.textContent = "NEW MUSICAL DNA ENTERED THE MIX";
+    transitionFill.style.width = "0%";
+    liveRegion.textContent = `New trajectory ${formatSeed(event.seed)} entered at bar ${event.bar + 1}`;
+  }
+
+  if (event.type === "step") {
+    visualState.kick = Math.max(visualState.kick, event.kick);
+    visualState.bass = Math.max(visualState.bass, event.bass);
+    visualState.hat = Math.max(visualState.hat, event.hat);
+    visualState.chord = Math.max(visualState.chord, event.chord);
+    visualState.energy = event.energy;
+    visualState.bar = event.bar;
+    visualState.step = event.step;
+    visualState.movement = event.movement;
+    visualState.sectionProgress = event.sectionProgress;
+    visualState.transitionProgress = event.transition?.progress || 0;
+
+    if (event.step === 0) {
+      const vibe = profileForVibe(event.vibe);
+      nowVibe.textContent = vibe.label.toUpperCase();
+      sectionReadout.textContent = event.section;
+      keyReadout.textContent = `${event.root} · ${event.mode.toUpperCase()}`;
+      bpmReadout.textContent = event.bpm.toFixed(1);
+      barReadout.textContent = String(event.bar + 1).padStart(5, "0");
+      if (event.transition) {
+        const progress = Math.round(event.transition.progress * 100);
+        transitionCopy.textContent = `DRIFTING TOWARD ${titleCase(event.transition.to).toUpperCase()} · ${progress}%`;
+        transitionFill.style.width = `${progress}%`;
+      } else {
+        transitionCopy.textContent = `${event.section} · MOVEMENT ${String(event.movement + 1).padStart(2, "0")} · SELF-GENERATING`;
+        transitionFill.style.width = `${Math.round(event.sectionProgress * 100)}%`;
+      }
+    }
+  }
+}
+
+async function toggleTransport() {
+  if (uiBusy) return;
+  uiBusy = true;
+  transportButton.disabled = true;
+  transportButton.setAttribute("aria-busy", "true");
+  try {
+    if (engine.running) {
+      engine.stop();
+    } else {
+      setStatus("STARTING AUDIO…");
+      await engine.start();
+    }
+  } catch (error) {
+    setStatus(error?.message?.toUpperCase() || "AUDIO COULD NOT START", "error", true);
+  } finally {
+    uiBusy = false;
+    transportButton.disabled = false;
+    transportButton.setAttribute("aria-busy", "false");
+  }
+}
+
+transportButton.addEventListener("click", toggleTransport);
+trajectoryButton.addEventListener("click", () => engine.requestNewTrajectory());
+
+for (const button of vibeButtons) {
+  button.addEventListener("click", () => {
+    targetVibe = button.dataset.vibe;
+    selectTarget(vibeButtons, "vibe", targetVibe);
+    engine.requestVibe(targetVibe);
+  });
+}
+
+for (const button of tonalityButtons) {
+  button.addEventListener("click", () => {
+    targetTonality = button.dataset.tonality;
+    selectTarget(tonalityButtons, "tonality", targetTonality);
+    engine.requestTonality(targetTonality);
+  });
+}
 
 document.addEventListener("keydown", (event) => {
-  if (event.repeat || event.isComposing || event.altKey || event.ctrlKey || event.metaKey) {
-    return;
-  }
+  if (event.repeat) return;
   const interactive = Boolean(
     event.target?.closest?.(
       "button, input, textarea, select, summary, a, [contenteditable='true']",
     ),
   );
-  if (interactive) return;
-
-  if (event.code === "Space") {
+  if (event.code === "Space" && !interactive) {
     event.preventDefault();
-    setRunning(!running);
-  } else if (event.key.toLowerCase() === "m") {
-    measure();
-  } else if (event.key.toLowerCase() === "n") {
-    newState();
-  } else if (event.key.toLowerCase() === "l") {
-    setMode("lab");
-  } else if (event.key.toLowerCase() === "t") {
-    setMode("trip");
-  } else if (/^[1-4]$/.test(event.key)) {
-    setPreset(Object.keys(PRESETS)[Number(event.key) - 1]);
+    toggleTransport();
+  }
+  if (event.key.toLowerCase() === "n" && !interactive) {
+    event.preventDefault();
+    engine.requestNewTrajectory();
   }
 });
 
-canvas.addEventListener("dblclick", (event) => {
-  const bounds = canvas.getBoundingClientRect();
-  const position = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
-  const result = { position, time: clock, nonce: state.collapseNonce + 1 };
-  state = collapseFieldState(state, result);
-  measurementFlash = { position, startedAt: performance.now() };
-  elements.measurementValue.textContent = `u = ${position.toFixed(3)}`;
-  elements.measurementLabel.style.left = `${position * 100}%`;
-  elements.measurementLabel.classList.add("is-visible");
-  elements.announcer.textContent = `Direct measurement at position ${position.toFixed(3)}`;
-  publish("measure", { ...currentSnapshot(), measurement: result });
-  restartRender();
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && engine.running && engine.ctx?.state !== "running") {
+    engine.stop("interrupted");
+  }
 });
 
-let resizeObserver = null;
-if ("ResizeObserver" in window) {
-  resizeObserver = new window.ResizeObserver(resize);
-  resizeObserver.observe(canvas);
+window.addEventListener("pagehide", () => engine.stop());
+
+window.QuantumTechno = Object.freeze({
+  version: GENERATOR_VERSION,
+  getSnapshot: () => engine.getSnapshot(),
+  requestVibe: (vibe) => engine.requestVibe(vibe),
+  requestTonality: (tonality) => engine.requestTonality(tonality),
+});
+
+updateSeed(engine.seed);
+bpmReadout.textContent = engine.currentTempo.toFixed(1);
+
+const canvas = document.querySelector("#quantum-contour");
+const canvasContext = canvas?.getContext?.("2d", { alpha: false }) || null;
+const spectrum = new Uint8Array(512);
+const reducedMotion = window.matchMedia
+  ? window.matchMedia("(prefers-reduced-motion: reduce)")
+  : { matches: false };
+let canvasWidth = 0;
+let canvasHeight = 0;
+let lastFrame = performance.now();
+let renderHandle = null;
+let renderTimer = null;
+
+function resizeCanvas() {
+  if (!canvas || !canvasContext) return;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  canvasContext.setTransform(dpr, 0, 0, dpr, 0, 0);
+  canvasWidth = rect.width;
+  canvasHeight = rect.height;
+}
+
+function drawBackdrop(context, width, height, time) {
+  const gradient = context.createRadialGradient(
+    width * 0.69,
+    height * 0.38,
+    10,
+    width * 0.69,
+    height * 0.38,
+    Math.max(width, height) * 0.72,
+  );
+  gradient.addColorStop(0, `rgba(91, 55, 170, ${0.15 + visualState.chord * 0.13})`);
+  gradient.addColorStop(0.36, "rgba(26, 15, 48, 0.16)");
+  gradient.addColorStop(1, "#070609");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
+
+  context.save();
+  context.globalAlpha = 0.16;
+  context.strokeStyle = "#8b79bb";
+  context.lineWidth = 1;
+  const cell = Math.max(48, Math.min(width, height) / 11);
+  const drift = reducedMotion.matches ? 0 : (time * 3.5) % cell;
+  for (let x = -cell + drift; x < width + cell; x += cell) {
+    context.beginPath();
+    context.moveTo(x, 0);
+    context.lineTo(x, height);
+    context.stroke();
+  }
+  for (let y = 0; y < height; y += cell) {
+    context.beginPath();
+    context.moveTo(0, y);
+    context.lineTo(width, y);
+    context.stroke();
+  }
+  context.restore();
+}
+
+function drawProbabilityContours(context, width, height, time, running) {
+  const left = width * 0.08;
+  const right = width * 0.96;
+  const span = right - left;
+  const center = height * 0.42;
+  const points = Math.max(72, Math.min(180, Math.floor(width / 8)));
+  const motion = reducedMotion.matches ? 0 : 1;
+  const contourCount = width < 700 ? 5 : 8;
+
+  context.save();
+  context.globalCompositeOperation = "screen";
+  for (let layer = 0; layer < contourCount; layer += 1) {
+    const offset = (layer - (contourCount - 1) / 2) * (9 + visualState.energy * 5);
+    context.beginPath();
+    for (let index = 0; index <= points; index += 1) {
+      const ratio = index / points;
+      const bin = spectrum[(index * 2 + visualState.bar * 3 + layer * 11) % 280] / 255;
+      const packet =
+        Math.exp(-((ratio - 0.55) ** 2) / (0.06 + visualState.energy * 0.07)) *
+        (34 + visualState.energy * 82);
+      const interference =
+        Math.sin(ratio * Math.PI * (9 + (visualState.bar % 7)) + time * 0.6 * motion + layer) *
+        (7 + bin * 21) *
+        motion;
+      const bassPull = visualState.bass * Math.sin(ratio * Math.PI * 3) * 18;
+      const kickLift = visualState.kick * packet * 0.23;
+      const seedRipple =
+        visualState.seedFlash * Math.sin(ratio * Math.PI * 28) * 19;
+      const x = left + ratio * span;
+      const y =
+        center +
+        offset +
+        interference +
+        bassPull -
+        packet * (0.18 + layer * 0.025) -
+        kickLift +
+        seedRipple;
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    }
+    const alpha = running ? 0.11 + layer * 0.025 + visualState.hat * 0.12 : 0.055;
+    context.strokeStyle =
+      layer % 3 === 0
+        ? `rgba(213,255,63,${alpha * 0.78})`
+        : layer % 2
+          ? `rgba(100,233,226,${alpha})`
+          : `rgba(154,124,255,${alpha * 1.24})`;
+    context.lineWidth = layer === Math.floor(contourCount / 2) ? 1.7 : 0.8;
+    context.shadowColor = layer % 2 ? "rgba(100,233,226,.25)" : "rgba(154,124,255,.3)";
+    context.shadowBlur = running ? 8 + visualState.kick * 16 : 0;
+    context.stroke();
+  }
+  context.restore();
+
+  const playheadX = left + (visualState.step / 15) * span;
+  context.save();
+  context.strokeStyle = `rgba(213,255,63,${running ? 0.22 + visualState.kick * 0.42 : 0.08})`;
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(playheadX, height * 0.19);
+  context.lineTo(playheadX, height * 0.68);
+  context.stroke();
+  context.fillStyle = "rgba(213,255,63,.7)";
+  context.fillRect(playheadX - 1, height * 0.68, 2, 14);
+  context.restore();
+}
+
+function render(now) {
+  if (!canvasContext) return;
+  const delta = Math.min(0.05, (now - lastFrame) / 1000);
+  lastFrame = now;
+  const running = engine.fillSpectrum(spectrum);
+  const context = canvasContext;
+  const time = now / 1000;
+  drawBackdrop(context, canvasWidth, canvasHeight, time);
+  drawProbabilityContours(context, canvasWidth, canvasHeight, time, running);
+
+  visualState.kick *= Math.exp(-delta * 8.8);
+  visualState.bass *= Math.exp(-delta * 5.8);
+  visualState.hat *= Math.exp(-delta * 13);
+  visualState.chord *= Math.exp(-delta * 2.4);
+  visualState.seedFlash *= Math.exp(-delta * 3.2);
+  if (engine.running && !reducedMotion.matches) {
+    renderHandle = window.requestAnimationFrame(render);
+  } else {
+    renderTimer = window.setTimeout(
+      () => {
+        renderTimer = null;
+        renderHandle = window.requestAnimationFrame(render);
+      },
+      engine.running ? 100 : 420,
+    );
+  }
+}
+
+if (canvasContext) {
+  if ("ResizeObserver" in window) {
+    const observer = new ResizeObserver(resizeCanvas);
+    observer.observe(canvas);
+  } else {
+    window.addEventListener("resize", resizeCanvas);
+  }
+  resizeCanvas();
+  renderHandle = window.requestAnimationFrame(render);
 } else {
-  window.addEventListener("resize", resize);
+  setStatus("VISUAL CONTOUR UNAVAILABLE — AUDIO CAN STILL RUN", "error");
 }
 
-const handleMotionChange = () => restartRender();
-if (typeof reducedMotion.addEventListener === "function") {
-  reducedMotion.addEventListener("change", handleMotionChange);
-} else {
-  reducedMotion.addListener?.(handleMotionChange);
-}
-
-function handlePageHide(event) {
-  cancelAnimationFrame(animationFrame);
-  animationFrame = 0;
-  if (event.persisted) return;
-  resizeObserver?.disconnect();
-  window.removeEventListener("resize", resize);
-  reducedMotion.removeEventListener?.("change", handleMotionChange);
-  reducedMotion.removeListener?.(handleMotionChange);
-  window.removeEventListener("pageshow", handlePageShow);
-}
-
-function handlePageShow(event) {
-  if (!event.persisted) return;
-  lastTimestamp = performance.now();
-  resize();
-}
-
-window.addEventListener("pagehide", handlePageHide);
-window.addEventListener("pageshow", handlePageShow);
-syncControls();
-resize();
-publish("ready", currentSnapshot());
+window.addEventListener("pagehide", () => {
+  if (renderHandle) window.cancelAnimationFrame(renderHandle);
+  if (renderTimer) window.clearTimeout(renderTimer);
+});

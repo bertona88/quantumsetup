@@ -5,9 +5,9 @@
   "name": "QuantumSetup",
   "domain": "quantumsetup.ai",
   "url": "https://quantumsetup.ai/",
-  "field": "Quantum systems",
-  "status": "preliminary-wrapper",
-  "rebuild": "from-scratch",
+  "field": "Generative music / techno",
+  "status": "audio-first-generative-instrument",
+  "rebuild": "canonical-audio-generator-expanded",
   "plannedInteroperability": true,
   "interfaceContract": null,
   "greenfieldContracts": {
@@ -17,9 +17,17 @@
     "claimsAndValidation": "CLAIMS_AND_VALIDATION.md",
     "acceptance": "ACCEPTANCE_TESTS.md"
   },
-  "firstAcceptedSlice": "Build one wavepacket-and-barrier experiment with an inspectable Hamiltonian, normalized state evolution, measurement controls, and probability-accounting tests.",
-  "ownershipBoundary": "QuantumSetup owns explicitly quantum state evolution; OpticalSetup and PicSetup own their classical instrument/network models; MolecularSetup owns classical molecular/material response unless a reviewed quantum interface is defined.",
-  "claimGate": "Hilbert-space truncation, Hamiltonian, boundary conditions, solver error, and open-system assumptions must be explicit; no hardware-fidelity or experimental-calibration claim is allowed by default.",
+  "firstAcceptedSlice": "Run one endless, audio-first techno set with phrase-aware long-form arrangement, locally synthesized voices, slow high-level direction changes, and an explicitly artistic quantum contour.",
+  "ownershipBoundary": "QuantumSetup owns its musical planner, Web Audio engine, single-page music interface, and artistic contour. It claims no scientific quantum model or cross-setup interface.",
+  "claimGate": "Do not claim uninterrupted playback through suspension, proven professional-DJ equivalence, multi-day nonrepetition, quantum computation, quantum randomness, or physical sonification without separate evidence.",
+  "currentApp": {
+    "path": "app/",
+    "role": "production-audio-instrument",
+    "musicSystem": "MUSICAL_SYSTEM.md",
+    "generatorVersion": "1.0.0",
+    "audioFirst": true,
+    "quantumRole": "artistic-contour"
+  },
   "currentPrototype": {
     "status": "temporary-live-demo",
     "role": "reference-snapshot",

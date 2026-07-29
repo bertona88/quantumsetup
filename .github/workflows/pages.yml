@@ -1,4 +1,4 @@
-name: Deploy visual instrument to GitHub Pages
+name: Deploy Infinite Techno to GitHub Pages
 
 on:
   push:
@@ -28,13 +28,13 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Validate visual instrument
+      - name: Validate generative audio instrument
         run: npm --prefix app run check
 
       - name: Stage static site
         run: |
           mkdir _site
-          cp app/index.html app/styles.css app/main.js app/field-model.js _site/
+          cp app/index.html app/styles.css app/main.js app/audio-engine.js app/techno-model.js _site/
           cp prototype/robots.txt _site/robots.txt
 
       - name: Upload static site

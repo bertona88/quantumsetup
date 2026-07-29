@@ -1,13 +1,13 @@
 {
-  "name": "quantumsetup-visual-instrument",
-  "version": "0.2.0",
+  "name": "quantumsetup-infinite-techno",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "A deterministic, quantum-inspired probability field visual instrument.",
+  "description": "An endlessly evolving, audio-first procedural techno set.",
   "scripts": {
     "start": "python3 -m http.server 4173",
-    "test": "node --test field-model.test.mjs",
-    "check": "node --check field-model.js && node --check main.js && node --test field-model.test.mjs"
+    "test": "node --test techno-model.test.mjs",
+    "check": "node --check techno-model.js && node --check audio-engine.js && node --check main.js && node --test techno-model.test.mjs"
   },
   "engines": {
     "node": ">=18"
