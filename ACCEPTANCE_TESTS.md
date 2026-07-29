@@ -94,6 +94,13 @@ separate boundaries.
 - [x] deterministic model and syntax checks pass.
 - [x] foreground browser Start, live analyser contour, Vibe intent, tonal intent,
   transition progress, Stop, and console smoke pass.
-- [ ] production workflow succeeds for the candidate commit.
-- [ ] public assets match the tested candidate.
-- [ ] public Start, selector, and Stop smoke pass.
+- [x] production workflow succeeds for application commit `08bdb0e`.
+- [x] all six public assets match the tested candidate byte-for-byte.
+- [x] public Start, Vibe intent, tonal intent, transition progress, Stop, and
+  console smoke pass.
+
+Release evidence: GitHub Pages run
+[`30490978122`](https://github.com/bertona88/quantumsetup/actions/runs/30490978122)
+completed successfully on 2026-07-29. Cache-busted SHA-256 checks matched
+`index.html`, `styles.css`, `main.js`, `audio-engine.js`, `techno-model.js`, and
+`robots.txt` at `https://quantumsetup.ai/`.
