@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="QuantumSetup is a deterministic, quantum-inspired probability field visual instrument."
+    />
+    <meta name="theme-color" content="#06040d" />
+    <title>QuantumSetup — Qualitative Probability Field</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-mode="lab">
+    <main class="instrument" aria-labelledby="product-name">
+      <canvas id="field-canvas" aria-label="Animated quantum-inspired probability field">
+        A quantum-inspired probability field visualization.
+      </canvas>
+
+      <div class="grain" aria-hidden="true"></div>
+      <div class="vignette" aria-hidden="true"></div>
+
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="QuantumSetup home">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span>
+          </span>
+          <span class="brand-copy">
+            <strong id="product-name">QUANTUMSETUP</strong>
+            <small>QUALITATIVE · VISUAL ONLY</small>
+          </span>
+        </a>
+
+        <div class="mode-switch" role="group" aria-label="View mode">
+          <button class="mode-button is-active" type="button" data-mode="lab" aria-pressed="true">
+            LAB
+          </button>
+          <button class="mode-button" type="button" data-mode="trip" aria-pressed="false">
+            TRIP
+          </button>
+        </div>
+
+        <div class="engine-status" aria-label="Engine status">
+          <span class="status-light" aria-hidden="true"></span>
+          <span id="transport-label">FIELD RUNNING</span>
+          <span class="status-separator" aria-hidden="true"></span>
+          <span>VISUAL ONLY · AUDIO NEXT</span>
+        </div>
+      </header>
+
+      <section class="readout-panel" aria-label="Field readout">
+        <div class="eyebrow">
+          <span>STATE</span>
+          <span id="seed-readout">00000000</span>
+        </div>
+        <h1>PROBABILITY<br />FIELD <em id="state-index">01</em></h1>
+        <p class="readout-description">
+          Rectangular-barrier-inspired analytic field. Deterministic, normalized, and made for
+          future audiovisual mapping.
+        </p>
+
+        <dl class="metrics">
+          <div>
+            <dt>ANALYTIC T</dt>
+            <dd id="transmission-readout">0.000</dd>
+          </div>
+          <div>
+            <dt>CELL MASS SUM</dt>
+            <dd id="norm-readout">1.000</dd>
+          </div>
+          <div>
+            <dt>DISPLAY ENTROPY</dt>
+            <dd id="entropy-readout">0.000</dd>
+          </div>
+        </dl>
+      </section>
+
+      <aside class="barrier-readout" aria-label="Barrier position">
+        <span>BARRIER</span>
+        <strong>V<sub>0</sub></strong>
+        <small id="barrier-phase">SUB-THRESHOLD</small>
+      </aside>
+
+      <section class="probability-scale" aria-label="Discrete display-cell mass scale">
+        <span>LOW</span>
+        <i aria-hidden="true"></i>
+        <span>HIGH&nbsp; CELL MASS pᵢ</span>
+      </section>
+
+      <div class="measurement-label" id="measurement-label" aria-hidden="true">
+        <span>MEASUREMENT</span>
+        <strong id="measurement-value">u = 0.000</strong>
+      </div>
+
+      <section class="control-deck" aria-label="Quantum field controls">
+        <div class="preset-row" role="group" aria-label="Field presets">
+          <span class="deck-label">FIELD CONFIG</span>
+          <button class="preset is-active" type="button" data-preset="ghost">GHOST TUNNEL</button>
+          <button class="preset" type="button" data-preset="resonance">RESONANCE</button>
+          <button class="preset" type="button" data-preset="deep">DEEP BARRIER</button>
+          <button class="preset" type="button" data-preset="plasma">PLASMA</button>
+        </div>
+
+        <div class="deck-body">
+          <div class="controls-grid">
+            <label class="parameter">
+              <span>
+                <b>ENERGY</b>
+                <output id="energy-output" for="energy">0.48</output>
+              </span>
+              <input id="energy" type="range" min="0.08" max="1.20" value="0.48" step="0.01" />
+            </label>
+
+            <label class="parameter">
+              <span>
+                <b>BARRIER</b>
+                <output id="barrier-output" for="barrier">0.82</output>
+              </span>
+              <input id="barrier" type="range" min="0.10" max="1.20" value="0.82" step="0.01" />
+            </label>
+
+            <label class="parameter">
+              <span>
+                <b>COHERENCE</b>
+                <output id="coherence-output" for="coherence">92%</output>
+              </span>
+              <input id="coherence" type="range" min="0.05" max="1" value="0.92" step="0.01" />
+            </label>
+
+            <label class="parameter">
+              <span>
+                <b>EXPOSURE</b>
+                <output id="exposure-output" for="exposure">1.35</output>
+              </span>
+              <input id="exposure" type="range" min="0.55" max="2.00" value="1.35" step="0.01" />
+            </label>
+          </div>
+
+          <div class="transport" role="group" aria-label="Transport controls">
+            <button class="transport-button primary" id="toggle-run" type="button">
+              <span class="transport-icon pause-icon" aria-hidden="true"></span>
+              <span id="toggle-run-label">PAUSE</span>
+              <kbd>SPACE</kbd>
+            </button>
+            <button class="transport-button" id="measure" type="button">
+              <span class="transport-icon measure-icon" aria-hidden="true"></span>
+              <span>MEASURE</span>
+              <kbd>M</kbd>
+            </button>
+            <button class="transport-button" id="new-state" type="button">
+              <span class="transport-icon new-icon" aria-hidden="true"></span>
+              <span>NEW STATE</span>
+              <kbd>N</kbd>
+            </button>
+          </div>
+        </div>
+
+        <footer class="deck-footer">
+          <p>
+            QUALITATIVE VISUAL PROTOTYPE
+            <span aria-hidden="true">/</span>
+            NOT A SCHRÖDINGER SOLVER · NO AUDIO IN THIS BUILD
+          </p>
+          <p class="hint"><kbd>1–4</kbd> PRESETS <kbd>L</kbd> LAB <kbd>T</kbd> TRIP</p>
+        </footer>
+      </section>
+
+      <div class="sr-only" id="announcer" aria-live="polite"></div>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
