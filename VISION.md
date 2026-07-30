@@ -42,7 +42,7 @@ choice.
 
 ## Current architecture
 
-The `1.4.0` candidate advances deterministic state every eight bars. Energy,
+The `1.5.0` candidate advances deterministic state every eight bars. Energy,
 tension, floor trust, fatigue, motif salience, causal debts, and cooldowns decide
 what can happen next. Adjacent phrases with the same derived label are grouped into
 section readouts, which may exceed 32 bars. Those labels and run-length sections
@@ -63,9 +63,18 @@ already authorized. There is no periodic or round-robin synth mutation. A
 hardware-clock lookahead scheduler renders the result through separate kick, bass,
 rumble, and music buses plus the bounded shared master graph.
 
+Each trajectory also owns an eleven-domain Track DNA that establishes its groove,
+kick and percussion architecture, bass behavior and voice bias, harmonic behavior,
+foreground engine and role, spectral/spatial profile, and form phenotype. A New
+Trajectory request evaluates sixteen deterministic candidates and enters only an
+eligible macro-distinct one at the musical boundary; if none qualifies, the current
+trajectory continues. A Vibe request still morphs over 64–128 bars and does not
+replace that DNA, but it now has structural consequences within its bounds.
+
 Deterministic candidate tests can establish state bounds, causality, reachability,
-and routing contracts. They do not prove multi-day performance, deployed-browser
-behavior, or professional-DJ subjective quality.
+recorded structural distance, and routing contracts. They do not prove arbitrary
+pairwise audible uniqueness, multi-day performance, deployed-browser behavior, or
+professional-DJ subjective quality.
 
 ## Next quality frontier
 

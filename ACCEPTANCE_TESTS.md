@@ -1,6 +1,6 @@
 # Acceptance Tests
 
-Current gate: Infinite Techno `1.4.0` emergent-form and low-end candidate
+Current gate: Infinite Techno `1.5.0` trajectory-diversity candidate
 
 Passing one gate does not imply another. Deterministic structure, audible browser
 output, long-run reliability, musical quality, deployment, and public acceptance are
@@ -71,8 +71,22 @@ separate boundaries.
 - [x] independent kick-family morphs require earned release or floor recommit,
   respect a 24-phrase cooldown, retain the prior family at morph start, and reach
   the new bounded physical family by the end of the phrase.
-- [x] a fixed two-seed, five-Vibe scan selects all 208 base architectures into
-  note-bearing lanes and reaches more than 170 active parameter genomes.
+- [x] a fixed synthetic two-seed, five-Vibe motif-event scan constructs all 208
+  base architectures, selects at least 200 through the causally authorized
+  handoff-candidate path, and reaches more than 170 candidate parameter genomes.
+- [x] Track DNA is deterministic, flat, frozen, and reaches every curated value in
+  all 11 macro-phenotype fields with a balanced 8,192-seed scan.
+- [x] bounded trajectory-candidate selection is deterministic, order-independent,
+  rejects cosmetic-only candidates, and requires weighted DNA distance of at least
+  `0.55`, five changed fields, and three changed core fields when it returns a
+  candidate.
+- [x] all 78 pairs in a fixed 13-seed manifest of 192-bar trajectory windows reach
+  composite distance of at least `0.12` and separate in at least four of six
+  downstream musical domains.
+- [x] all ten settled Vibe pairs for one fixed seed pass the same 192-bar
+  downstream-window gate.
+- [x] changing only seed, Vibe, and tonality metadata while retaining identical
+  downstream summaries produces zero trajectory distance.
 - [x] all six curated ensemble scenes are deterministic, reachable, and stable for
   causal recurrent-state and lineage residency, independent of display-label RLE.
 - [x] motif recall restores archived motif/bass material; scene material remains
@@ -112,8 +126,11 @@ separate boundaries.
   back to the old source profile.
 - [x] tempo target changes are capped at 0.12 BPM per bar.
 - [x] Major ↔ Minor passes through Neutral instead of pitch-ramping a third.
-- [x] New Trajectory enters at a 16-bar seed-change boundary and regenerates
-  noise/reverb identity without creating a periodic synth-mutation clock.
+- [x] New Trajectory evaluates a bounded 16-candidate macro-phenotype pool, enters
+  at a 16-bar seed-change boundary, and regenerates noise/reverb plus seed-bound
+  synthesis and ensemble identity without creating a periodic mutation clock.
+- [x] a candidate pool with no DNA-eligible result leaves the current trajectory
+  unchanged instead of entering an unqualified fallback seed.
 
 ## Gate 3 — Audio graph and scheduler
 
@@ -134,6 +151,9 @@ separate boundaries.
   with a short discontinuity guard, and clean all-notes-off.
 - [x] recovered advanced-note scheduling preserves a small positive worklet message
   lead instead of posting a note into the past after a main-thread stall.
+- [x] a running trajectory boundary sends advanced all-notes-off, clears resident
+  synthesis, ensemble, instrument-profile, and genome-definition state, then
+  reconstructs those identities from the new seed.
 - [x] delay and rumble feedback remain below documented caps.
 - [x] per-note bass distortion curves are cached rather than allocated repeatedly.
 - [x] kick distortion curves are cached and phrase-level rumble send, cutoff, and
@@ -142,12 +162,17 @@ separate boundaries.
   releases are serialized; a replacement context is not constructed before the
   prior context closes.
 - [ ] `OfflineAudioContext` peak/RMS/DC/discontinuity report is attached.
+- [ ] loudness-matched full-mix and stem renders pass spectral, rhythmic, tonal,
+  dynamic-form, and duplicate/nearest-neighbour comparisons across the fixed
+  trajectory manifest.
 - [ ] 30–60-minute named-device foreground soak is attached.
 
 ## Gate 4 — Sound palette
 
 - [x] synthetic kick, clap, hat, open hat, shaker, ride, rim, tom, and metallic
   percussion exist.
+- [x] five percussion kits emit numeric hat and clap envelope, burst-topology, and
+  effect-send controls which the audio voices consume within bounded clamps.
 - [x] acid, sub, and pulse bass families exist.
 - [x] a deterministic two-bar bass lineage can hold, mutate, be replaced while
   archiving its predecessor, and later be recalled.
@@ -166,6 +191,8 @@ separate boundaries.
   cast to the smallest authorized foreground statement.
 - [x] eight-bar risers and four-bar downlifters are arrangement events.
 - [ ] multi-hour listening review rates each Vibe/Tonality combination.
+- [ ] blinded same/different or ABX review passes for the automatically selected
+  closest trajectory pairs after loudness matching.
 - [ ] bounded recurrence ledger prevents excessive multi-day phrase similarity.
 
 ## Gate 5 — Single audio-first interface
@@ -212,6 +239,28 @@ separate boundaries.
   literal opinions, and imitation; artist names do not appear in the public controls.
 
 ## Gate 7 — Candidate and release
+
+- [x] the complete `1.5.0` deterministic planner, trajectory-DNA, downstream
+  diversity, runtime-boundary, DSP, worklet, and syntax check result is recorded.
+- [x] `1.5.0` local foreground browser Start/Stop and four-seed state-divergence
+  smoke is attached.
+- [ ] `1.5.0` rendered or sequential audible comparison smoke is attached.
+- [ ] `1.5.0` long listening review is attached.
+- [ ] `1.5.0` production workflow succeeds and public assets match the tested
+  candidate.
+
+The `1.4.0` results below are historical release evidence and do not establish
+acceptance or deployment of `1.5.0`.
+
+Local `1.5.0` deterministic evidence: all 99 planner, emergent-form distribution,
+Track-DNA selection and rejection, 192-bar downstream diversity, causal handoff,
+low-end, council, lifecycle, taste/deck/preview, DSP, worklet, and runtime
+trajectory-boundary tests passed together with syntax checks. This is deterministic
+and renderer-unit evidence. Local accelerated browser probes for adjacent seeds
+`01`–`04` all started and stopped without browser warnings or errors and exposed
+different tempos, ensemble casts, bass families, tonal fields, and form states at
+bars 6–17. Browser state divergence is not a full-mix comparison, listening result,
+deployment, or public acceptance.
 
 - [x] the complete `1.4.0` deterministic model, emergent-form, low-end, council,
   lifecycle, taste/deck/preview, DSP, and syntax check result is recorded.

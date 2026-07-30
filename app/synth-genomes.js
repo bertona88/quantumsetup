@@ -374,9 +374,13 @@ function createModalGenome(
     .slice(0, modeCount)
     .map((ratio, index) =>
       round(
-        ratio *
-          (1 + inharmonicity * index * index * 0.045) *
-          (1 + stiffness * index * 0.006),
+        clamp(
+          ratio *
+            (1 + inharmonicity * index * index * 0.045) *
+            (1 + stiffness * index * 0.006),
+          0.9,
+          40,
+        ),
       ),
     );
   const hardnessFloor = exciter === "soft-mallet" ? 0.04 : exciter === "hard-mallet" ? 0.58 : 0.12;

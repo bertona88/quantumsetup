@@ -1,6 +1,6 @@
 # Interface Contract
 
-Implemented browser API: `window.QuantumTechno/1.4.0`
+Implemented browser API: `window.QuantumTechno/1.5.0`
 Scope: one audio-first generative techno instrument
 
 ## One-surface rule
@@ -43,8 +43,10 @@ While running:
 - its profile morph lasts 64, 96, or 128 bars;
 - a Major ↔ Minor request lasts 96 bars and passes through Neutral;
 - Neutral transitions last 64 bars;
-- New Trajectory enters at the next 16-bar seed-change boundary; that boundary is
-  not a synth-mutation schedule;
+- New Trajectory evaluates a bounded pool of sixteen deterministic Track-DNA
+  candidates and enters an eligible macro-distinct seed at the next 16-bar
+  seed-change boundary; if no candidate qualifies, the request is rejected and the
+  current trajectory continues. That boundary is not a synth-mutation schedule;
 - UI selection identifies the destination while `NOW` continues to identify the
   currently dominant state.
 
@@ -76,8 +78,8 @@ replacement or the 192-bar observation index. Public label-residency progress
 continues across that observation boundary. Council chairing emerges from
 competing state-dependent lens scores. It
 normally exposes one advanced voice, may expose none for intentional rest, and
-admits a second only for a developed climax or recalled lineage. It never exposes
-all three together.
+admits a second only when the current phenotype and recurrent phrase state justify
+dialogue. It never exposes all three together.
 
 Kick policy, independent kick-family lineage and phrase morph, bass lineage,
 physical kick parameters, bus gains, duck depths, and rumble settings remain
@@ -104,7 +106,7 @@ After startup:
 
 ```js
 window.QuantumTechno = Object.freeze({
-  version: "1.4.0",
+  version: "1.5.0",
   getSnapshot,
   requestVibe,
   requestTonality,

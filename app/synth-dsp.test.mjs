@@ -44,6 +44,11 @@ function signalDifference(first, second) {
   return difference;
 }
 
+function median(values) {
+  const sorted = [...values].sort((left, right) => left - right);
+  return sorted[Math.floor((sorted.length - 1) / 2)];
+}
+
 test("all three DSP engines render finite, bounded, non-silent audio", () => {
   for (const sampleRate of [44100, 48000, 96000]) {
     for (const [index, engine] of ["fm", "modal", "string"].entries()) {
@@ -77,6 +82,55 @@ test("all three DSP engines render finite, bounded, non-silent audio", () => {
       );
     }
   }
+});
+
+test("advanced engines have bounded and comparable representative foreground peaks", () => {
+  const peaks = {
+    fm: [],
+    modal: [],
+    string: [],
+  };
+  const vibes = ["hypnotic", "dub", "detroit", "acid", "peak"];
+  for (let seed = 0; seed < 32; seed += 1) {
+    const vibeId = vibes[seed % vibes.length];
+    const palette = createSynthPalette({
+      seed,
+      bar: seed * 8,
+      vibeId,
+      profile: profileForVibe(vibeId),
+    });
+    for (const engine of Object.keys(peaks)) {
+      const rendered = renderSynthNote(
+        {
+          engine,
+          genome: palette[engine],
+          midi: 60,
+          velocity: 0.66,
+          startFrame: 0,
+          durationFrames: 14400,
+          noteSeed: seed,
+        },
+        72000,
+        48000,
+      );
+      const stats = signalStats(rendered);
+      assert.ok(stats.peak > 0.001, `${engine} representative was silent`);
+      assert.ok(stats.peak < 0.5, `${engine} representative exceeded the peak bound`);
+      peaks[engine].push(stats.peak);
+    }
+  }
+
+  const medians = Object.fromEntries(
+    Object.entries(peaks).map(([engine, values]) => [engine, median(values)]),
+  );
+  assert.ok(
+    medians.string >= Math.min(medians.fm, medians.modal) * 0.75,
+    `string median peak ${medians.string} was materially below FM ${medians.fm} and modal ${medians.modal}`,
+  );
+  assert.ok(
+    medians.string <= Math.max(medians.fm, medians.modal) * 1.5,
+    `string median peak ${medians.string} exceeded FM ${medians.fm} and modal ${medians.modal}`,
+  );
 });
 
 test("all 208 structural forms render finite, bounded, non-silent audio", () => {

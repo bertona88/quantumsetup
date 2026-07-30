@@ -251,8 +251,16 @@ test("ensemble scenes are deterministic, phrase-stable, and causally handed off"
       }
       if (previousPlan) {
         if (firstPlan.form.sceneOperation === "handoff") {
-          assert.equal(firstPlan.form.motifOperation, "mutate");
+          assert.ok(
+            ["mutate", "replace", "recall"].includes(
+              firstPlan.form.motifOperation,
+            ),
+          );
           assert.ok(firstPlan.synthHandoff);
+          assert.equal(
+            firstPlan.synthHandoff.operation,
+            firstPlan.form.motifOperation,
+          );
           assert.notEqual(
             firstPlan.form.sceneMaterialId,
             previousPlan.form.sceneMaterialId,
@@ -547,10 +555,24 @@ test("the four-lens council enforces one idea, earned dialogue, and rare fills",
           section: plan.section,
           phraseIndex: plan.phraseIndex,
           roles: plan.ensembleScene.roles,
+          profile: plan.profile,
         }),
       );
       assert.ok(plan.activeSynthEngines.length <= 2);
-      if (!plan.form.earnedDialogue) {
+      const phenotypeDialogue =
+        ["call-response", "counterline"].includes(
+          plan.trackDNA.foregroundRole,
+        ) &&
+        plan.form.density > 0.42 &&
+        plan.form.space < 0.78;
+      const vibeDialogue =
+        ["detroit", "peak"].includes(plan.profile.id) &&
+        plan.form.density > 0.48;
+      if (
+        !plan.form.earnedDialogue &&
+        !phenotypeDialogue &&
+        !vibeDialogue
+      ) {
         assert.ok(plan.activeSynthEngines.length <= 1);
       }
       for (const engine of ["fm", "modal", "string"]) {

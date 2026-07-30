@@ -82,6 +82,20 @@ Kick, bass, rumble, and the remaining music have separate buses and independent
 ducking relationships. This is a local candidate boundary: deterministic checks do
 not establish long-listening quality, multi-day performance, or public deployment.
 
+The local `1.5.0` candidate adds a frozen, seed-derived Track DNA across eleven
+macro domains: groove, kick, percussion, bass behavior and voice, harmony,
+foreground engine and role, spectrum, space, and form phenotype. New Trajectory
+tests sixteen deterministic candidates and enters only one that crosses the
+recorded DNA-distance and changed-domain thresholds; otherwise the current
+trajectory continues. Vibe remains a slow intent morph, but now changes downstream
+rhythmic, harmonic, bass, foreground, and mix decisions instead of merely relabeling
+one shared arrangement.
+
+A fixed 192-bar planner gate currently separates all recorded seed and Vibe pairs
+across at least four of six downstream musical domains. This is structural
+candidate evidence, not proof of audible uniqueness, mix quality, or professional
+listening acceptance; rendered comparison and long listening remain separate gates.
+
 Read [MUSICAL_SYSTEM.md](./MUSICAL_SYSTEM.md) for the composition grammar and
 research basis, and [ARTISTIC_COUNCIL.md](./ARTISTIC_COUNCIL.md) for the editorial
 constitution.

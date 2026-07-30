@@ -20,6 +20,7 @@ import {
   normalizeTasteProfile,
   tasteFingerprint,
 } from "./taste-model.js";
+import { selectDistinctTrajectorySeed } from "./track-dna.js";
 import {
   formatTrajectoryId,
   freshTrajectoryId,
@@ -36,6 +37,7 @@ const BASS_BUS_LEVEL = 0.96;
 const RUMBLE_BUS_LEVEL = 0.92;
 const MUSIC_BUS_LEVEL = 1;
 const SYNTH_MESSAGE_LEAD_SECONDS = 0.05;
+const TRAJECTORY_CANDIDATE_COUNT = 16;
 
 function freshSeed() {
   return freshTrajectoryId(window.crypto);
@@ -291,20 +293,36 @@ export class InfiniteTechnoEngine {
   }
 
   requestNewTrajectory() {
-    const seed = freshSeed();
+    const candidates = Array.from(
+      { length: TRAJECTORY_CANDIDATE_COUNT },
+      () => freshSeed(),
+    );
+    const selection = selectDistinctTrajectorySeed(this.seed, candidates);
+    if (!selection) {
+      this.onEvent({
+        type: "trajectory-rejected",
+        reason: "insufficient-dna-distance",
+        candidateCount: candidates.length,
+      });
+      return false;
+    }
+    const seed = selection.seed;
     if (!this.running) {
-      this.applySeed(seed);
-      return;
+      this.applySeed(seed, selection);
+      return true;
     }
     const startBar = nextPhraseBoundary(this.bar, 16);
-    this.pendingSeed = { seed, startBar };
+    this.pendingSeed = { seed, startBar, selection };
     this.onEvent({
       type: "intent",
       kind: "seed",
       seed,
       startBar,
       immediate: false,
+      dnaDistance: selection?.distance ?? null,
+      changedDomains: selection?.changedDomains ?? null,
     });
+    return true;
   }
 
   setTasteProfile(profile) {
@@ -326,13 +344,22 @@ export class InfiniteTechnoEngine {
     });
   }
 
-  applySeed(seed) {
-    if (!this.running) {
-      this.runtimeSynthPalette = null;
-      this.runtimeSynthPhraseIndex = -1;
-      this.runtimeEnsembleRoles = null;
-      this.runtimeEnsemblePhraseIndex = -1;
+  applySeed(seed, selection = null) {
+    try {
+      if (this.synthBank && this.synthWorkletReady) {
+        this.synthBank.port.postMessage({ type: "all-notes-off" });
+      }
+    } catch (_) {
+      // A failed worklet must not prevent the trajectory boundary from landing.
     }
+    this.runtimeSynthPalette = null;
+    this.runtimeSynthPhraseIndex = -1;
+    this.runtimeEnsembleRoles = null;
+    this.runtimeEnsemblePhraseIndex = -1;
+    this.instrumentProfile = null;
+    this.instrumentProfilePhraseIndex = -1;
+    this.phraseInstrumentation = Object.freeze([]);
+    this.sentSynthGenomeIds.clear();
     this.seed = normalizeTrajectoryId(seed) ?? freshSeed();
     this.pendingSeed = null;
     this.planBar = -1;
@@ -342,7 +369,14 @@ export class InfiniteTechnoEngine {
       this.noiseBuffer = this.makeNoise(2, hash32(this.seed, 0x29));
       if (this.convolver) this.convolver.buffer = this.makeImpulse(2.6, hash32(this.seed, 0x71));
     }
-    this.onEvent({ type: "seed", seed: this.seed, bar: this.bar });
+    this.onEvent({
+      type: "seed",
+      seed: this.seed,
+      bar: this.bar,
+      identityReset: true,
+      dnaDistance: selection?.distance ?? null,
+      changedDomains: selection?.changedDomains ?? null,
+    });
   }
 
   resolveMusicalState(bar) {
@@ -924,7 +958,8 @@ export class InfiniteTechnoEngine {
 
   preparePlan(bar, state) {
     if (this.pendingSeed && bar >= this.pendingSeed.startBar) {
-      this.applySeed(this.pendingSeed.seed);
+      const pendingSeed = this.pendingSeed;
+      this.applySeed(pendingSeed.seed, pendingSeed.selection);
     }
     this.settleTransitions(bar);
     const settledState = this.resolveMusicalState(bar);
@@ -1150,13 +1185,32 @@ export class InfiniteTechnoEngine {
       this.duck(eventTime, plan.kick[step], plan.lowEnd);
       kickPulse = plan.kick[step];
     }
-    if (plan.clap[step]) this.clap(eventTime, plan.clap[step], plan.movement.timbre.clapTone);
+    if (plan.clap[step]) {
+      this.clap(
+        eventTime,
+        plan.clap[step],
+        plan.movement.timbre.clapTone,
+        plan.percussionTimbre,
+      );
+    }
     if (plan.hat[step]) {
-      this.hat(eventTime, plan.hat[step], false, plan.movement.timbre.hatColor);
+      this.hat(
+        eventTime,
+        plan.hat[step],
+        false,
+        plan.movement.timbre.hatColor,
+        plan.percussionTimbre,
+      );
       hatPulse = plan.hat[step];
     }
     if (plan.openHat[step]) {
-      this.hat(eventTime, plan.openHat[step], true, plan.movement.timbre.hatColor);
+      this.hat(
+        eventTime,
+        plan.openHat[step],
+        true,
+        plan.movement.timbre.hatColor,
+        plan.percussionTimbre,
+      );
       hatPulse = plan.openHat[step];
     }
     if (plan.shaker[step]) this.shaker(eventTime, plan.shaker[step], plan.profile.warmth);
@@ -1481,7 +1535,7 @@ export class InfiniteTechnoEngine {
     click.start(time, (hash32(this.seed, this.bar, this.step) % 1000) / 1000, 0.02);
   }
 
-  hat(time, velocity, open, color) {
+  hat(time, velocity, open, color, timbre = {}) {
     const context = this.ctx;
     if (!context) return;
     if (!open && this.lastOpenHatGain && this.lastOpenHatEnd > time) {
@@ -1493,13 +1547,38 @@ export class InfiniteTechnoEngine {
     const bandpass = context.createBiquadFilter();
     const gain = context.createGain();
     const panStage = this.createPanStage();
-    const duration = open ? 0.16 + color * 0.14 : 0.035 + color * 0.04;
+    const decayScale = clamp(
+      Number(timbre.hatDecayScale) || 1,
+      0.5,
+      1.4,
+    );
+    const bandScale = clamp(
+      Number(timbre.hatBandScale) || 1,
+      0.6,
+      1.4,
+    );
+    const noiseRate = clamp(
+      Number(timbre.hatNoiseRate) || 1,
+      0.7,
+      1.5,
+    );
+    const duration =
+      (open ? 0.16 + color * 0.14 : 0.035 + color * 0.04) *
+      decayScale;
     source.buffer = this.noiseBuffer;
-    source.playbackRate.value = 1.05 + color * 0.62;
+    source.playbackRate.value = (1.05 + color * 0.62) * noiseRate;
     highpass.type = "highpass";
-    highpass.frequency.value = 5900 + color * 1900;
+    highpass.frequency.value = clamp(
+      (5900 + color * 1900) * bandScale,
+      4200,
+      9800,
+    );
     bandpass.type = "bandpass";
-    bandpass.frequency.value = 8700 + color * 2700;
+    bandpass.frequency.value = clamp(
+      (8700 + color * 2700) * bandScale,
+      6200,
+      13800,
+    );
     bandpass.Q.value = 0.65 + color * 1.7;
     panStage.pan.value =
       ((hash32(this.seed, this.bar, this.step, open ? 3 : 2) % 200) / 100 - 1) * 0.42;
@@ -1513,8 +1592,20 @@ export class InfiniteTechnoEngine {
     const routes = this.route(
       panStage.node,
       0.84,
-      open ? 0.08 : 0.025,
-      open ? 0.12 : 0.045,
+      clamp(
+        (Number.isFinite(Number(timbre.hatDelay))
+          ? Number(timbre.hatDelay)
+          : 0.025) * (open ? 1.6 : 1),
+        0,
+        0.24,
+      ),
+      clamp(
+        (Number.isFinite(Number(timbre.hatReverb))
+          ? Number(timbre.hatReverb)
+          : 0.045) * (open ? 1.5 : 1),
+        0,
+        0.4,
+      ),
     );
     if (!this.registerVoice([source], [highpass, bandpass, gain, panStage.node, ...routes])) return;
     if (open) {
@@ -1525,7 +1616,7 @@ export class InfiniteTechnoEngine {
     source.start(time, offset, duration + 0.02);
   }
 
-  clap(time, velocity, tone) {
+  clap(time, velocity, tone, timbre = {}) {
     const context = this.ctx;
     if (!context) return;
     const source = context.createBufferSource();
@@ -1540,22 +1631,56 @@ export class InfiniteTechnoEngine {
     bandpass.frequency.value = 1450 + tone * 940 + velocity * 320;
     bandpass.Q.value = 0.72;
     gain.gain.setValueAtTime(0.0001, time);
-    [0, 0.012, 0.025].forEach((offset, index) => {
+    const burstCount = clamp(
+      Math.round(Number(timbre.clapBursts) || 3),
+      2,
+      5,
+    );
+    const spacing = clamp(
+      Number(timbre.clapSpacing) || 0.012,
+      0.006,
+      0.022,
+    );
+    const decay = clamp(
+      Number(timbre.clapDecay) || 0.2,
+      0.1,
+      0.4,
+    );
+    Array.from({ length: burstCount }, (_, index) => index * spacing).forEach(
+      (offset, index) => {
       gain.gain.setValueAtTime(0.0001, time + offset);
       gain.gain.linearRampToValueAtTime(
-        (0.18 - index * 0.034) * velocity,
+        Math.max(0.055, 0.18 - index * 0.028) * velocity,
         time + offset + 0.002,
       );
       gain.gain.exponentialRampToValueAtTime(0.003, time + offset + 0.009);
-    });
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.2);
+      },
+    );
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + decay);
     source.connect(highpass);
     highpass.connect(bandpass);
     bandpass.connect(gain);
     gain.connect(panStage.node);
-    const routes = this.route(panStage.node, 0.8, 0.055, 0.16);
+    const routes = this.route(
+      panStage.node,
+      0.8,
+      clamp(
+        Number.isFinite(Number(timbre.clapDelay))
+          ? Number(timbre.clapDelay)
+          : 0.055,
+        0,
+        0.2,
+      ),
+      clamp(
+        Number.isFinite(Number(timbre.clapReverb))
+          ? Number(timbre.clapReverb)
+          : 0.16,
+        0,
+        0.48,
+      ),
+    );
     if (!this.registerVoice([source], [highpass, bandpass, gain, panStage.node, ...routes])) return;
-    source.start(time, 0.2, 0.22);
+    source.start(time, 0.2, decay + 0.04);
   }
 
   rim(time, velocity, tone) {

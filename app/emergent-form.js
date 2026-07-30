@@ -1,4 +1,5 @@
 import { clamp, hash32, lerp } from "./generative-utils.js";
+import { createTrackDNA } from "./track-dna.js";
 
 export const FORM_RULES = Object.freeze({
   climax: Object.freeze({
@@ -40,6 +41,9 @@ export const FORM_RULES = Object.freeze({
   harmony: Object.freeze({
     cooldownPhrases: 3,
   }),
+  bassVoice: Object.freeze({
+    cooldownPhrases: 16,
+  }),
   tonalMaterial: Object.freeze({
     cooldownPhrases: 24,
   }),
@@ -75,6 +79,161 @@ const EVOLUTION = Object.freeze({
   noveltyDebt: Object.freeze({ center: 0.46, reversion: 0.018 }),
   motifSalience: Object.freeze({ center: 0.65, reversion: 0.024 }),
 });
+
+const FORM_PHENOTYPES = Object.freeze({
+  "patient-hypnosis": Object.freeze({
+    centers: Object.freeze({
+      energy: 0.5,
+      tension: 0.38,
+      density: 0.45,
+      space: 0.62,
+      floorTrust: 0.51,
+      fatigue: 0.36,
+      contrastDebt: 0.5,
+      payoffDebt: 0.5,
+      noveltyDebt: 0.44,
+      motifSalience: 0.76,
+    }),
+    lensBias: Object.freeze({
+      "floor-authority": -0.02,
+      "long-arc": 0.2,
+      "radical-reduction": 0.02,
+      "machine-soul": 0.04,
+    }),
+    motifReplaceGate: 0.74,
+    motifMutateGate: 0.68,
+    floorTrustScale: 1,
+    climaxGateRelief: -0.01,
+  }),
+  "pressure-ratchet": Object.freeze({
+    centers: Object.freeze({
+      energy: 0.72,
+      tension: 0.56,
+      density: 0.68,
+      space: 0.3,
+      floorTrust: 0.65,
+      fatigue: 0.46,
+      contrastDebt: 0.45,
+      payoffDebt: 0.6,
+      noveltyDebt: 0.54,
+      motifSalience: 0.66,
+    }),
+    lensBias: Object.freeze({
+      "floor-authority": 0.18,
+      "long-arc": 0.08,
+      "radical-reduction": -0.06,
+      "machine-soul": -0.02,
+    }),
+    motifReplaceGate: 0.64,
+    motifMutateGate: 0.62,
+    floorTrustScale: 0.96,
+    climaxGateRelief: 0.025,
+  }),
+  "peak-and-release": Object.freeze({
+    centers: Object.freeze({
+      energy: 0.66,
+      tension: 0.58,
+      density: 0.62,
+      space: 0.38,
+      floorTrust: 0.58,
+      fatigue: 0.5,
+      contrastDebt: 0.56,
+      payoffDebt: 0.64,
+      noveltyDebt: 0.57,
+      motifSalience: 0.62,
+    }),
+    lensBias: Object.freeze({
+      "floor-authority": 0.1,
+      "long-arc": 0.12,
+      "radical-reduction": 0.08,
+      "machine-soul": -0.04,
+    }),
+    motifReplaceGate: 0.62,
+    motifMutateGate: 0.61,
+    floorTrustScale: 0.95,
+    climaxGateRelief: 0.08,
+  }),
+  "negative-space": Object.freeze({
+    centers: Object.freeze({
+      energy: 0.42,
+      tension: 0.43,
+      density: 0.34,
+      space: 0.78,
+      floorTrust: 0.52,
+      fatigue: 0.34,
+      contrastDebt: 0.58,
+      payoffDebt: 0.48,
+      noveltyDebt: 0.56,
+      motifSalience: 0.68,
+    }),
+    lensBias: Object.freeze({
+      "floor-authority": -0.08,
+      "long-arc": 0.03,
+      "radical-reduction": 0.22,
+      "machine-soul": 0.05,
+    }),
+    motifReplaceGate: 0.62,
+    motifMutateGate: 0.6,
+    floorTrustScale: 1.12,
+    climaxGateRelief: -0.02,
+  }),
+  "machine-funk": Object.freeze({
+    centers: Object.freeze({
+      energy: 0.58,
+      tension: 0.4,
+      density: 0.57,
+      space: 0.48,
+      floorTrust: 0.5,
+      fatigue: 0.4,
+      contrastDebt: 0.46,
+      payoffDebt: 0.5,
+      noveltyDebt: 0.68,
+      motifSalience: 0.8,
+    }),
+    lensBias: Object.freeze({
+      "floor-authority": 0.01,
+      "long-arc": -0.02,
+      "radical-reduction": -0.02,
+      "machine-soul": 0.24,
+    }),
+    motifReplaceGate: 0.56,
+    motifMutateGate: 0.54,
+    floorTrustScale: 0.88,
+    climaxGateRelief: 0.015,
+  }),
+});
+
+function formPhenotypeConfig(id) {
+  return FORM_PHENOTYPES[id] || FORM_PHENOTYPES["patient-hypnosis"];
+}
+
+function evolutionFor(state, key) {
+  const base = EVOLUTION[key];
+  const phenotype = formPhenotypeConfig(state.formPhenotype);
+  const pressure = state.formPressureBias || 0;
+  const space = state.formSpaceBias || 0;
+  const pulse = state.formPulseBias || 0;
+  const centerOffset = {
+    energy: pressure * 0.075 + pulse * 0.025,
+    tension: pressure * 0.055 - space * 0.02,
+    density: pulse * 0.14 - space * 0.05,
+    space: space * 0.16 - pressure * 0.05,
+    floorTrust: pressure * 0.04,
+    fatigue: pressure * 0.025,
+    contrastDebt: -pulse * 0.035 + space * 0.025,
+    payoffDebt: pressure * 0.04,
+    noveltyDebt: pulse * 0.05,
+    motifSalience: -pulse * 0.025 + space * 0.02,
+  }[key] || 0;
+  return {
+    center: clamp(
+      (phenotype.centers[key] ?? base.center) + centerOffset,
+      0.08,
+      0.92,
+    ),
+    reversion: base.reversion,
+  };
+}
 
 function coordinate(seed, phraseIndex, name) {
   return (hash32(seed, phraseIndex, name) >>> 0) / UINT32_MAX;
@@ -112,13 +271,34 @@ function validateNonnegativeSafeInteger(value, name, maximum) {
 }
 
 function initialState(seed) {
-  const energy = 0.3 + coordinate(seed, 0, "origin-energy") * 0.42;
-  const tension = 0.1 + coordinate(seed, 0, "origin-tension") * 0.48;
-  const density = 0.25 + coordinate(seed, 0, "origin-density") * 0.5;
-  const space = 0.25 + coordinate(seed, 0, "origin-space") * 0.55;
-  const floorTrust = 0.3 + coordinate(seed, 0, "origin-trust") * 0.52;
-  const fatigue = 0.03 + coordinate(seed, 0, "origin-fatigue") * 0.35;
-  const motifSalience = 0.35 + coordinate(seed, 0, "origin-motif") * 0.5;
+  const trackDNA = createTrackDNA(seed);
+  const formPhenotype = trackDNA.formPhenotype;
+  const phenotype = formPhenotypeConfig(formPhenotype);
+  const formPressureBias = signedCoordinate(
+    seed,
+    0,
+    "form-pressure-bias",
+  );
+  const formSpaceBias = signedCoordinate(seed, 0, "form-space-bias");
+  const formPulseBias = signedCoordinate(seed, 0, "form-pulse-bias");
+  const around = (key, coordinateName, spread) =>
+    clamp(
+      phenotype.centers[key] +
+        (coordinate(seed, 0, coordinateName) - 0.5) * spread,
+      0.08,
+      0.92,
+    );
+  const energy = around("energy", "origin-energy", 0.3);
+  const tension = around("tension", "origin-tension", 0.28);
+  const density = around("density", "origin-density", 0.34);
+  const space = around("space", "origin-space", 0.36);
+  const floorTrust = around("floorTrust", "origin-trust", 0.3);
+  const fatigue = around("fatigue", "origin-fatigue", 0.24);
+  const motifSalience = around(
+    "motifSalience",
+    "origin-motif",
+    0.3,
+  );
   const displayLabel =
     energy > 0.68 && floorTrust > 0.58
       ? "DRIVE"
@@ -140,15 +320,19 @@ function initialState(seed) {
   const bassVoiceMaterialId =
     hash32(seed, "bass-voice-material-origin") >>> 0;
   return {
+    formPhenotype,
+    formPressureBias,
+    formSpaceBias,
+    formPulseBias,
     energy,
     tension,
     density,
     space,
     floorTrust,
     fatigue,
-    contrastDebt: 0.05 + coordinate(seed, 0, "origin-contrast") * 0.4,
-    payoffDebt: 0.08 + coordinate(seed, 0, "origin-payoff") * 0.5,
-    noveltyDebt: 0.08 + coordinate(seed, 0, "origin-novelty") * 0.5,
+    contrastDebt: around("contrastDebt", "origin-contrast", 0.34),
+    payoffDebt: around("payoffDebt", "origin-payoff", 0.36),
+    noveltyDebt: around("noveltyDebt", "origin-novelty", 0.38),
     motifSalience,
     climaxAppetite: 0.18 + coordinate(seed, 0, "climax-appetite") * 0.82,
     chair: null,
@@ -191,6 +375,10 @@ function initialState(seed) {
     ),
     sceneMaterialId,
     bassVoiceMaterialId,
+    bassVoiceCooldown: Math.floor(
+      coordinate(seed, 0, "origin-bass-voice-cooldown") *
+        (FORM_RULES.bassVoice.cooldownPhrases + 1),
+    ),
     fillCooldown: Math.floor(coordinate(seed, 0, "origin-fill-cooldown") * 3),
     riserCooldown: Math.floor(coordinate(seed, 0, "origin-riser-cooldown") * 5),
     dialogueCooldown: 0,
@@ -200,6 +388,7 @@ function initialState(seed) {
 }
 
 function lensScores(state, seed, phraseIndex) {
+  const phenotype = formPhenotypeConfig(state.formPhenotype);
   const scores = {
     "floor-authority":
       0.2 +
@@ -228,6 +417,9 @@ function lensScores(state, seed, phraseIndex) {
       (state.kickPolicy === "withdraw" ? 0.1 : 0) +
       signedCoordinate(seed, phraseIndex, "soul-drive") * 0.08,
   };
+  for (const lens of FORM_LENS_IDS) {
+    scores[lens] += phenotype.lensBias[lens] || 0;
+  }
 
   if (state.chair) {
     if (state.chairResidency < 2) scores[state.chair] += 0.24;
@@ -330,6 +522,7 @@ function climaxPermission(state) {
 }
 
 function shouldEnterClimax(state, readiness, seed, phraseIndex) {
+  const phenotype = formPhenotypeConfig(state.formPhenotype);
   const earnedPermission = climaxPermission(state);
   const historyPressure = Math.min(
     0.05,
@@ -340,8 +533,12 @@ function shouldEnterClimax(state, readiness, seed, phraseIndex) {
   const entryGate =
     coordinate(seed, phraseIndex, "climax-entry") >
     clamp(
-      0.97 - historyPressure - debtPressure - readinessPressure,
-      0.9,
+      0.97 -
+        historyPressure -
+        debtPressure -
+        readinessPressure -
+        phenotype.climaxGateRelief,
+      0.82,
       0.96,
     );
   return (
@@ -371,6 +568,7 @@ function shouldContinueClimax(state, seed, phraseIndex) {
 }
 
 function updateMotif(state, chair, seed, phraseIndex) {
+  const phenotype = formPhenotypeConfig(state.formPhenotype);
   let motifLineageId = state.motifLineageId;
   let archivedLineageId = state.archivedLineageId;
   let lineageAge = state.lineageAge + 1;
@@ -380,22 +578,30 @@ function updateMotif(state, chair, seed, phraseIndex) {
   let motifOperation = "hold";
 
   const recallReady =
-    chair === "machine-soul" &&
+    ({
+      "patient-hypnosis": ["machine-soul", "long-arc"],
+      "pressure-ratchet": ["machine-soul"],
+      "peak-and-release": ["machine-soul", "long-arc"],
+      "negative-space": ["machine-soul", "radical-reduction"],
+      "machine-funk": ["machine-soul"],
+    }[state.formPhenotype] || ["machine-soul"]).includes(chair) &&
     archivedLineageId !== null &&
     state.lineageAge >= FORM_RULES.motif.minimumRecallAge &&
     state.motifRecallCooldown === 0 &&
-    state.motifSalience > 0.68 &&
-    coordinate(seed, phraseIndex, "motif-recall") > 0.88;
+    state.motifSalience > 0.64 &&
+    coordinate(seed, phraseIndex, "motif-recall") > 0.84;
   const replaceReady =
     state.lineageAge >= FORM_RULES.motif.minimumReplaceAge &&
     state.noveltyDebt >= FORM_RULES.motif.replaceDebt &&
-    coordinate(seed, phraseIndex, "motif-replace") > 0.68;
+    coordinate(seed, phraseIndex, "motif-replace") >
+      phenotype.motifReplaceGate;
   const mutateReady =
     state.lineageAge >= FORM_RULES.motif.minimumMutationAge &&
     state.motifMutationCount < FORM_RULES.motif.maximumMutationCount &&
     motifMutationCooldown === 0 &&
     state.noveltyDebt > 0.5 &&
-    coordinate(seed, phraseIndex, "motif-mutate") > 0.62;
+    coordinate(seed, phraseIndex, "motif-mutate") >
+      phenotype.motifMutateGate;
 
   if (recallReady) {
     const current = motifLineageId;
@@ -499,48 +705,62 @@ function advanceState(state, seed, phraseIndex) {
       motifSalience: -0.025,
     };
   }
+  deltas = {
+    ...deltas,
+    floorTrust:
+      deltas.floorTrust *
+      formPhenotypeConfig(state.formPhenotype).floorTrustScale,
+  };
 
-  const energy = evolveBounded(state.energy, deltas.energy, EVOLUTION.energy);
+  const energy = evolveBounded(
+    state.energy,
+    deltas.energy,
+    evolutionFor(state, "energy"),
+  );
   const tension = evolveBounded(
     state.tension,
     deltas.tension,
-    EVOLUTION.tension,
+    evolutionFor(state, "tension"),
   );
   const density = evolveBounded(
     state.density,
     deltas.density,
-    EVOLUTION.density,
+    evolutionFor(state, "density"),
   );
-  const space = evolveBounded(state.space, deltas.space, EVOLUTION.space);
+  const space = evolveBounded(
+    state.space,
+    deltas.space,
+    evolutionFor(state, "space"),
+  );
   const floorTrust = evolveBounded(
     state.floorTrust,
     deltas.floorTrust,
-    EVOLUTION.floorTrust,
+    evolutionFor(state, "floorTrust"),
   );
   const fatigue = evolveBounded(
     state.fatigue,
     deltas.fatigue,
-    EVOLUTION.fatigue,
+    evolutionFor(state, "fatigue"),
   );
   const contrastDebt = evolveBounded(
     state.contrastDebt,
     deltas.contrastDebt,
-    EVOLUTION.contrastDebt,
+    evolutionFor(state, "contrastDebt"),
   );
   const payoffDebt = evolveBounded(
     state.payoffDebt,
     deltas.payoffDebt,
-    EVOLUTION.payoffDebt,
+    evolutionFor(state, "payoffDebt"),
   );
   const noveltyDebt = evolveBounded(
     state.noveltyDebt,
     deltas.noveltyDebt,
-    EVOLUTION.noveltyDebt,
+    evolutionFor(state, "noveltyDebt"),
   );
   const motifSalience = evolveBounded(
     state.motifSalience,
     deltas.motifSalience,
-    EVOLUTION.motifSalience,
+    evolutionFor(state, "motifSalience"),
   );
   const energyDelta = energy - state.energy;
   const tensionDelta = tension - state.tension;
@@ -622,6 +842,35 @@ function advanceState(state, seed, phraseIndex) {
     : availableKickFamilyMorphCooldown;
 
   const motif = updateMotif(state, chair, seed, phraseIndex);
+  const availableBassVoiceCooldown = Math.max(
+    0,
+    state.bassVoiceCooldown - 1,
+  );
+  const bassVoiceChangeReadiness = bounded(
+    noveltyDebt * 0.28 +
+      contrastDebt * 0.24 +
+      (release ? 0.24 : 0) +
+      (floorRecommit ? 0.18 : 0) +
+      coordinate(seed, phraseIndex, "bass-voice-change-readiness") * 0.06,
+  );
+  const bassVoiceChange =
+    !climax &&
+    motif.motifOperation === "hold" &&
+    availableBassVoiceCooldown === 0 &&
+    (release || floorRecommit) &&
+    bassVoiceChangeReadiness > 0.48 &&
+    coordinate(seed, phraseIndex, "bass-voice-change-permission") > 0.4;
+  const bassVoiceMaterialId = bassVoiceChange
+    ? hash32(
+        seed,
+        phraseIndex,
+        state.bassVoiceMaterialId,
+        "bass-voice-material-change",
+      ) >>> 0
+    : state.bassVoiceMaterialId;
+  const bassVoiceCooldown = bassVoiceChange
+    ? FORM_RULES.bassVoice.cooldownPhrases
+    : availableBassVoiceCooldown;
   const availableTonalCooldown = Math.max(0, state.tonalCooldown - 1);
   const tonalPivotReadiness = bounded(
     noveltyDebt * 0.34 +
@@ -648,6 +897,15 @@ function advanceState(state, seed, phraseIndex) {
   const tonalCooldown = tonalPivot
     ? FORM_RULES.tonalMaterial.cooldownPhrases
     : availableTonalCooldown;
+  const harmonyMaterialId = tonalPivot
+    ? hash32(
+        seed,
+        phraseIndex,
+        state.harmonyMaterialId,
+        tonalMaterialId,
+        "harmony-material-pivot",
+      ) >>> 0
+    : state.harmonyMaterialId;
 
   const availableHarmonyCooldown = Math.max(
     0,
@@ -687,7 +945,9 @@ function advanceState(state, seed, phraseIndex) {
   const targetSceneMaterialId =
     hash32(seed, motif.motifLineageId, "scene-material") >>> 0;
   const sceneHandoff =
-    motif.motifOperation === "mutate" &&
+    ["mutate", "replace", "recall"].includes(
+      motif.motifOperation,
+    ) &&
     state.sceneMaterialId !== targetSceneMaterialId;
   const sceneMaterialId = sceneHandoff
     ? targetSceneMaterialId
@@ -798,6 +1058,10 @@ function advanceState(state, seed, phraseIndex) {
 
   const snapshot = Object.freeze({
     phraseIndex,
+    formPhenotype: state.formPhenotype,
+    formPressureBias: state.formPressureBias,
+    formSpaceBias: state.formSpaceBias,
+    formPulseBias: state.formPulseBias,
     label: displayLabel,
     chair,
     chairResidency,
@@ -857,19 +1121,26 @@ function advanceState(state, seed, phraseIndex) {
     tonalOperation: tonalPivot ? "pivot" : "hold",
     tonalPivotReadiness,
     tonalCooldown,
-    harmonyMaterialId: state.harmonyMaterialId,
+    harmonyMaterialId,
     harmonyPosition,
     harmonyOperation: harmonyTurn ? "turn" : "hold",
     harmonyTurnReadiness,
     harmonyCooldown,
     sceneMaterialId,
     sceneOperation: sceneHandoff ? "handoff" : "hold",
-    bassVoiceMaterialId: state.bassVoiceMaterialId,
+    bassVoiceMaterialId,
+    bassVoiceOperation: bassVoiceChange ? "change" : "hold",
+    bassVoiceChangeReadiness,
+    bassVoiceCooldown,
   });
 
   return {
     snapshot,
     state: {
+      formPhenotype: state.formPhenotype,
+      formPressureBias: state.formPressureBias,
+      formSpaceBias: state.formSpaceBias,
+      formPulseBias: state.formPulseBias,
       energy,
       tension,
       density,
@@ -904,11 +1175,12 @@ function advanceState(state, seed, phraseIndex) {
       motifRecallCooldown: motif.motifRecallCooldown,
       tonalMaterialId,
       tonalCooldown,
-      harmonyMaterialId: state.harmonyMaterialId,
+      harmonyMaterialId,
       harmonyPosition,
       harmonyCooldown,
       sceneMaterialId,
-      bassVoiceMaterialId: state.bassVoiceMaterialId,
+      bassVoiceMaterialId,
+      bassVoiceCooldown,
       fillCooldown,
       riserCooldown,
       dialogueCooldown,

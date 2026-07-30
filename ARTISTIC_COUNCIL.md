@@ -1,6 +1,6 @@
 # Artistic Council
 
-Status: implemented arrangement doctrine for Infinite Techno `1.4.0`
+Status: implemented arrangement doctrine for Infinite Techno `1.5.0`
 
 ## Constitution
 
@@ -50,8 +50,8 @@ The winning chair does not average four suggestions:
 2. preserve, thin, or deliberately withdraw the floor according to earned state;
 3. choose the smallest advanced-synth cast that can express the phrase;
 4. remove optional layers that compete in the same spectrum;
-5. allow a second advanced voice only for a developed climax or an earned lineage
-   recall;
+5. allow a second advanced voice only when the current phenotype and recurrent
+   phrase state justify dialogue;
 6. allow a fill only when recurrent state grants permission;
 7. keep equal-priority foregrounds resident until a causal motif event authorizes
    a handoff.

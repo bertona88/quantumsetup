@@ -14,6 +14,7 @@ import {
   derivePhraseState,
   traceEmergentForm,
 } from "./emergent-form.js";
+import { createTrackDNA } from "./track-dna.js";
 
 export {
   FORM_RULES,
@@ -25,7 +26,7 @@ export {
   midiToHz,
 };
 
-export const GENERATOR_VERSION = "1.4.0";
+export const GENERATOR_VERSION = "1.5.0";
 export const STEPS_PER_BAR = 16;
 export const PHRASE_BARS = 8;
 export const MOVEMENT_BARS = 192;
@@ -148,6 +149,368 @@ const PROFILE_DEFINITIONS = {
   },
 };
 
+const GROOVE_VOCABULARIES = Object.freeze({
+  "straight-pressure": Object.freeze({
+    hats: Object.freeze([2, 6, 10, 14]),
+    secondaryHats: Object.freeze([1, 3, 5, 7, 9, 11, 13, 15]),
+    claps: Object.freeze([4, 12]),
+    ghostClaps: Object.freeze([11]),
+    bassDensityBias: 0.1,
+  }),
+  "rolling-syncopation": Object.freeze({
+    hats: Object.freeze([2, 5, 6, 10, 13, 14]),
+    secondaryHats: Object.freeze([1, 4, 7, 9, 12, 15]),
+    claps: Object.freeze([4, 12]),
+    ghostClaps: Object.freeze([10, 15]),
+    bassDensityBias: 0.4,
+  }),
+  "triplet-weave": Object.freeze({
+    hats: Object.freeze([2, 5, 8, 10, 13]),
+    secondaryHats: Object.freeze([1, 4, 7, 11, 14]),
+    claps: Object.freeze([4, 13]),
+    ghostClaps: Object.freeze([9]),
+    bassDensityBias: 0.15,
+  }),
+  "broken-machine": Object.freeze({
+    hats: Object.freeze([1, 6, 9, 14]),
+    secondaryHats: Object.freeze([3, 5, 7, 11, 13, 15]),
+    claps: Object.freeze([4, 11]),
+    ghostClaps: Object.freeze([14]),
+    bassDensityBias: -0.15,
+  }),
+  "swung-motor": Object.freeze({
+    hats: Object.freeze([3, 6, 11, 14]),
+    secondaryHats: Object.freeze([1, 5, 7, 9, 13, 15]),
+    claps: Object.freeze([4, 12]),
+    ghostClaps: Object.freeze([7, 15]),
+    bassDensityBias: 0.25,
+  }),
+});
+
+const VIBE_ARRANGEMENT = Object.freeze({
+  hypnotic: Object.freeze({
+    hatRotation: 0,
+    bassRotation: 0,
+    preferredEngine: null,
+    clapGhostBias: 0.08,
+  }),
+  dub: Object.freeze({
+    hatRotation: 2,
+    bassRotation: 3,
+    preferredEngine: "string",
+    clapGhostBias: -0.08,
+  }),
+  acid: Object.freeze({
+    hatRotation: 1,
+    bassRotation: 1,
+    preferredEngine: "fm",
+    clapGhostBias: 0.16,
+  }),
+  detroit: Object.freeze({
+    hatRotation: 3,
+    bassRotation: 2,
+    preferredEngine: "modal",
+    clapGhostBias: 0.22,
+  }),
+  peak: Object.freeze({
+    hatRotation: 5,
+    bassRotation: 5,
+    preferredEngine: "fm",
+    clapGhostBias: 0.3,
+  }),
+});
+
+const PERCUSSION_KIT_TONE = Object.freeze({
+  "dry-machine": Object.freeze({ hat: 0.35, clap: 0.42, rim: 0.52 }),
+  "bright-club": Object.freeze({ hat: 0.84, clap: 0.72, rim: 0.68 }),
+  "metallic-yard": Object.freeze({ hat: 0.7, clap: 0.58, rim: 0.86 }),
+  "dusty-electro": Object.freeze({ hat: 0.18, clap: 0.24, rim: 0.34 }),
+  "dub-chamber": Object.freeze({ hat: 0.42, clap: 0.5, rim: 0.44 }),
+});
+
+const PERCUSSION_KIT_DESIGN = Object.freeze({
+  "dry-machine": Object.freeze({
+    hatDecayScale: 0.5,
+    hatBandScale: 0.7,
+    hatNoiseRate: 0.72,
+    hatDelay: 0,
+    hatReverb: 0,
+    clapBursts: 2,
+    clapSpacing: 0.022,
+    clapDecay: 0.1,
+    clapDelay: 0,
+    clapReverb: 0,
+  }),
+  "bright-club": Object.freeze({
+    hatDecayScale: 0.8,
+    hatBandScale: 1.34,
+    hatNoiseRate: 1.5,
+    hatDelay: 0.04,
+    hatReverb: 0.08,
+    clapBursts: 4,
+    clapSpacing: 0.007,
+    clapDecay: 0.17,
+    clapDelay: 0.05,
+    clapReverb: 0.12,
+  }),
+  "metallic-yard": Object.freeze({
+    hatDecayScale: 1.3,
+    hatBandScale: 1.04,
+    hatNoiseRate: 0.82,
+    hatDelay: 0.065,
+    hatReverb: 0.24,
+    clapBursts: 5,
+    clapSpacing: 0.014,
+    clapDecay: 0.29,
+    clapDelay: 0.095,
+    clapReverb: 0.28,
+  }),
+  "dusty-electro": Object.freeze({
+    hatDecayScale: 0.74,
+    hatBandScale: 0.76,
+    hatNoiseRate: 0.88,
+    hatDelay: 0.06,
+    hatReverb: 0.09,
+    clapBursts: 3,
+    clapSpacing: 0.016,
+    clapDecay: 0.2,
+    clapDelay: 0.08,
+    clapReverb: 0.14,
+  }),
+  "dub-chamber": Object.freeze({
+    hatDecayScale: 1.05,
+    hatBandScale: 0.84,
+    hatNoiseRate: 0.96,
+    hatDelay: 0.12,
+    hatReverb: 0.2,
+    clapBursts: 5,
+    clapSpacing: 0.018,
+    clapDecay: 0.3,
+    clapDelay: 0.14,
+    clapReverb: 0.32,
+  }),
+});
+
+function percussionTimbreFor(trackDNA, profile) {
+  const design =
+    PERCUSSION_KIT_DESIGN[trackDNA.percussionKit] ||
+    PERCUSSION_KIT_DESIGN["dry-machine"];
+  return Object.freeze({
+    ...design,
+    hatDecayScale: clamp(
+      design.hatDecayScale +
+        profile.space * 0.16 -
+        profile.drive * 0.06,
+      0.5,
+      1.4,
+    ),
+    hatBandScale: clamp(
+      design.hatBandScale +
+        (profile.metallic - 0.5) * 0.12 +
+        (profile.acid - 0.5) * 0.16,
+      0.68,
+      1.34,
+    ),
+    hatNoiseRate: clamp(
+      design.hatNoiseRate +
+        (profile.metallic - 0.5) * 0.12 +
+        (profile.acid - 0.5) * 0.18,
+      0.7,
+      1.5,
+    ),
+    hatDelay: clamp(
+      design.hatDelay +
+        profile.space * 0.08 -
+        profile.acid * 0.025,
+      0,
+      0.24,
+    ),
+    hatReverb: clamp(
+      design.hatReverb + profile.space * 0.08,
+      0,
+      0.34,
+    ),
+    clapDecay: clamp(
+      design.clapDecay +
+        profile.space * 0.06 -
+        profile.acid * 0.025,
+      0.1,
+      0.38,
+    ),
+    clapBursts: clamp(
+      design.clapBursts +
+        (profile.acid > 0.7 ? 1 : 0) -
+        (profile.space > 0.78 ? 1 : 0),
+      2,
+      5,
+    ),
+    clapSpacing: clamp(
+      design.clapSpacing +
+        profile.swing * 0.006 -
+        profile.acid * 0.004,
+      0.006,
+      0.022,
+    ),
+    clapDelay: clamp(
+      design.clapDelay +
+        profile.space * 0.12 -
+        profile.acid * 0.035,
+      0,
+      0.2,
+    ),
+    clapReverb: clamp(
+      design.clapReverb + profile.space * 0.12,
+      0,
+      0.45,
+    ),
+  });
+}
+
+const SPECTRAL_OFFSETS = Object.freeze({
+  "sub-dark": Object.freeze({
+    drive: -0.2,
+    metallic: -0.35,
+    texture: -0.12,
+    warmth: 0.35,
+    acid: -0.12,
+  }),
+  "warm-tilt": Object.freeze({
+    drive: -0.05,
+    metallic: -0.08,
+    texture: 0.08,
+    warmth: 0.22,
+    space: 0.04,
+  }),
+  "mid-forward": Object.freeze({
+    drive: 0.1,
+    metallic: 0.02,
+    texture: -0.02,
+    warmth: 0.02,
+  }),
+  "bright-metal": Object.freeze({
+    drive: 0.2,
+    metallic: 0.3,
+    texture: 0.04,
+    warmth: -0.2,
+  }),
+  "open-air": Object.freeze({
+    drive: 0.02,
+    metallic: 0.1,
+    texture: 0.22,
+    warmth: -0.08,
+  }),
+});
+
+const SPATIAL_OFFSETS = Object.freeze({
+  "dry-close": Object.freeze({
+    space: -0.34,
+    texture: -0.2,
+    drive: -0.08,
+  }),
+  "short-room": Object.freeze({ space: -0.05, texture: 0 }),
+  "mono-pressure": Object.freeze({
+    space: -0.24,
+    texture: -0.1,
+    drive: 0.18,
+    density: 0.12,
+  }),
+  "dub-depth": Object.freeze({ space: 0.26, texture: 0.18 }),
+  "wide-haze": Object.freeze({ space: 0.18, texture: 0.26 }),
+});
+
+const HARMONY_OFFSETS = Object.freeze({
+  "tonic-drone": Object.freeze({ chords: -0.08, texture: 0.08 }),
+  "dub-stabs": Object.freeze({ chords: 0.22, space: 0.1 }),
+  "modal-turns": Object.freeze({ chords: 0.1, syncopation: 0.04 }),
+  "detroit-voicings": Object.freeze({
+    chords: 0.2,
+    warmth: 0.1,
+    swing: 0.04,
+  }),
+  "suspended-space": Object.freeze({
+    chords: 0.12,
+    space: 0.16,
+    texture: 0.1,
+  }),
+});
+
+const GROOVE_OFFSETS = Object.freeze({
+  "straight-pressure": Object.freeze({ swing: -0.08, syncopation: -0.04 }),
+  "rolling-syncopation": Object.freeze({ swing: 0.02, syncopation: 0.14 }),
+  "triplet-weave": Object.freeze({ swing: 0.1, syncopation: 0.12 }),
+  "broken-machine": Object.freeze({ swing: 0.04, syncopation: 0.18 }),
+  "swung-motor": Object.freeze({ swing: 0.2, syncopation: 0.1 }),
+});
+
+const FORM_PHENOTYPE_OFFSETS = Object.freeze({
+  "patient-hypnosis": Object.freeze({
+    density: -0.1,
+    drive: -0.06,
+    space: 0.08,
+    breakDepth: 0.08,
+  }),
+  "pressure-ratchet": Object.freeze({
+    density: 0.12,
+    drive: 0.14,
+    space: -0.1,
+    breakDepth: -0.06,
+  }),
+  "peak-and-release": Object.freeze({
+    density: 0.16,
+    drive: 0.12,
+    space: -0.04,
+    breakDepth: 0.18,
+  }),
+  "negative-space": Object.freeze({
+    density: -0.24,
+    drive: -0.12,
+    space: 0.24,
+    breakDepth: 0.24,
+  }),
+  "machine-funk": Object.freeze({
+    density: 0.02,
+    swing: 0.14,
+    syncopation: 0.18,
+    chords: 0.08,
+  }),
+});
+
+const FORM_RHYTHM_BIAS = Object.freeze({
+  "patient-hypnosis": Object.freeze({ primary: -0.08, secondary: -0.06 }),
+  "pressure-ratchet": Object.freeze({ primary: 0.08, secondary: 0.1 }),
+  "peak-and-release": Object.freeze({ primary: 0.14, secondary: 0.12 }),
+  "negative-space": Object.freeze({ primary: -0.2, secondary: -0.18 }),
+  "machine-funk": Object.freeze({ primary: -0.12, secondary: 0.22 }),
+});
+
+function shapeProfileForTrack(profile, trackDNA) {
+  const shaped = {
+    ...profile,
+    bpm: [...profile.bpm],
+  };
+  for (const offsets of [
+    SPECTRAL_OFFSETS[trackDNA.spectralProfile],
+    SPATIAL_OFFSETS[trackDNA.spatialProfile],
+    HARMONY_OFFSETS[trackDNA.harmonyBehavior],
+    GROOVE_OFFSETS[trackDNA.grooveFamily],
+    FORM_PHENOTYPE_OFFSETS[trackDNA.formPhenotype],
+  ]) {
+    for (const [key, value] of Object.entries(offsets || {})) {
+      shaped[key] = clamp(shaped[key] + value, 0, 1);
+    }
+  }
+  if (trackDNA.bassBehavior === "acid-serpent") {
+    shaped.acid = clamp(shaped.acid + 0.18, 0, 1);
+  } else if (trackDNA.bassBehavior === "sub-sustain") {
+    shaped.acid = clamp(shaped.acid - 0.16, 0, 1);
+    shaped.rumble = clamp(shaped.rumble + 0.12, 0, 1);
+  }
+  return Object.freeze({
+    ...shaped,
+    bpm: Object.freeze(shaped.bpm),
+  });
+}
+
 export const VIBES = Object.freeze(
   Object.values(PROFILE_DEFINITIONS).map((profile) => Object.freeze({ ...profile })),
 );
@@ -187,8 +550,9 @@ export function profileDistance(fromId, toId) {
 
 export function transitionDurationFor(fromId, toId) {
   const distance = profileDistance(fromId, toId);
-  const candidates = [64, 96, 128];
-  return candidates[Math.min(candidates.length - 1, Math.floor(distance * candidates.length))];
+  if (distance < 0.17) return 64;
+  if (distance < 0.31) return 96;
+  return 128;
 }
 
 export function smoothstep(value) {
@@ -753,10 +1117,27 @@ export function selectEnsembleScene(
   const form = movement.formPhrases[localPhrase];
   const sceneMaterialId =
     form.sceneMaterialId ?? form.motifLineageId;
+  const foregroundRole =
+    movement.trackDNA?.foregroundRole ||
+    createTrackDNA(seed).foregroundRole;
+  const preferredSceneIds = {
+    motor: ["motor-weave", "peak-interlock"],
+    "call-response": ["acid-relay", "dub-afterimage"],
+    counterline: ["motor-weave", "resonant-orbit", "acid-relay"],
+    punctuation: ["resonant-orbit", "negative-space"],
+    "atmospheric-tail": ["dub-afterimage", "negative-space"],
+  }[foregroundRole];
+  const scenePool = ENSEMBLE_SCENE_DEFINITIONS.filter((scene) =>
+    preferredSceneIds.includes(scene.id),
+  );
   const selected =
-    ENSEMBLE_SCENE_DEFINITIONS[
-      hash32(seed, sceneMaterialId, "ensemble-scene-material") %
-        ENSEMBLE_SCENE_DEFINITIONS.length
+    scenePool[
+      hash32(
+        seed,
+        sceneMaterialId,
+        foregroundRole,
+        "ensemble-scene-material",
+      ) % scenePool.length
     ];
   const recallSourceIndex =
     form.sceneOperation === "handoff"
@@ -784,6 +1165,7 @@ export function conveneCouncil({
   section,
   phraseIndex,
   roles,
+  profile = profileForVibe("hypnotic"),
 }) {
   const localPhraseIndex = clamp(
     Math.floor(phraseIndex) -
@@ -806,9 +1188,24 @@ export function conveneCouncil({
             form.motifOperation !== "hold"
           ? "TURN"
           : "HOLD";
+  const trackDNA = movement.trackDNA || createTrackDNA(seed);
+  const vibeDirection = VIBE_ARRANGEMENT[profile.id] ||
+    VIBE_ARRANGEMENT.hypnotic;
+  const roleAffinity = {
+    motor: ["motor"],
+    "call-response": ["call", "reply"],
+    counterline: ["counter", "afterimage", "weave"],
+    punctuation: ["mark", "pickup", "crown", "signal"],
+    "atmospheric-tail": ["tail", "tone"],
+  }[trackDNA.foregroundRole];
+  const engineScore = (engine) =>
+    (roles[engine]?.priority || 0) * 100 +
+    (engine === trackDNA.foregroundEngine ? 88 : 0) +
+    (engine === vibeDirection.preferredEngine ? 142 : 0) +
+    (roleAffinity.includes(roles[engine]?.id) ? 34 : 0);
   const rankedEngines = SYNTH_ENGINE_IDS.filter((engine) => roles?.[engine]).sort(
     (left, right) =>
-      (roles[right]?.priority || 0) - (roles[left]?.priority || 0) ||
+      engineScore(right) - engineScore(left) ||
       (hash32(
         seed,
         form.motifLineageId,
@@ -826,9 +1223,30 @@ export function conveneCouncil({
     form.intentionalRest || form.density < 0.48 || form.space > 0.68;
   const intentionalRest = form.intentionalRest;
   const earnedDialogue = form.earnedDialogue;
+  const phenotypeDialogue =
+    ["call-response", "counterline"].includes(trackDNA.foregroundRole) &&
+    form.density > 0.42 &&
+    form.space < 0.78;
+  const vibeDialogue =
+    ["detroit", "peak"].includes(profile.id) &&
+    form.density > 0.48 &&
+    !sparse;
   const activeSynthEngines = intentionalRest
     ? []
-    : rankedEngines.slice(0, earnedDialogue ? 2 : 1);
+    : rankedEngines.slice(
+        0,
+        profile.id === "dub"
+          ? 1
+          : earnedDialogue || phenotypeDialogue || vibeDialogue
+            ? 2
+            : 1,
+      );
+  const harmonyForeground = [
+    "dub-stabs",
+    "modal-turns",
+    "detroit-voicings",
+    "suspended-space",
+  ].includes(trackDNA.harmonyBehavior);
   const optionalLayerBudget =
     chair === "radical-reduction"
       ? 1
@@ -836,7 +1254,16 @@ export function conveneCouncil({
         ? 2
         : sparse
           ? 1
-          : 2;
+          : harmonyForeground
+            ? 3
+            : 2;
+  const foregroundStartBudget = {
+    motor: 3,
+    "call-response": 4,
+    counterline: 3,
+    punctuation: 2,
+    "atmospheric-tail": 2,
+  }[trackDNA.foregroundRole];
   const maxAdvancedStarts =
     activeSynthEngines.length === 0
       ? 0
@@ -844,7 +1271,13 @@ export function conveneCouncil({
         ? 4
         : sparse
           ? 1
-          : 2;
+          : clamp(
+              foregroundStartBudget +
+                (profile.id === "peak" ? 1 : 0) -
+                (profile.id === "dub" ? 1 : 0),
+              1,
+              4,
+            );
   const allowFill = form.allowFill;
   return Object.freeze({
     chair,
@@ -912,21 +1345,50 @@ function createDegreeWalk(rng, length, scaleLength, rootGravity) {
   return Object.freeze(degrees);
 }
 
-function trajectoryTimbre(seed) {
+function trajectoryTimbre(seed, trackDNA = createTrackDNA(seed)) {
   const rng = makeRng(hash32(seed, "trajectory-timbre"));
+  const kit =
+    PERCUSSION_KIT_TONE[trackDNA.percussionKit] ||
+    PERCUSSION_KIT_TONE["dry-machine"];
+  const spectralTone = {
+    "sub-dark": 0.12,
+    "warm-tilt": 0.3,
+    "mid-forward": 0.52,
+    "bright-metal": 0.82,
+    "open-air": 0.7,
+  }[trackDNA.spectralProfile];
   return Object.freeze({
-    kickTone: rng(),
-    kickDecay: rng(),
-    hatColor: rng(),
-    clapTone: rng(),
-    rimTone: rng(),
-    filterBias: rng(),
-    swingBias: rng(),
+    kickTone: clamp((spectralTone ?? 0.5) * 0.78 + rng() * 0.22, 0, 1),
+    kickDecay: clamp(
+      {
+        "short-punch": 0.12,
+        "deep-round": 0.66,
+        "click-forward": 0.28,
+        "saturated-tail": 0.88,
+        "sub-drop": 0.74,
+      }[trackDNA.kickArchitecture] *
+        0.84 +
+        rng() * 0.16,
+      0,
+      1,
+    ),
+    hatColor: clamp(kit.hat * 0.86 + rng() * 0.14, 0, 1),
+    clapTone: clamp(kit.clap * 0.86 + rng() * 0.14, 0, 1),
+    rimTone: clamp(kit.rim * 0.86 + rng() * 0.14, 0, 1),
+    filterBias: clamp((spectralTone ?? 0.5) * 0.82 + rng() * 0.18, 0, 1),
+    swingBias: clamp(
+      trackDNA.grooveFamily === "swung-motor"
+        ? 0.72 + rng() * 0.28
+        : 0.18 + rng() * 0.5,
+      0,
+      1,
+    ),
     stereoBias: rng() * 2 - 1,
   });
 }
 
 function musicalIdentityForForm(seed, form, tonality) {
+  const trackDNA = createTrackDNA(seed);
   const safeTonality = ["major", "neutral"].includes(tonality)
     ? tonality
     : "minor";
@@ -934,7 +1396,7 @@ function musicalIdentityForForm(seed, form, tonality) {
     form.tonalMaterialId ?? form.motifLineageId;
   const harmonyMaterialId =
     form.harmonyMaterialId ?? form.motifLineageId;
-  const cacheKey = `${seed}:${tonalMaterialId}:${form.motifLineageId}:${harmonyMaterialId}:${safeTonality}`;
+  const cacheKey = `${seed}:${tonalMaterialId}:${form.motifLineageId}:${harmonyMaterialId}:${safeTonality}:${trackDNA.harmonyBehavior}`;
   if (materialCache.has(cacheKey)) {
     const cached = materialCache.get(cacheKey);
     materialCache.delete(cacheKey);
@@ -954,8 +1416,21 @@ function musicalIdentityForForm(seed, form, tonality) {
     hash32(seed, form.motifLineageId, safeTonality, "motif-identity"),
   );
   const harmonyRng = makeRng(
-    hash32(seed, harmonyMaterialId, safeTonality, "harmony-identity"),
+    hash32(
+      seed,
+      harmonyMaterialId,
+      safeTonality,
+      trackDNA.harmonyBehavior,
+      "harmony-identity",
+    ),
   );
+  const progressionGravity = {
+    "tonic-drone": 0.78,
+    "dub-stabs": 0.5,
+    "modal-turns": 0.28,
+    "detroit-voicings": 0.4,
+    "suspended-space": 0.6,
+  }[trackDNA.harmonyBehavior];
   const identity = Object.freeze({
     id: `${safeTonality}:${tonalMaterialId}:${form.motifLineageId}:${harmonyMaterialId}`,
     lineageId: form.motifLineageId,
@@ -974,7 +1449,9 @@ function musicalIdentityForForm(seed, form, tonality) {
       harmonyRng,
       4,
       mode.intervals.length,
-      safeTonality === "neutral" ? 0.5 : 0.42,
+      safeTonality === "neutral"
+        ? Math.max(0.5, progressionGravity)
+        : progressionGravity,
     ),
   });
   materialCache.set(cacheKey, identity);
@@ -1063,6 +1540,7 @@ export function createMovement(seed, movementIndex, tonality = "minor") {
     formPhrases[0],
     safeTonality,
   );
+  const trackDNA = createTrackDNA(seed);
   const movement = Object.freeze({
     index: movementIndex,
     startBar: movementIndex * MOVEMENT_BARS,
@@ -1076,9 +1554,10 @@ export function createMovement(seed, movementIndex, tonality = "minor") {
     rootName: identity.rootName,
     motif: identity.motif,
     progression: identity.progression,
+    trackDNA,
     formPhrases,
     sections,
-    timbre: trajectoryTimbre(seed),
+    timbre: trajectoryTimbre(seed, trackDNA),
   });
   movementCache.set(cacheKey, movement);
   if (movementCache.size > MOVEMENT_CACHE_LIMIT) {
@@ -1290,9 +1769,15 @@ export function buildEnsemblePhrase({
   const phraseForm = formAtBar(movement, phraseStartBar);
   for (let barOffset = 0; barOffset < PHRASE_BARS; barOffset += 1) {
     const targetBar = phraseStartBar + barOffset;
-    const { energy: formLevel } = formDynamicsAtBar(movement, targetBar);
+    const {
+      form: targetForm,
+      energy: formLevel,
+    } = formDynamicsAtBar(movement, targetBar);
     const energy = clamp(
-      formLevel * (0.58 + profile.drive * 0.5),
+      formLevel * (0.5 + profile.drive * 0.64) +
+        profile.density * 0.06 +
+        (targetForm.climax ? 0.16 : 0) -
+        (targetForm.release ? 0.1 : 0),
       0.12,
       1,
     );
@@ -1319,6 +1804,19 @@ export function buildEnsemblePhrase({
         .slice(0, count)
         .sort((left, right) => left - right);
       selected.forEach((step, index) => {
+        const shiftedStep =
+          (step +
+            {
+              hypnotic: 0,
+              dub: 2,
+              acid: 1,
+              detroit: 3,
+              peak: 0,
+            }[profile.id]) %
+          STEPS_PER_BAR;
+        const renderStep = [0, 4, 8, 12].includes(shiftedStep)
+          ? (shiftedStep + 1) % STEPS_PER_BAR
+          : shiftedStep;
         const forwardIndex =
           (index + barOffset + phraseIndex) % movement.motif.length;
         const motifIndex =
@@ -1342,7 +1840,7 @@ export function buildEnsemblePhrase({
         const length =
           role.length[0] +
           Math.floor(rng() * (role.length[1] - role.length[0] + 1));
-        lanes[engine][barOffset][step] = {
+        lanes[engine][barOffset][renderStep] = {
           midi,
           degree,
           velocity: clamp(
@@ -1518,6 +2016,7 @@ function hasLaneEvents(lane) {
 
 function editOptionalLayers({
   councilVerdict,
+  trackDNA,
   roles,
   activeSynthEngines,
   shaker,
@@ -1528,6 +2027,12 @@ function editOptionalLayers({
   pad,
   texture,
 }) {
+  const harmonyForeground = [
+    "dub-stabs",
+    "modal-turns",
+    "detroit-voicings",
+    "suspended-space",
+  ].includes(trackDNA?.harmonyBehavior);
   const candidates = [
     { id: "shaker", active: hasLaneEvents(shaker), clear: () => shaker.fill(0) },
     { id: "rim", active: hasLaneEvents(rim), clear: () => rim.fill(0) },
@@ -1547,6 +2052,8 @@ function editOptionalLayers({
       .filter((candidate) => candidate.active)
       .sort(
         (left, right) =>
+          (harmonyForeground && ["chord", "pad"].includes(right.id) ? 1 : 0) -
+            (harmonyForeground && ["chord", "pad"].includes(left.id) ? 1 : 0) ||
           priority.indexOf(left.id) - priority.indexOf(right.id),
       )
       .slice(0, councilVerdict.optionalLayerBudget)
@@ -1565,6 +2072,7 @@ function editOptionalLayers({
   }
   if (
     councilVerdict.chair !== "machine-soul" &&
+    !harmonyForeground &&
     activeRoles.some((role) => ["low", "mid"].includes(role.register))
   ) {
     chord.fill(null);
@@ -1646,19 +2154,34 @@ function unitHash(...values) {
   return (hash32(...values) >>> 0) / 0xffffffff;
 }
 
-function selectBassVoice(seed, movement, form) {
+function selectBassVoice(seed, movement, form, profile) {
   const materialId =
     form.bassVoiceMaterialId ?? form.motifLineageId;
+  const voiceBias = movement.trackDNA?.bassVoiceBias;
+  const bassBehavior = movement.trackDNA?.bassBehavior;
   const scores = {
     acid:
-      movement.timbre.filterBias * 0.52 +
-      unitHash(seed, materialId, "bass-acid") * 0.48,
+      movement.timbre.filterBias * 0.24 +
+      unitHash(seed, materialId, "bass-acid") * 0.34 +
+      (voiceBias === "acid" ? 0.3 : 0) +
+      (bassBehavior === "acid-serpent" ? 0.24 : 0) +
+      (profile.acid > 0.85 ? 0.38 : 0) +
+      profile.acid * 0.2,
     sub:
-      movement.timbre.kickDecay * 0.54 +
-      unitHash(seed, materialId, "bass-sub") * 0.46,
+      movement.timbre.kickDecay * 0.24 +
+      unitHash(seed, materialId, "bass-sub") * 0.34 +
+      (voiceBias === "sub" ? 0.3 : 0) +
+      (bassBehavior === "sub-sustain" ? 0.3 : 0) +
+      (profile.rumble + profile.warmth) * 0.1,
     pulse:
-      movement.timbre.kickTone * 0.5 +
-      unitHash(seed, materialId, "bass-pulse") * 0.5,
+      movement.timbre.kickTone * 0.24 +
+      unitHash(seed, materialId, "bass-pulse") * 0.34 +
+      (voiceBias === "pulse" ? 0.3 : 0) +
+      (["offbeat-pulse", "syncopated-stabs"].includes(bassBehavior)
+        ? 0.16
+        : 0) +
+      (profile.id === "peak" ? 0.34 : 0) +
+      (profile.syncopation + profile.drive) * 0.1,
   };
   return Object.keys(scores).reduce((winner, candidate) =>
     scores[candidate] > scores[winner] ? candidate : winner,
@@ -1689,6 +2212,60 @@ function buildKickTimbre(
   energy,
   phraseProgress,
 ) {
+  const architectureId =
+    movement.trackDNA?.kickArchitecture || "deep-round";
+  const architecture = {
+    "short-punch": {
+      bodyHz: 51,
+      pitchStartHz: 184,
+      pitchDropSeconds: 0.03,
+      decaySeconds: 0.32,
+      clickHz: 5200,
+      clickLevel: 0.12,
+      drive: 2.35,
+      rumbleScale: 0.55,
+    },
+    "deep-round": {
+      bodyHz: 45,
+      pitchStartHz: 146,
+      pitchDropSeconds: 0.052,
+      decaySeconds: 0.56,
+      clickHz: 3400,
+      clickLevel: 0.065,
+      drive: 1.72,
+      rumbleScale: 1,
+    },
+    "click-forward": {
+      bodyHz: 48,
+      pitchStartHz: 198,
+      pitchDropSeconds: 0.028,
+      decaySeconds: 0.39,
+      clickHz: 6900,
+      clickLevel: 0.15,
+      drive: 2.2,
+      rumbleScale: 0.62,
+    },
+    "saturated-tail": {
+      bodyHz: 46,
+      pitchStartHz: 172,
+      pitchDropSeconds: 0.044,
+      decaySeconds: 0.66,
+      clickHz: 4200,
+      clickLevel: 0.09,
+      drive: 3.15,
+      rumbleScale: 1.18,
+    },
+    "sub-drop": {
+      bodyHz: 40.5,
+      pitchStartHz: 128,
+      pitchDropSeconds: 0.068,
+      decaySeconds: 0.61,
+      clickHz: 2700,
+      clickLevel: 0.045,
+      drive: 1.48,
+      rumbleScale: 1.12,
+    },
+  }[architectureId];
   const currentFamily = kickFamilyParameters(seed, form.kickFamilyId);
   const priorFamily = kickFamilyParameters(
     seed,
@@ -1708,53 +2285,62 @@ function buildKickTimbre(
     : 0;
   return Object.freeze({
     bodyHz: clamp(
-      40 +
-        familyValue("body") * 11 +
+      architecture.bodyHz +
+        (familyValue("body") - 0.5) * 3.2 +
+        (profile.warmth - 0.5) * 2.2 +
         (form.floorTrust - 0.5) * 2.5 -
         climaxDepth * 1.4,
-      40,
-      54,
+      38,
+      55,
     ),
     pitchStartHz: clamp(
-      122 +
-        familyValue("attack") * 54 +
-        energy * 22 +
+      architecture.pitchStartHz +
+        (familyValue("attack") - 0.5) * 18 +
+        (profile.acid - 0.5) * 28 +
+        energy * 8 +
         climaxDepth * 8,
       120,
-      198,
+      212,
     ),
     pitchDropSeconds: clamp(
-      0.028 + familyValue("drop") * 0.034,
-      0.028,
-      0.062,
+      architecture.pitchDropSeconds +
+        (familyValue("drop") - 0.5) * 0.009,
+      0.022,
+      0.076,
     ),
     decaySeconds: clamp(
-      0.3 +
-        familyValue("decay") * 0.29 +
+      architecture.decaySeconds +
+        (familyValue("decay") - 0.5) * 0.075 +
+        (profile.warmth - 0.5) * 0.075 +
         form.space * 0.055 +
         climaxDepth * 0.045,
-      0.3,
-      0.68,
+      0.27,
+      0.72,
     ),
     clickHz: clamp(
-      2450 +
-        familyValue("click") * 3850 +
+      architecture.clickHz +
+        (familyValue("click") - 0.5) * 720 +
+        (profile.metallic - 0.5) * 1250 +
+        (profile.acid - 0.5) * 1000 +
         form.brightness * 760,
-      2600,
-      7200,
+      2400,
+      7600,
     ),
     clickLevel: clamp(
-      0.04 +
-        familyValue("clickLevel") * 0.075 +
+      architecture.clickLevel +
+        (familyValue("clickLevel") - 0.5) * 0.024 +
+        (profile.drive - 0.5) * 0.045 +
+        (profile.acid - 0.5) * 0.03 +
         form.brightness * 0.032 +
         unitHash(seed, phraseIndex, "kick-click-articulation") * 0.012,
-      0.04,
-      0.16,
+      0.025,
+      0.18,
     ),
     drive: clamp(
-      1.2 +
-        familyValue("drive") * 0.9 +
-        energy * 0.82 +
+      architecture.drive +
+        (familyValue("drive") - 0.5) * 0.32 +
+        energy * 0.18 +
+        profile.drive * 0.52 +
         form.floorTrust * 0.34 +
         climaxDepth * 0.28,
       1.2,
@@ -1765,6 +2351,7 @@ function buildKickTimbre(
         profile.rumble * 0.075 +
         familyValue("rumble") * 0.035 +
         climaxDepth * 0.018) *
+        architecture.rumbleScale *
         (form.kickPolicy === "withdraw" ? 0.15 : 1),
       0,
       0.14,
@@ -1799,14 +2386,34 @@ function buildBassLine({
   kick,
 }) {
   const bass = Array(STEPS_PER_BAR).fill(null);
+  const trackDNA = movement.trackDNA || createTrackDNA(seed);
+  const bassBehavior = trackDNA.bassBehavior;
+  const groove =
+    GROOVE_VOCABULARIES[trackDNA.grooveFamily] ||
+    GROOVE_VOCABULARIES["straight-pressure"];
+  const vibeDirection =
+    VIBE_ARRANGEMENT[profile.id] || VIBE_ARRANGEMENT.hypnotic;
   const barInCell = ((bar % 2) + 2) % 2;
   const cellRotation =
-    hash32(form.motifLineageId, "bass-cell") % 32;
-  const baseEventsPerHalf = 5;
+    hash32(
+      form.motifLineageId,
+      bassBehavior,
+      trackDNA.grooveFamily,
+      "bass-cell",
+    ) % 32;
+  const baseEventsPerHalf = {
+    "offbeat-pulse": 4,
+    "rolling-cell": 6,
+    "acid-serpent": 6,
+    "sub-sustain": 3,
+    "syncopated-stabs": 5,
+  }[bassBehavior];
   const renderedEventsPerHalf = clamp(
     Math.round(
       1 +
-        form.density * 4 -
+        form.density * 2.2 +
+        profile.density * 1.5 +
+        groove.bassDensityBias -
         (form.kickPolicy === "thin" ? 0.6 : 0) -
         (form.kickPolicy === "withdraw" ? 1.2 : 0),
     ),
@@ -1834,6 +2441,18 @@ function buildBassLine({
       0.5 + Math.cos((rotated / 32) * Math.PI * 2 * 3) * 0.5;
     const fivePulse =
       0.5 + Math.sin((rotated / 32) * Math.PI * 2 * 5) * 0.5;
+    const behaviorPulse = {
+      "offbeat-pulse":
+        step % 4 === 2 ? 1 : step % 4 === 3 ? 0.55 : 0,
+      "rolling-cell": threePulse * 0.62 + fivePulse * 0.38,
+      "acid-serpent": step % 2 ? 0.78 : fivePulse * 0.46,
+      "sub-sustain":
+        [2, 6, 10, 14].includes(step) ? 1 : step % 4 === 0 ? 0.18 : 0,
+      "syncopated-stabs":
+        [3, 7, 11, 15].includes(step) ? 1 : fivePulse * 0.35,
+    }[bassBehavior];
+    const groovePulse =
+      groove.secondaryHats.includes(step) ? 0.22 : 0;
     const offbeat =
       step % 4 === 0 ? 0 : 0.2 + lineageSyncopation * 0.12;
     return (
@@ -1844,8 +2463,10 @@ function buildBassLine({
         "bass-onset",
       ) *
         0.44 +
-      threePulse * 0.18 +
-      fivePulse * 0.16 +
+      threePulse * 0.1 +
+      fivePulse * 0.08 +
+      behaviorPulse * 0.34 +
+      groovePulse +
       offbeat +
       (step % 2 ? 0.045 : 0)
     );
@@ -1908,29 +2529,47 @@ function buildBassLine({
   const candidates = form.intentionalRest
     ? []
     : canonicalCell
+        .map((event) => ({
+          ...event,
+          cellStep: event.step,
+          renderedStep:
+            (event.step + vibeDirection.bassRotation) % 32,
+        }))
         .filter(
           (event) =>
-            Math.floor(event.step / STEPS_PER_BAR) === barInCell,
+            Math.floor(event.renderedStep / STEPS_PER_BAR) === barInCell,
         )
         .sort(
           (left, right) =>
-            unitHash(
+            (unitHash(
               form.motifLineageId,
-              left.step,
-              "bass-render-priority",
-            ) -
-            unitHash(
+              right.cellStep,
+              profile.id,
+              "bass-render-vibe-priority",
+            ) *
+              0.34 +
+              (right.renderedStep % 2 ? profile.syncopation * 0.2 : 0) +
+              (right.renderedStep % 4 === 2 ? profile.acid * 0.18 : 0) +
+              (right.renderedStep % 4 === 0 ? profile.rumble * 0.12 : 0)) -
+            (unitHash(
               form.motifLineageId,
-              right.step,
-              "bass-render-priority",
-            ),
+              left.cellStep,
+              profile.id,
+              "bass-render-vibe-priority",
+            ) *
+              0.34 +
+              (left.renderedStep % 2 ? profile.syncopation * 0.2 : 0) +
+              (left.renderedStep % 4 === 2 ? profile.acid * 0.18 : 0) +
+              (left.renderedStep % 4 === 0 ? profile.rumble * 0.12 : 0)),
         )
         .slice(0, renderedEventsPerHalf)
-        .filter((event) => !kick[event.step % STEPS_PER_BAR])
-        .sort((left, right) => left.step - right.step)
+        .filter(
+          (event) => !kick[event.renderedStep % STEPS_PER_BAR],
+        )
+        .sort((left, right) => left.renderedStep - right.renderedStep)
         .map((event) => ({
-          step: event.step % STEPS_PER_BAR,
-          cellStep: event.step,
+          step: event.renderedStep % STEPS_PER_BAR,
+          cellStep: event.cellStep,
           degree: event.degree,
         }));
 
@@ -2017,6 +2656,21 @@ export function buildBarPlan({
   }
   const movementIndex = Math.floor(Math.max(0, bar) / MOVEMENT_BARS);
   const movementWindow = createMovement(seed, movementIndex, tonality);
+  const trackDNA = movementWindow.trackDNA || createTrackDNA(seed);
+  profile = shapeProfileForTrack(profile, trackDNA);
+  instrumentProfile = shapeProfileForTrack(
+    instrumentProfile,
+    trackDNA,
+  );
+  const groove =
+    GROOVE_VOCABULARIES[trackDNA.grooveFamily] ||
+    GROOVE_VOCABULARIES["straight-pressure"];
+  const formRhythmBias =
+    FORM_RHYTHM_BIAS[trackDNA.formPhenotype] ||
+    FORM_RHYTHM_BIAS["patient-hypnosis"];
+  const vibeArrangement =
+    VIBE_ARRANGEMENT[vibeId] || VIBE_ARRANGEMENT.hypnotic;
+  const percussionTimbre = percussionTimbreFor(trackDNA, profile);
   const section = sectionAtBar(movementWindow, bar);
   const localBar =
     ((bar - movementWindow.startBar) % MOVEMENT_BARS + MOVEMENT_BARS) %
@@ -2045,9 +2699,22 @@ export function buildBarPlan({
   const barRng = makeRng(
     hash32(seed, bar, form.motifLineageId, 0x42415221),
   );
-  const energy = clamp(formLevel * (0.58 + profile.drive * 0.5), 0.12, 1);
+  const energy = clamp(
+    formLevel * (0.5 + profile.drive * 0.64) +
+      profile.density * 0.06 +
+      (form.climax ? 0.16 : 0) -
+      (form.release ? 0.1 : 0),
+    0.12,
+    1,
+  );
+  const effectiveDensity =
+    form.density * 0.66 + profile.density * 0.34;
+  const effectiveSpace =
+    form.space * 0.7 + profile.space * 0.3;
   const sparse =
-    form.intentionalRest || form.density < 0.48 || form.space > 0.68;
+    form.intentionalRest ||
+    effectiveDensity < 0.48 ||
+    effectiveSpace > 0.68;
   const peak = form.climax;
   const phraseEnd = barInPhrase === PHRASE_BARS - 1;
   const sectionStart =
@@ -2070,6 +2737,7 @@ export function buildBarPlan({
     section,
     phraseIndex,
     roles: effectiveEnsembleRoles,
+    profile,
   });
   const activeSynthEngines = councilVerdict.activeSynthEngines;
 
@@ -2082,7 +2750,15 @@ export function buildBarPlan({
     form.kickPolicy === "withdraw"
       ? 0
       : form.kickPolicy === "thin"
-        ? clamp(Math.round(1 + form.floorTrust * 1.4), 1, 3)
+        ? clamp(
+            Math.round(
+              1 +
+                form.floorTrust * 1.5 -
+                profile.breakDepth * 0.65,
+            ),
+            1,
+            3,
+          )
         : kickCandidates.length;
   kickCandidates
     .map((step) => ({
@@ -2110,8 +2786,29 @@ export function buildBarPlan({
 
   const clap = emptyPattern();
   if (energy > 0.46 && !form.intentionalRest) {
-    clap[4] = 0.48 + energy * 0.28;
-    clap[12] = 0.54 + energy * 0.28;
+    const clapSteps =
+      vibeId === "dub" && profile.space > 0.72
+        ? [groove.claps[(phraseIndex + barInPhrase) % groove.claps.length]]
+        : groove.claps;
+    clapSteps.forEach((step, index) => {
+      clap[step] =
+        0.46 + energy * 0.28 + (index === clapSteps.length - 1 ? 0.05 : 0);
+    });
+    const ghostChance = clamp(
+      0.08 +
+        vibeArrangement.clapGhostBias +
+        profile.syncopation * 0.18,
+      0,
+      0.55,
+    );
+    if (!sparse && barRng() < ghostChance) {
+      const ghostStep =
+        groove.ghostClaps[
+          hash32(seed, phraseIndex, barInPhrase, "ghost-clap") %
+            groove.ghostClaps.length
+        ];
+      clap[ghostStep] = Math.max(clap[ghostStep], 0.16 + energy * 0.12);
+    }
     if (councilVerdict.allowFill && phraseEnd && profile.density > 0.7) {
       clap[11] = 0.2;
     }
@@ -2119,18 +2816,35 @@ export function buildBarPlan({
 
   const hat = emptyPattern();
   const openHat = emptyPattern();
-  [2, 6, 10, 14].forEach((step, index) => {
-    if (barRng() < 0.48 + energy * 0.45) {
+  const primaryHatSteps = groove.hats.map(
+    (step) => (step + vibeArrangement.hatRotation) % STEPS_PER_BAR,
+  );
+  primaryHatSteps.forEach((step, index) => {
+    if (
+      barRng() <
+      0.48 + energy * 0.45 + formRhythmBias.primary
+    ) {
       hat[step] = 0.34 + energy * 0.32 + (index % 2) * 0.05;
     }
   });
-  for (let step = 1; step < STEPS_PER_BAR; step += 2) {
-    if (barRng() < energy * (0.2 + profile.density * 0.34)) {
+  for (const sourceStep of groove.secondaryHats) {
+    const step =
+      (sourceStep + vibeArrangement.hatRotation) % STEPS_PER_BAR;
+    if (
+      barRng() <
+      energy * (0.2 + profile.density * 0.34) +
+        formRhythmBias.secondary
+    ) {
       hat[step] = Math.max(hat[step], 0.16 + barRng() * 0.24);
     }
   }
   if (!sparse && barRng() < 0.24 + profile.density * 0.5) {
-    const step = barRng() < 0.5 ? 6 : 14;
+    const openCandidates =
+      primaryHatSteps.length > 1
+        ? primaryHatSteps.filter((_, index) => index % 2 === 1)
+        : primaryHatSteps;
+    const step =
+      openCandidates[Math.floor(barRng() * openCandidates.length)];
     openHat[step] = 0.34 + energy * 0.25;
     hat[step] = 0;
   }
@@ -2200,19 +2914,98 @@ export function buildBarPlan({
     movement.progression.length;
   const progressionDegree =
     movement.progression[harmonyPosition];
-  const chordChance =
-    profile.chords * (sparse ? 0.95 : 0.5) +
-    (form.climax ? 0.12 : 0);
-  const chordBar =
-    hash32(seed, phraseIndex, form.motifLineageId, "chord-bar") %
-    PHRASE_BARS;
+  const harmonyDesign = {
+    "tonic-drone": {
+      chordBias: -0.12,
+      eventsPerPhrase: 1,
+      padChance: 0.58,
+      tonic: true,
+      suspended: false,
+    },
+    "dub-stabs": {
+      chordBias: 0.24,
+      eventsPerPhrase: 2,
+      padChance: 0.18,
+      tonic: false,
+      suspended: false,
+    },
+    "modal-turns": {
+      chordBias: 0.1,
+      eventsPerPhrase: 1,
+      padChance: 0.3,
+      tonic: false,
+      suspended: false,
+    },
+    "detroit-voicings": {
+      chordBias: 0.2,
+      eventsPerPhrase: 2,
+      padChance: 0.26,
+      tonic: false,
+      suspended: false,
+    },
+    "suspended-space": {
+      chordBias: 0.08,
+      eventsPerPhrase: 1,
+      padChance: 0.68,
+      tonic: false,
+      suspended: true,
+    },
+  }[trackDNA.harmonyBehavior];
+  const audibleHarmonyDegree =
+    harmonyDesign.tonic || vibeId === "dub"
+      ? 0
+      : vibeId === "detroit"
+        ? progressionDegree + 2
+        : vibeId === "acid"
+          ? progressionDegree + 1
+          : progressionDegree;
+  const vibeChordBias = {
+    hypnotic: 0.1,
+    dub: 0.3,
+    acid: -0.2,
+    detroit: 0.26,
+    peak: -0.24,
+  }[vibeId];
+  const chordChance = clamp(
+    profile.chords * (sparse ? 0.82 : 0.62) +
+      harmonyDesign.chordBias +
+      vibeChordBias +
+      (form.climax ? 0.12 : 0),
+    0.06,
+    0.96,
+  );
+  const firstChordBar =
+    hash32(
+      seed,
+      phraseIndex,
+      form.motifLineageId,
+      trackDNA.harmonyBehavior,
+      "chord-bar",
+    ) % PHRASE_BARS;
+  const chordBars = new Set([firstChordBar]);
   if (
-    barInPhrase === chordBar &&
-    barRng() < clamp(chordChance * 1.65, 0, 0.92)
+    harmonyDesign.eventsPerPhrase > 1 ||
+    vibeId === "detroit"
   ) {
-    const step = [3, 7, 11, 15][Math.floor(barRng() * 4)];
+    chordBars.add((firstChordBar + 3 + (phraseIndex % 2)) % PHRASE_BARS);
+  }
+  if (
+    chordBars.has(barInPhrase) &&
+    barRng() < chordChance
+  ) {
+    const chordSteps =
+      trackDNA.harmonyBehavior === "dub-stabs"
+        ? [3, 7, 11, 15]
+        : groove.ghostClaps;
+    const step = chordSteps[Math.floor(barRng() * chordSteps.length)];
     chord[step] = {
-      notes: makeChord(movement, progressionDegree, 1, barRng() < profile.space * 0.24),
+      notes: makeChord(
+        movement,
+        audibleHarmonyDegree,
+        1,
+        harmonyDesign.suspended ||
+          barRng() < profile.space * 0.24,
+      ),
       length: 0.16 + profile.space * 0.48,
       velocity: 0.42 + energy * 0.28,
     };
@@ -2222,15 +3015,38 @@ export function buildBarPlan({
     barInPhrase === 0 &&
     (form.release ||
       form.space > 0.62 ||
-      (form.chair === "machine-soul" && form.motifSalience > 0.58))
+      (form.chair === "machine-soul" && form.motifSalience > 0.58) ||
+      unitHash(
+        seed,
+        phraseIndex,
+        trackDNA.harmonyBehavior,
+        "track-pad",
+      ) <
+        clamp(
+          harmonyDesign.padChance +
+            {
+              hypnotic: 0.08,
+              dub: 0.35,
+              acid: -0.26,
+              detroit: -0.12,
+              peak: -0.42,
+            }[vibeId],
+          0,
+          0.9,
+        ))
       ? {
-          notes: makeChord(movement, progressionDegree, 2, profile.space > 0.7),
+          notes: makeChord(
+            movement,
+            audibleHarmonyDegree,
+            2,
+            harmonyDesign.suspended || profile.space > 0.7,
+          ),
           durationBars: clamp(Math.round(2 + profile.space * 4), 2, 6),
           velocity: 0.12 + profile.chords * 0.14,
         }
       : null;
 
-  const bassVoice = selectBassVoice(seed, movement, form);
+  const bassVoice = selectBassVoice(seed, movement, form, profile);
 
   const synthProfile = instrumentProfile;
   const synthHandoff = synthHandoffForForm(seed, form);
@@ -2274,6 +3090,7 @@ export function buildBarPlan({
       0.08 + profile.texture * 0.44 + form.space * 0.18;
   const editedLayers = editOptionalLayers({
     councilVerdict,
+    trackDNA,
     roles: effectiveEnsembleRoles,
     activeSynthEngines,
     shaker,
@@ -2307,8 +3124,16 @@ export function buildBarPlan({
     metallic,
     ride,
   });
+  const spatialWidth = {
+    "dry-close": 0.35,
+    "short-room": 0.52,
+    "mono-pressure": 0.12,
+    "dub-depth": 0.72,
+    "wide-haze": 1,
+  }[trackDNA.spatialProfile];
   const texturePan =
-    movement.timbre.stereoBias * 0.55 + barRng() * 0.35 - 0.175;
+    (movement.timbre.stereoBias * 0.55 + barRng() * 0.35 - 0.175) *
+    spatialWidth;
   const riser = barInPhrase === 0 && form.allowRiser === true;
   const downlifter =
     barInPhrase === 0 && form.release;
@@ -2335,12 +3160,27 @@ export function buildBarPlan({
       ? clamp(phraseProgress, 0, 1)
       : 1,
     bassDensity: bassCount,
+    bassBehavior: trackDNA.bassBehavior,
     bassCell: bassLine.cell,
     bassCellSignature: bassLine.cellSignature,
     canonicalBassDensity: bassLine.cell.length,
     bassVoice,
-    musicDuckDepth: clamp(0.43 + energy * 0.14, 0.4, 0.62),
-    bassDuckDepth: clamp(0.66 + (1 - form.floorTrust) * 0.1, 0.64, 0.78),
+    musicDuckDepth: clamp(
+      0.39 +
+        energy * 0.14 +
+        (trackDNA.spatialProfile === "mono-pressure" ? 0.08 : 0) -
+        (trackDNA.spatialProfile === "wide-haze" ? 0.06 : 0),
+      0.32,
+      0.66,
+    ),
+    bassDuckDepth: clamp(
+      0.62 +
+        (1 - form.floorTrust) * 0.1 +
+        (trackDNA.bassBehavior === "sub-sustain" ? -0.1 : 0) +
+        (trackDNA.bassBehavior === "acid-serpent" ? 0.06 : 0),
+      0.5,
+      0.8,
+    ),
     rumbleSend: kickTimbre.rumbleSend,
   });
   const instrumentation = buildInstrumentation({
@@ -2369,6 +3209,7 @@ export function buildBarPlan({
 
   return {
     bar,
+    trackDNA,
     movement,
     section,
     form,
@@ -2384,6 +3225,7 @@ export function buildBarPlan({
     profile,
     kick,
     kickTimbre,
+    percussionTimbre,
     clap,
     hat,
     openHat,
@@ -2414,15 +3256,33 @@ export function buildBarPlan({
     downlifter,
     downlifterBars: 4,
     filterOpen: clamp(
-      0.18 +
-        form.brightness * 0.62 +
-        energy * 0.22 -
-        form.space * 0.1 +
+      0.14 +
+        form.brightness * 0.55 +
+        energy * 0.2 -
+        form.space * 0.08 +
+        profile.drive * 0.08 +
+        profile.metallic * 0.05 +
+        profile.acid * 0.1 -
+        profile.space * 0.06 +
+        {
+          "sub-dark": -0.14,
+          "warm-tilt": -0.07,
+          "mid-forward": 0,
+          "bright-metal": 0.08,
+          "open-air": 0.12,
+        }[trackDNA.spectralProfile] +
+        {
+          "dry-close": 0.03,
+          "short-room": 0.01,
+          "mono-pressure": -0.08,
+          "dub-depth": -0.05,
+          "wide-haze": 0.06,
+        }[trackDNA.spatialProfile] +
         phraseProgress * Math.max(0, form.energyDelta) * 0.18,
       0.14,
       1,
     ),
-    fingerprint: `${movement.index}:${form.label}:${form.chair}:${form.motifLineageId}:${phraseIndex}:${bassCount}:${bassVoice}:${ensembleScene.id}:${activeSynthEngines
+    fingerprint: `${trackDNA.grooveFamily}:${trackDNA.kickArchitecture}:${trackDNA.formPhenotype}:${movement.index}:${form.label}:${form.chair}:${form.motifLineageId}:${phraseIndex}:${bassCount}:${bassVoice}:${ensembleScene.id}:${activeSynthEngines
       .map(
         (engine) =>
           `${engine}:${effectiveEnsembleRoles[engine].sourceSceneId}:${effectiveEnsembleRoles[engine].id}`,

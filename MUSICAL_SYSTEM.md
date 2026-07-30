@@ -1,7 +1,7 @@
 # Infinite Techno Musical System
 
-Status: implemented generative-set grammar  
-Generator version: `1.4.0`
+Status: local trajectory-diversity candidate; rendered listening validation open
+Generator version: `1.5.0`
 Primary product: music  
 Quantum role: visual and poetic contour only
 
@@ -15,6 +15,51 @@ return without prescribing a set list.
 The design target is the continuity of a strong techno DJ set: track boundaries
 should become difficult to locate, important changes should land on phrase
 boundaries, and dramatic gestures should be rare enough to remain meaningful.
+
+For reproducible validation, a **trajectory window** is one trajectory ID rendered
+or planned across 192 consecutive bars. It is a bounded comparison unit, not a
+musical reset or a claim that the continuous set contains literal song boundaries.
+Cross-trajectory diversity tests compare complete windows rather than treating a
+different seed, material ID, or internal state label as musical difference by
+itself.
+
+## Trajectory-scale musical identity
+
+Each trajectory ID deterministically creates one frozen **Track DNA** macro
+phenotype. This is not a song template or a substitute for the recurrent form
+system. It establishes broad musical priors which the phrase and bar planners must
+realize downstream:
+
+| Musical domain | Track DNA fields |
+| --- | --- |
+| Groove and drums | groove family, percussion kit |
+| Low end | kick architecture, bass behaviour, bass-voice bias |
+| Harmony | harmony behaviour |
+| Foreground synthesis | preferred engine and musical role |
+| Mix contour | spectral and spatial profiles |
+| Long-form tendency | form phenotype |
+
+All 11 fields use curated categorical vocabularies. They shape actual rhythm masks,
+kick parameters, hat and clap envelopes, clap-burst topology, percussion effect
+sends, bass cells and voice residence, harmonic activity, note-bearing synthesis
+roles and genomes, audio-engine profile controls, and recurrent-form tendencies.
+The field names, seed, scene label, material IDs, and fingerprints do not count as
+musical difference in the 192-bar structural-distance gate.
+
+`New Trajectory` samples 16 browser-random candidates and, when the pool contains
+an eligible candidate, selects the most distant one by a weighted DNA comparison.
+Eligibility requires distance of at least `0.55`, at least five changed fields, and
+at least three changed core fields among groove, kick, bass, harmony, and form. If a
+16-candidate draw contains no eligible result, the request is rejected and the
+current trajectory continues; an unqualified fallback seed never enters. At the
+16-bar trajectory boundary, the engine clears the resident advanced voices and
+reconstructs seed-bound synthesis and ensemble identity.
+
+Vibe remains an independent user direction layered onto this trajectory identity.
+It affects realized rhythm, low end, harmony, synthesis, audio profile, and form;
+it is not merely a visible preset label. A fixed planner test compares every pair
+of the five settled Vibe endpoints on the same trajectory. In-flight Vibe requests
+still morph over 64–128 bars rather than replacing Track DNA.
 
 ## Historical and practical basis
 
@@ -158,9 +203,11 @@ atmosphere voices:
 
 The total is 208 discrete base architectures before continuous parameters such as
 FM index, oscillator level, brightness, stiffness, damping, strike or pick position,
-decay, spread, and drive. A fixed two-seed, five-Vibe deterministic scan selects all
-208 structures into note-bearing lanes and reaches more than 170 active parameter
-genomes.
+decay, spread, and drive. A fixed synthetic two-seed, five-Vibe motif-event scan
+constructs all 208 structures, selects at least 200 through the causally authorized
+handoff-candidate path, and reaches more than 170 candidate parameter genomes. This
+is inventory and candidate-reachability evidence. It does not establish that every
+architecture becomes note-bearing or audible inside a real trajectory window.
 
 ### Council-edited conversation grammar
 

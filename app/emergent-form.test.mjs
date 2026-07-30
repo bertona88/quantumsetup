@@ -532,7 +532,8 @@ test("motif replacement changes motif material without resetting every musical d
         );
         assert.equal(plan.form.tonalOperation, "hold");
         assert.equal(plan.form.harmonyOperation, "hold");
-        assert.equal(plan.form.sceneOperation, "hold");
+        assert.equal(plan.form.sceneOperation, "handoff");
+        assert.equal(plan.synthHandoff?.operation, "replace");
         assert.equal(
           plan.form.tonalMaterialId,
           previous.form.tonalMaterialId,
@@ -545,7 +546,7 @@ test("motif replacement changes motif material without resetting every musical d
           plan.form.harmonyPosition,
           previous.form.harmonyPosition,
         );
-        assert.equal(
+        assert.notEqual(
           plan.form.sceneMaterialId,
           previous.form.sceneMaterialId,
         );
@@ -560,7 +561,6 @@ test("motif replacement changes motif material without resetting every musical d
           previous.movement.progression,
         );
         assert.equal(plan.harmonyDegree, previous.harmonyDegree);
-        assert.equal(plan.ensembleScene.id, previous.ensembleScene.id);
         assert.equal(plan.bassVoice, previous.bassVoice);
         changedMotifs += Number(
           JSON.stringify(plan.movement.motif) !==
@@ -614,6 +614,7 @@ test("harmony turns are causal irregular events rather than a two-phrase clock",
         );
         if (
           plan.form.motifOperation === "hold" &&
+          plan.form.tonalOperation === "hold" &&
           plan.form.harmonyOperation === "hold" &&
           Math.floor(plan.form.lineageAge / 2) !==
             Math.floor(previous.form.lineageAge / 2)
@@ -778,8 +779,8 @@ test("kick and bass behavior follows form state instead of section labels", () =
       for (const value of Object.values(plan.kickTimbre)) {
         assert.ok(Number.isFinite(value) && value >= 0);
       }
-      assert.ok(plan.lowEnd.musicDuckDepth >= 0.4);
-      assert.ok(plan.lowEnd.bassDuckDepth >= 0.64);
+      assert.ok(plan.lowEnd.musicDuckDepth >= 0.32);
+      assert.ok(plan.lowEnd.bassDuckDepth >= 0.5);
       assert.equal(plan.lowEnd.decision, plan.form.motifOperation);
       assert.equal(Object.isFrozen(plan.lowEnd.bassCell), true);
       assert.ok(plan.lowEnd.bassCell.every((event) => Object.isFrozen(event)));

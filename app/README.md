@@ -29,8 +29,10 @@ quantum-random.
 - **Start / Stop** owns the one browser `AudioContext`.
 - **Vibe** sets a long-term destination: Hypnotic, Dub, Detroit, Acid, or Peak.
 - **Harmonic gravity** sets Minor, Neutral, or Major.
-- **New trajectory** queues new deterministic musical DNA at a 16-bar seed-change
-  boundary; this is not a synth-mutation clock.
+- **New trajectory** evaluates sixteen deterministic Track-DNA candidates and
+  queues only one that crosses the macro-distance gate at a 16-bar seed-change
+  boundary. If none qualifies, the current trajectory continues. This is not a
+  synth-mutation clock.
 - **Signal Deck** previews one stopped-transport timbre and records an explicit
   local Pass/Keep preference by button, keyboard, or swipe.
 
@@ -39,6 +41,12 @@ bars according to profile distance. Major/minor changes use a neutral suspended
 field between the two tonal families rather than replacing the scale immediately.
 
 ## Musical architecture
+
+`track-dna.js` derives a frozen eleven-domain macro phenotype from the 128-bit
+trajectory identity: groove, kick architecture, percussion kit, bass behavior and
+voice bias, harmonic behavior, foreground engine and role, spectral/spatial
+profile, and form phenotype. These fields must change across several core domains
+before a requested New Trajectory can enter.
 
 `techno-model.js` is the deterministic composition layer. It plans:
 
@@ -66,8 +74,10 @@ combine with bounded, deterministic parameter genomes. Initial construction seed
 all three engines. During playback, motif `mutate`, `replace`, or `recall` alone
 authorizes one deterministic engine handoff at a stable phrase boundary; `hold`
 authorizes none. Engine choice is scored from the causal event rather than phrase
-modulo, elapsed time, or a round-robin. Vibe and New Trajectory may supply candidate
-state but cannot authorize an extra handoff.
+modulo, elapsed time, or a round-robin. Vibe may supply candidate shading but
+cannot authorize an extra handoff. A New Trajectory is a separate full-identity
+boundary: it clears resident seed-bound palettes, roles, profiles, and genomes so
+the prior track cannot leak into the new one.
 
 Six curated ensemble scenes coordinate those engines as calls, replies, motors,
 weaves, marks, tails, and pickups. They use scored phrase masks and separated

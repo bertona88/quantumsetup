@@ -7,6 +7,12 @@ export const SYNTH_HARD_LIFETIME_SECONDS = 8;
 
 const TAU = Math.PI * 2;
 const SILENCE = 1e-7;
+const ENGINE_OUTPUT_TRIM = Object.freeze({
+  fm: 0.085,
+  modal: 0.115,
+  // The lossy delay loop has substantially less raw output than the oscillator banks.
+  string: 0.5,
+});
 
 function midiToFrequency(midi) {
   return 440 * 2 ** ((midi - 69) / 12);
@@ -474,8 +480,7 @@ export function renderSynthVoice(voice, absoluteFrame, target) {
   if (voice.engine === "fm") sample = renderFm(voice, time);
   else if (voice.engine === "modal") sample = renderModal(voice, time);
   else sample = renderString(voice, time);
-  const trim =
-    voice.engine === "fm" ? 0.085 : voice.engine === "modal" ? 0.115 : 0.1;
+  const trim = ENGINE_OUTPUT_TRIM[voice.engine];
   sample = dcBlock(voice, sample) * voice.velocity * trim;
   if (!Number.isFinite(sample)) {
     voice.hardEndFrame = absoluteFrame;

@@ -421,6 +421,13 @@ function handleEngineEvent(event) {
     liveRegion.textContent = `New trajectory ${formatSeed(event.seed)} entered at bar ${event.bar + 1}`;
   }
 
+  if (event.type === "trajectory-rejected") {
+    transitionCopy.textContent =
+      "NO DISTINCT TRAJECTORY FOUND · CURRENT SET CONTINUES";
+    liveRegion.textContent =
+      "The candidate pool was too close to the current musical DNA, so no trajectory change was made.";
+  }
+
   if (event.type === "step") {
     visualState.kick = Math.max(visualState.kick, event.kick);
     visualState.bass = Math.max(visualState.bass, event.bass);

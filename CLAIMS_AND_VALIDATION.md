@@ -1,6 +1,6 @@
 # Claims and Validation
 
-Status: claim register for Infinite Techno `1.4.0`
+Status: claim register for local Infinite Techno `1.5.0` diversity candidate
 
 ## Allowed claims
 
@@ -11,6 +11,13 @@ The application may claim that it:
 - uses deterministic seed-based composition;
 - samples a 128-bit trajectory ID from the browser cryptographic random source on
   each clean page load and derives the initial Vibe and harmonic field from it;
+- deterministically assigns each trajectory an 11-field categorical macro
+  phenotype covering groove, drums, low end, harmony, foreground synthesis, mix
+  contour, and form tendency;
+- evaluates 16 fresh candidates for `New Trajectory` and selects the most
+  macro-distinct eligible candidate when that bounded pool contains one;
+- rejects a `New Trajectory` request and preserves the current seed when the
+  bounded pool contains no threshold-eligible candidate;
 - has \(2^{128}\), or about \(3.4 \times 10^{38}\), possible trajectory IDs, so two
   independent uniform ID draws match with probability \(1 / 2^{128}\), or about
   \(2.9 \times 10^{-39}\);
@@ -62,7 +69,10 @@ The application may claim that it:
   uses it only to rank candidates for the engine already authorized by a causal
   motif handoff;
 - drives its quantum-inspired contour from audio analysis and scheduled musical
-  events.
+  events;
+- separates all 78 pairs in the fixed 13-seed planner manifest, and all ten settled
+  Vibe pairs for one fixed seed, across 192-bar downstream musical summaries under
+  the recorded structural-distance thresholds.
 
 ## Nonclaims
 
@@ -73,6 +83,12 @@ The application does not claim:
 - that different trajectory IDs can never produce similar or colliding musical
   passages, or that \(1 / 2^{128}\) is the measured probability of two rendered
   one-minute audio segments being identical;
+- that every one of the \(2^{128}\) trajectory IDs has been proven perceptually
+  distinct, or that planner-level structural distance by itself proves audible
+  difference;
+- that a different Track DNA label proves different audio, that the fixed
+  13-seed manifest establishes separation for arbitrary IDs, or that every random
+  16-candidate draw is guaranteed to contain a threshold-eligible candidate;
 - subjective equivalence to a named artist, professional producer, or top DJ;
 - machine learning, training on a music catalog, or artist imitation;
 - participation, endorsement, approval, or literal opinions from the named artistic
@@ -95,6 +111,8 @@ The application does not claim:
 | low-end planner tests | kick-policy conformance, independent kick-family cooldown and phrase morph, bounded physical kick fields, two-bar bass lineage continuity, independently resident voice identity, kick/bass onset separation, and routing-contract bounds | club-system translation or perceived low-end authority |
 | causal handoff tests | hold isolation, mutate/replace/recall authorization, non-round-robin engine reachability, stable event selection, and one-engine staging | whether the timbral change feels musically earned |
 | council and ensemble tests | scene reachability and causal one-engine handoff, decisive cast limits, layer editing, collision rules, rare fills, and onset budgets | whether the resulting arrangement sounds musically compelling |
+| Track DNA and runtime-selection tests | deterministic flat phenotype, curated-domain reachability and balance, weighted distance, bounded candidate-selection rules, and rejection of an unqualified pool without changing seed | downstream realization, audible contrast, or eligibility in every random candidate draw |
+| 192-bar trajectory-window distance tests | fixed-manifest cross-seed and cross-Vibe separation in realized rhythm, bass, harmony, note-bearing advanced voices and renderer controls, audio-profile/timbre controls, and form; metadata-only relabelling has zero distance | rendered-audio separation, masking, spectral balance, arbitrary-seed coverage, or listener discrimination |
 | taste-model and deck tests | bounded explicit-feedback updates, deterministic specimens, persistence fallback, exploration cadence, and arrangement isolation | whether the learned preference matches a listener's broader taste |
 | preview renderer tests | deterministic, finite, normalized specimen PCM and cleanup | perceived quality on every output device |
 | pure DSP tests | finite deterministic samples, hard voice endings, and renderer coverage for all 208 base forms | perceived sound quality |
@@ -112,6 +130,11 @@ Before stronger claims:
 
 - render representative observation windows with `OfflineAudioContext` and measure
   peak, RMS, DC, clipping, silence, and transition discontinuities;
+- render a fixed, versioned trajectory manifest as full mixes and stems, loudness
+  match comparison copies, report every pair's multi-domain distance and nearest
+  neighbour, and retain PCM plus metric hashes;
+- conduct blinded same/different or ABX review of the automatically selected closest
+  trajectory pairs; keep musical quality scoring separate from distinctness;
 - run 30–60-minute foreground browser soaks on desktop and mobile;
 - test suspend/resume and audio-device changes;
 - conduct multi-hour listening review across all Vibe/Tonality combinations;
