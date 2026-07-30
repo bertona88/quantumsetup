@@ -1,6 +1,6 @@
 # Claims and Validation
 
-Status: claim register for Infinite Techno `1.1.0`
+Status: claim register for Infinite Techno `1.2.0`
 
 ## Allowed claims
 
@@ -18,6 +18,13 @@ The application may claim that it:
 - uses three advanced synthesis engines with 208 discrete base architectures;
 - mutates deterministic, bounded synthesis genomes one engine per eight-bar phrase,
   including staged Vibe and New Trajectory palette changes;
+- coordinates Matrix, Resonator, and String through six deterministic ensemble
+  scenes with curated phrase masks, register roles, effect sends, and one-engine
+  role handoffs;
+- keeps advanced attacks off quarter-note kick anchors, resolves same-step advanced
+  collisions, and bounds their starts by arrangement-section type;
+- recalls an earlier ensemble target in RETURN sections within one uninterrupted
+  trajectory;
 - drives its quantum-inspired contour from audio analysis and scheduled musical
   events.
 
@@ -40,6 +47,7 @@ The application does not claim:
 | Evidence | Validates | Does not validate |
 | --- | --- | --- |
 | model tests | deterministic plans, legal structure, bounded lanes and pitch families | subjective groove quality |
+| ensemble grammar tests | scene reachability and recall, staged roles, register/collision rules, and per-section onset budgets | whether the resulting conversations sound musically compelling |
 | pure DSP tests | finite deterministic samples, hard voice endings, and renderer coverage for all 208 base forms | perceived sound quality |
 | worklet processor tests | queue and voice ceilings, bounded stealing, clean all-notes-off | long-run browser or device stability |
 | syntax checks | loadable JavaScript modules | browser audio behavior |

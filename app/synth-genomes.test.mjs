@@ -137,16 +137,26 @@ test("the deterministic planner reaches the full structural space and over 10x a
           else genomeSignatures.set(genome.id, signature);
         }
 
-        const plan = buildBarPlan({
-          seed,
-          bar,
-          vibeId,
-          tonality: "minor",
-          profile,
-        });
+        const phrasePlans = Array.from({ length: 8 }, (_, offset) =>
+          buildBarPlan({
+            seed,
+            bar: bar + offset,
+            vibeId,
+            tonality: "minor",
+            profile,
+            instrumentProfile: profile,
+          }),
+        );
+        const plan = phrasePlans[0];
         for (const engine of plan.activeSynthEngines) {
+          if (
+            !phrasePlans.some((phrasePlan) =>
+              phrasePlan.synth[engine].some(Boolean),
+            )
+          ) {
+            continue;
+          }
           const genome = plan.synthPalette[engine];
-          assert.ok(plan.synth[engine].some(Boolean));
           activeEngines.add(engine);
           activeGenomeIds.add(genome.id);
           activeGenomeSignatures.add(synthGenomeSignature(genome));

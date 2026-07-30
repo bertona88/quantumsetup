@@ -1,6 +1,5 @@
 import { InfiniteTechnoEngine, formatSeed } from "./audio-engine.js";
 import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js";
-import { SYNTH_BASE_ARCHITECTURES } from "./synth-genomes.js";
 
 const app = document.querySelector("#app");
 const transportButton = document.querySelector("#transport-button");
@@ -16,7 +15,7 @@ const transitionCopy = document.querySelector("#transition-copy");
 const transitionFill = document.querySelector("#transition-fill");
 const liveRegion = document.querySelector("#live-region");
 const instrumentRoster = document.querySelector("#instrument-roster");
-const instrumentCount = document.querySelector("#instrument-count");
+const ensembleMeta = document.querySelector("#ensemble-meta");
 const vibeButtons = [...document.querySelectorAll("[data-vibe]")];
 const tonalityButtons = [...document.querySelectorAll("[data-tonality]")];
 
@@ -56,6 +55,7 @@ let instrumentationSignature = "";
 let displayedInstrumentCount = 0;
 let advancedSynthAvailable = null;
 let currentInstrumentation = [];
+let currentEnsembleScene = null;
 
 function titleCase(text) {
   return String(text)
@@ -84,15 +84,38 @@ function selectTarget(buttons, attribute, value) {
   }
 }
 
-function updateInstrumentCount() {
-  const capability =
-    advancedSynthAvailable === false
-      ? "CORE ENGINE FALLBACK"
-      : `${SYNTH_BASE_ARCHITECTURES} BASE FORMS`;
-  instrumentCount.textContent = `${String(displayedInstrumentCount).padStart(2, "0")} VOICES · ${capability}`;
+function updateEnsembleMeta(scene = currentEnsembleScene) {
+  const count = String(displayedInstrumentCount).padStart(2, "0");
+  if (!scene || displayedInstrumentCount === 0) {
+    ensembleMeta.textContent = "UNFORMED · 00 PARTS";
+    return;
+  }
+  if (advancedSynthAvailable === false) {
+    ensembleMeta.textContent = `CORE FALLBACK · ${count} PARTS`;
+    return;
+  }
+  ensembleMeta.textContent = `${scene.label} · ${count} PARTS`;
 }
 
-function renderInstrumentation(items = []) {
+const ROSTER_ROLE_PRIORITY = Object.freeze({
+  foundation: 0,
+  "low-end": 1,
+  synth: 2,
+  harmony: 3,
+  backbeat: 4,
+  tops: 5,
+  percussion: 6,
+  atmosphere: 7,
+  transition: 8,
+});
+
+const SYNTH_ENGINE_PRIORITY = Object.freeze({
+  fm: 0,
+  modal: 1,
+  string: 2,
+});
+
+function renderEnsemble(scene, items = []) {
   const unique = [];
   const seen = new Set();
   for (const item of items) {
@@ -100,10 +123,20 @@ function renderInstrumentation(items = []) {
     seen.add(item.id);
     unique.push(item);
   }
-  const signature = unique.map((item) => item.id).join("|");
+  unique.sort(
+    (left, right) =>
+      (ROSTER_ROLE_PRIORITY[left.role] ?? 99) -
+        (ROSTER_ROLE_PRIORITY[right.role] ?? 99) ||
+      (SYNTH_ENGINE_PRIORITY[left.engine] ?? 99) -
+        (SYNTH_ENGINE_PRIORITY[right.engine] ?? 99),
+  );
+  const signature = `${scene?.id || ""}:${scene?.hybrid ? 1 : 0}:${unique
+    .map((item) => item.id)
+    .join("|")}`;
+  currentEnsembleScene = scene || null;
   currentInstrumentation = unique;
   displayedInstrumentCount = unique.length;
-  updateInstrumentCount();
+  updateEnsembleMeta(scene);
   if (signature === instrumentationSignature) return;
   instrumentationSignature = signature;
   const visible = unique.slice(0, 6);
@@ -175,7 +208,7 @@ function handleEngineEvent(event) {
     );
     if (!event.running) {
       sectionReadout.textContent = "DORMANT";
-      renderInstrumentation([]);
+      renderEnsemble(null, []);
     }
   }
 
@@ -188,9 +221,10 @@ function handleEngineEvent(event) {
     app.dataset.synthLateEvents = "0";
     app.dataset.synthDroppedEvents = "0";
     app.dataset.synthStartedEvents = "0";
-    updateInstrumentCount();
+    updateEnsembleMeta();
     if (!event.available) {
-      renderInstrumentation(
+      renderEnsemble(
+        currentEnsembleScene,
         currentInstrumentation.filter((item) => item.role !== "synth"),
       );
       liveRegion.textContent =
@@ -234,7 +268,10 @@ function handleEngineEvent(event) {
     visualState.transitionProgress = event.transition?.progress || 0;
 
     if (event.step === 0) {
-      renderInstrumentation(event.instrumentation || []);
+      renderEnsemble(
+        event.ensembleScene || null,
+        event.instrumentation || [],
+      );
       const vibe = profileForVibe(event.vibe);
       nowVibe.textContent = vibe.label.toUpperCase();
       sectionReadout.textContent = event.section;

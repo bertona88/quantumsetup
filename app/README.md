@@ -45,6 +45,15 @@ String fractional-delay physical modelling. Their 208 discrete base architecture
 combine with bounded, deterministic parameter genomes that mutate one engine at a
 time on eight-bar boundaries. Vibe and New Trajectory palette changes are staged
 across three phrases instead of replacing all advanced synths together.
+
+Six curated ensemble scenes coordinate those engines as calls, replies, motors,
+weaves, marks, tails, and pickups. They use scored phrase masks and separated
+registers rather than free random masks. A section establishes a target scene, then
+the matching orchestration role and synthesis genome move together one engine per
+phrase. Arrangement-aware placement keeps advanced attacks off the four kick
+anchors, resolves synth-on-synth collisions, protects low-end space around the bass,
+and thins modal events around metallic percussion.
+
 The shared graph provides sidechain ducking, filtered delay, generated convolution
 reverb, synthetic kick rumble, soft clipping, compression, and spectrum analysis.
 Native temporary voices are capped at 72 and the advanced bank at 24, preserving a

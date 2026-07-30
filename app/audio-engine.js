@@ -10,6 +10,7 @@ import {
   midiToHz,
   nextPhraseBoundary,
   profileForVibe,
+  stageEnsembleRoles,
   transitionDurationFor,
   transitionProgress,
 } from "./techno-model.js";
@@ -62,6 +63,19 @@ function holdParamAtTime(param, time, fallback = 0.0001) {
   param.setValueAtTime(value, time);
 }
 
+function summarizeEnsembleScene(scene) {
+  if (!scene) return null;
+  return Object.freeze({
+    id: scene.id,
+    label: scene.label,
+    detail: scene.detail,
+    recalled: scene.recalled,
+    hybrid: scene.hybrid,
+    mutationEngine: scene.mutationEngine,
+    members: scene.members,
+  });
+}
+
 export class InfiniteTechnoEngine {
   constructor(onEvent, options = {}) {
     this.onEvent = typeof onEvent === "function" ? onEvent : () => {};
@@ -96,6 +110,8 @@ export class InfiniteTechnoEngine {
     this.synthWorkletReady = false;
     this.runtimeSynthPalette = null;
     this.runtimeSynthPhraseIndex = -1;
+    this.runtimeEnsembleRoles = null;
+    this.runtimeEnsemblePhraseIndex = -1;
     this.instrumentProfile = null;
     this.instrumentProfilePhraseIndex = -1;
     this.phraseInstrumentation = Object.freeze([]);
@@ -207,6 +223,8 @@ export class InfiniteTechnoEngine {
     if (!this.running) {
       this.runtimeSynthPalette = null;
       this.runtimeSynthPhraseIndex = -1;
+      this.runtimeEnsembleRoles = null;
+      this.runtimeEnsemblePhraseIndex = -1;
     }
     this.seed = seed >>> 0;
     this.pendingSeed = null;
@@ -305,6 +323,7 @@ export class InfiniteTechnoEngine {
       tonality: state.dominantTonality,
       section: this.plan?.section?.kind || "DORMANT",
       movement: this.plan?.movement?.index || 0,
+      ensembleScene: summarizeEnsembleScene(this.plan?.ensembleScene),
       transition: this.vibeTransition
         ? {
             kind: "vibe",
@@ -751,21 +770,51 @@ export class InfiniteTechnoEngine {
       });
       this.instrumentProfilePhraseIndex = phraseIndex;
     }
-    const candidatePlan = buildBarPlan({
+    const planInput = {
       seed: this.seed,
       bar,
       vibeId: settledState.dominantVibe,
       tonality: settledState.dominantTonality,
       profile: settledState.profile,
       instrumentProfile: this.instrumentProfile,
-    });
-    this.plan = this.adoptRuntimeSynthPalette(candidatePlan);
+    };
+    const candidatePlan = buildBarPlan(planInput);
+    const ensemblePlan = this.adoptRuntimeEnsemble(
+      candidatePlan,
+      planInput,
+    );
+    this.plan = this.adoptRuntimeSynthPalette(ensemblePlan);
     this.refreshPhraseInstrumentation(bar);
     this.syncSynthGenomes(this.plan);
     this.planState = settledState;
     this.planBar = bar;
     this.syncEffects(settledState.profile, this.plan);
     return this.plan;
+  }
+
+  adoptRuntimeEnsemble(candidatePlan, planInput) {
+    if (
+      !this.runtimeEnsembleRoles ||
+      this.runtimeEnsemblePhraseIndex !== candidatePlan.phraseIndex
+    ) {
+      this.runtimeEnsembleRoles = stageEnsembleRoles(
+        this.runtimeEnsembleRoles,
+        candidatePlan.ensembleTargetRoles,
+        candidatePlan.phraseIndex,
+      );
+      this.runtimeEnsemblePhraseIndex = candidatePlan.phraseIndex;
+    }
+    const needsRebuild = ["fm", "modal", "string"].some(
+      (engine) =>
+        this.runtimeEnsembleRoles?.[engine] !==
+        candidatePlan.ensembleTargetRoles?.[engine],
+    );
+    return needsRebuild
+      ? buildBarPlan({
+          ...planInput,
+          ensembleRoles: this.runtimeEnsembleRoles,
+        })
+      : candidatePlan;
   }
 
   adoptRuntimeSynthPalette(plan) {
@@ -811,7 +860,15 @@ export class InfiniteTechnoEngine {
     const paletteKey = ["fm", "modal", "string"]
       .map((engine) => this.runtimeSynthPalette?.[engine]?.id || "")
       .join(":");
-    const key = `${this.seed}:${phraseStart}:${paletteKey}`;
+    const roleKey = ["fm", "modal", "string"]
+      .map((engine) => {
+        const role = this.runtimeEnsembleRoles?.[engine];
+        return role
+          ? `${engine}:${role.sourceSceneId}:${role.id}`
+          : `${engine}:`;
+      })
+      .join(":");
+    const key = `${this.seed}:${phraseStart}:${paletteKey}:${roleKey}`;
     if (key === this.phraseInstrumentationKey) return;
 
     const items = [];
@@ -829,6 +886,7 @@ export class InfiniteTechnoEngine {
                 tonality: targetState.dominantTonality,
                 profile: targetState.profile,
                 instrumentProfile: this.instrumentProfile,
+                ensembleRoles: this.runtimeEnsembleRoles,
               }),
             );
       for (const item of plan.instrumentation) {
@@ -870,19 +928,31 @@ export class InfiniteTechnoEngine {
       startFrame: Math.round(time * this.ctx.sampleRate),
       durationFrames,
       noteSeed: hash32(this.seed, this.bar, this.step, genome.id),
-      priority: engine === "modal" ? 0 : 1,
-      delaySend: clamp(
-        0.035 + profile.space * 0.22 + (engine === "fm" ? 0.035 : 0),
-        0,
-        0.42,
-      ),
-      reverbSend: clamp(
-        0.06 +
-          profile.space * 0.3 +
-          (engine === "modal" ? 0.08 : engine === "string" ? 0.04 : 0),
-        0,
-        0.55,
-      ),
+      priority: Number.isFinite(note.priority)
+        ? clamp(note.priority, 0, 3)
+        : engine === "modal"
+          ? 0
+          : 1,
+      delaySend: Number.isFinite(note.delaySend)
+        ? clamp(note.delaySend, 0, 0.42)
+        : clamp(
+            0.035 + profile.space * 0.22 + (engine === "fm" ? 0.035 : 0),
+            0,
+            0.42,
+          ),
+      reverbSend: Number.isFinite(note.reverbSend)
+        ? clamp(note.reverbSend, 0, 0.55)
+        : clamp(
+            0.06 +
+              profile.space * 0.3 +
+              (engine === "modal"
+                ? 0.08
+                : engine === "string"
+                  ? 0.04
+                  : 0),
+            0,
+            0.55,
+          ),
     });
   }
 
@@ -1003,6 +1073,8 @@ export class InfiniteTechnoEngine {
               (item) => item.role !== "synth" || this.synthWorkletReady,
             )
           : null,
+      ensembleScene:
+        step === 0 ? summarizeEnsembleScene(plan.ensembleScene) : null,
       synthEngines: step === 0 ? [...plan.activeSynthEngines] : null,
     });
   }

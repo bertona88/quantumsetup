@@ -1,6 +1,6 @@
 # Interface Contract
 
-Implemented browser API: `window.QuantumTechno/1.1.0`
+Implemented browser API: `window.QuantumTechno/1.2.0`
 Scope: one audio-first generative techno instrument
 
 ## One-surface rule
@@ -49,9 +49,16 @@ The page reports:
 - tempo;
 - bar;
 - seed;
-- queued or active trajectory progress.
+- queued or active trajectory progress;
+- current deterministic ensemble scene and phrase-scoped cast;
 - current phrase instrumentation, shown as a passive roster updated only at
   eight-bar boundaries.
+
+The ensemble rail reads as `ENSEMBLE | [phrase cast] | [SCENE] · [NN] PARTS`.
+`PARTS` counts the eight-bar instrumentation union, not simultaneous DSP voices.
+Scene identity is planned by the music model; the interface does not invent names
+from runtime activity. A target scene may be a deliberate hybrid while its three
+roles arrive one engine per phrase.
 
 ## Global object
 
@@ -59,7 +66,7 @@ After startup:
 
 ```js
 window.QuantumTechno = Object.freeze({
-  version: "1.1.0",
+  version: "1.2.0",
   getSnapshot,
   requestVibe,
   requestTonality,
@@ -67,12 +74,13 @@ window.QuantumTechno = Object.freeze({
 ```
 
 `getSnapshot()` returns version, seed, transport state, bar, step, BPM, current vibe,
-tonality, section, movement, active transition summary, current instrumentation, and
-advanced-synth availability/voice statistics. The object is a local application API,
-not a versioned Setup Universe interface.
+tonality, section, movement, active transition summary, current ensemble scene,
+current instrumentation, and advanced-synth availability/voice statistics. The
+object is a local application API, not a versioned Setup Universe interface.
 
-The instrumentation roster is read-only. It introduces no individual instrument,
-synthesis, mixer, or parameter controls.
+The ensemble scene and instrumentation roster are read-only. They introduce no
+individual instrument, synthesis, mixer, or parameter controls and are not announced
+as a repeating live region.
 
 ## Accessibility and failure behavior
 

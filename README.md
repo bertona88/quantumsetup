@@ -24,7 +24,7 @@ The generator preserves the strong audio core of the supplied
 - Major, Minor, and Neutral tonal families;
 - 64–128-bar phrase-safe transitions.
 
-Version `1.1.0` adds a bounded 24-voice advanced synthesis bank:
+Version `1.1.0` introduced a bounded 24-voice advanced synthesis bank:
 
 - **Matrix** — four-operator FM with eight acyclic routing algorithms;
 - **Resonator** — mallet/noise excitation across curated modal bodies;
@@ -35,6 +35,14 @@ parameters. Parameter genomes are deterministic and coordinate-addressed. One
 advanced engine mutates at each eight-bar phrase boundary. Vibe and New Trajectory
 palettes are staged through the same sequence instead of replacing all three synths
 together.
+
+Version `1.2.0` turns that bank into a scored ensemble rather than three independent
+random lanes. Six curated scenes—Motor Weave, Acid Relay, Resonant Orbit, Dub
+Afterimage, Peak Interlock, and Negative Space—coordinate rhythm, register, motif
+response, priority, and effect space. Within one trajectory, scene targets are stable
+for a section; only the same engine whose timbre mutates may adopt its new ensemble
+role at each phrase boundary. RETURN sections recall an earlier scene from that
+trajectory, allowing recognizable material to come back in a changed timbral state.
 
 Read [MUSICAL_SYSTEM.md](./MUSICAL_SYSTEM.md) for the composition grammar and
 research basis.

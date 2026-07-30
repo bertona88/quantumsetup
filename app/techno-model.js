@@ -5,11 +5,14 @@ import {
   makeRng,
   midiToHz,
 } from "./generative-utils.js";
-import { createSynthPalette } from "./synth-genomes.js";
+import {
+  createSynthPalette,
+  synthMutationEngineForPhrase,
+} from "./synth-genomes.js";
 
 export { clamp, hash32, lerp, makeRng, midiToHz };
 
-export const GENERATOR_VERSION = "1.1.0";
+export const GENERATOR_VERSION = "1.2.0";
 export const STEPS_PER_BAR = 16;
 export const PHRASE_BARS = 8;
 export const MOVEMENT_BARS = 192;
@@ -278,6 +281,481 @@ const SECTION_ENERGY = {
   TRANSITION: [0.5, 0.74],
 };
 
+const SYNTH_ENGINE_IDS = Object.freeze(["fm", "modal", "string"]);
+
+function alternatingPattern(first, second) {
+  return Array.from({ length: PHRASE_BARS }, (_, index) =>
+    index % 2 === 0 ? first : second,
+  );
+}
+
+function sparsePattern(entries) {
+  return Array.from({ length: PHRASE_BARS }, (_, index) => entries[index] || []);
+}
+
+function freezeEnsembleRole(sceneId, role) {
+  return Object.freeze({
+    ...role,
+    sourceSceneId: sceneId,
+    range: Object.freeze([...role.range]),
+    length: Object.freeze([...role.length]),
+    pattern: Object.freeze(
+      role.pattern.map((steps) => Object.freeze([...steps])),
+    ),
+  });
+}
+
+function defineEnsembleScene(scene) {
+  const roles = Object.freeze(
+    Object.fromEntries(
+      scene.roles.map((role) => [
+        role.engine,
+        freezeEnsembleRole(scene.id, role),
+      ]),
+    ),
+  );
+  return Object.freeze({
+    id: scene.id,
+    label: scene.label,
+    detail: scene.detail,
+    roles,
+  });
+}
+
+const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
+  defineEnsembleScene({
+    id: "motor-weave",
+    label: "MOTOR WEAVE",
+    detail: "STRING MOTOR / MATRIX COUNTER / RESONATOR MARK",
+    roles: [
+      {
+        engine: "string",
+        id: "motor",
+        label: "MOTOR",
+        register: "mid",
+        range: [65, 76],
+        pattern: alternatingPattern([1, 6, 9, 14], [3, 7, 10, 15]),
+        length: [1, 3],
+        degreeOffset: 0,
+        motifDirection: 1,
+        densityScale: 0.92,
+        velocityBias: 0.04,
+        priority: 3,
+        delaySend: 0.06,
+        reverbSend: 0.08,
+      },
+      {
+        engine: "fm",
+        id: "counter",
+        label: "COUNTER",
+        register: "low",
+        range: [53, 64],
+        pattern: alternatingPattern([3, 11], [1, 9]),
+        length: [1, 2],
+        degreeOffset: 2,
+        motifDirection: -1,
+        densityScale: 0.84,
+        velocityBias: 0.02,
+        priority: 2,
+        delaySend: 0.08,
+        reverbSend: 0.05,
+      },
+      {
+        engine: "modal",
+        id: "mark",
+        label: "MARK",
+        register: "high",
+        range: [77, 88],
+        pattern: sparsePattern({ 3: [5], 7: [13] }),
+        length: [1, 2],
+        degreeOffset: 4,
+        motifDirection: 1,
+        densityScale: 1,
+        velocityBias: -0.08,
+        priority: 2,
+        delaySend: 0.02,
+        reverbSend: 0.22,
+      },
+    ],
+  }),
+  defineEnsembleScene({
+    id: "acid-relay",
+    label: "ACID RELAY",
+    detail: "MATRIX CALL / STRING REPLY / RESONATOR PICKUP",
+    roles: [
+      {
+        engine: "fm",
+        id: "call",
+        label: "CALL",
+        register: "low",
+        range: [53, 64],
+        pattern: alternatingPattern([1, 9, 14], [3, 11]),
+        length: [1, 2],
+        degreeOffset: 0,
+        motifDirection: 1,
+        densityScale: 0.96,
+        velocityBias: 0.05,
+        priority: 3,
+        delaySend: 0.05,
+        reverbSend: 0.04,
+      },
+      {
+        engine: "string",
+        id: "reply",
+        label: "REPLY",
+        register: "mid",
+        range: [65, 76],
+        pattern: alternatingPattern([3, 11], [5, 13]),
+        length: [1, 2],
+        degreeOffset: 2,
+        motifDirection: -1,
+        densityScale: 0.86,
+        velocityBias: -0.02,
+        priority: 2,
+        delaySend: 0.14,
+        reverbSend: 0.1,
+      },
+      {
+        engine: "modal",
+        id: "pickup",
+        label: "PICKUP",
+        register: "high",
+        range: [77, 88],
+        pattern: sparsePattern({ 3: [7], 7: [15] }),
+        length: [1, 1],
+        degreeOffset: 4,
+        motifDirection: 1,
+        densityScale: 1,
+        velocityBias: -0.06,
+        priority: 2,
+        delaySend: 0.03,
+        reverbSend: 0.18,
+      },
+    ],
+  }),
+  defineEnsembleScene({
+    id: "resonant-orbit",
+    label: "RESONANT ORBIT",
+    detail: "RESONATOR SIGNAL / STRING REPLY / MATRIX PICKUP",
+    roles: [
+      {
+        engine: "modal",
+        id: "signal",
+        label: "SIGNAL",
+        register: "high",
+        range: [77, 88],
+        pattern: alternatingPattern([3, 11], [5, 13]),
+        length: [1, 2],
+        degreeOffset: 4,
+        motifDirection: 1,
+        densityScale: 0.84,
+        velocityBias: -0.04,
+        priority: 3,
+        delaySend: 0.03,
+        reverbSend: 0.28,
+      },
+      {
+        engine: "string",
+        id: "reply",
+        label: "REPLY",
+        register: "mid",
+        range: [65, 76],
+        pattern: alternatingPattern([7, 15], [1, 9]),
+        length: [2, 3],
+        degreeOffset: 0,
+        motifDirection: -1,
+        densityScale: 0.78,
+        velocityBias: -0.03,
+        priority: 2,
+        delaySend: 0.09,
+        reverbSend: 0.16,
+      },
+      {
+        engine: "fm",
+        id: "pickup",
+        label: "PICKUP",
+        register: "low",
+        range: [53, 64],
+        pattern: sparsePattern({ 3: [6], 7: [14] }),
+        length: [1, 2],
+        degreeOffset: 2,
+        motifDirection: 1,
+        densityScale: 1,
+        velocityBias: -0.08,
+        priority: 2,
+        delaySend: 0.12,
+        reverbSend: 0.08,
+      },
+    ],
+  }),
+  defineEnsembleScene({
+    id: "dub-afterimage",
+    label: "DUB AFTERIMAGE",
+    detail: "STRING CALL / MATRIX ECHO / RESONATOR TAIL",
+    roles: [
+      {
+        engine: "string",
+        id: "call",
+        label: "CALL",
+        register: "mid",
+        range: [65, 76],
+        pattern: sparsePattern({
+          0: [3],
+          2: [3],
+          4: [3],
+          6: [3],
+        }),
+        length: [2, 4],
+        degreeOffset: 0,
+        motifDirection: 1,
+        densityScale: 0.78,
+        velocityBias: -0.02,
+        priority: 3,
+        delaySend: 0.32,
+        reverbSend: 0.22,
+      },
+      {
+        engine: "fm",
+        id: "afterimage",
+        label: "AFTERIMAGE",
+        register: "low",
+        range: [53, 64],
+        pattern: sparsePattern({
+          1: [11],
+          3: [15],
+          5: [11],
+          7: [15],
+        }),
+        length: [1, 2],
+        degreeOffset: 2,
+        motifDirection: -1,
+        densityScale: 0.72,
+        velocityBias: -0.08,
+        priority: 2,
+        delaySend: 0.26,
+        reverbSend: 0.12,
+      },
+      {
+        engine: "modal",
+        id: "tail",
+        label: "TAIL",
+        register: "high",
+        range: [77, 88],
+        pattern: sparsePattern({ 3: [13], 7: [15] }),
+        length: [1, 2],
+        degreeOffset: 4,
+        motifDirection: 1,
+        densityScale: 1,
+        velocityBias: -0.12,
+        priority: 1,
+        delaySend: 0.06,
+        reverbSend: 0.38,
+      },
+    ],
+  }),
+  defineEnsembleScene({
+    id: "peak-interlock",
+    label: "PEAK INTERLOCK",
+    detail: "MATRIX MOTOR / STRING WEAVE / RESONATOR CROWN",
+    roles: [
+      {
+        engine: "fm",
+        id: "motor",
+        label: "MOTOR",
+        register: "low",
+        range: [53, 64],
+        pattern: alternatingPattern([1, 5, 9, 13], [1, 5, 9, 13]),
+        length: [1, 2],
+        degreeOffset: 0,
+        motifDirection: 1,
+        densityScale: 1,
+        velocityBias: 0.07,
+        priority: 3,
+        delaySend: 0.03,
+        reverbSend: 0.04,
+      },
+      {
+        engine: "string",
+        id: "weave",
+        label: "WEAVE",
+        register: "mid",
+        range: [65, 76],
+        pattern: sparsePattern({
+          0: [3, 11],
+          1: [3, 11],
+          2: [3, 11],
+          3: [3, 11],
+          4: [7, 15],
+          5: [7, 15],
+          6: [7, 15],
+          7: [7, 15],
+        }),
+        length: [1, 2],
+        degreeOffset: 2,
+        motifDirection: -1,
+        densityScale: 0.9,
+        velocityBias: 0.02,
+        priority: 2,
+        delaySend: 0.06,
+        reverbSend: 0.08,
+      },
+      {
+        engine: "modal",
+        id: "crown",
+        label: "CROWN",
+        register: "high",
+        range: [77, 88],
+        pattern: sparsePattern({ 6: [6, 14], 7: [6, 14] }),
+        length: [1, 2],
+        degreeOffset: 4,
+        motifDirection: 1,
+        densityScale: 1,
+        velocityBias: -0.02,
+        priority: 2,
+        delaySend: 0.02,
+        reverbSend: 0.12,
+      },
+    ],
+  }),
+  defineEnsembleScene({
+    id: "negative-space",
+    label: "NEGATIVE SPACE",
+    detail: "STRING TONE / RESONATOR TAIL / MATRIX PICKUP",
+    roles: [
+      {
+        engine: "string",
+        id: "tone",
+        label: "TONE",
+        register: "mid",
+        range: [65, 76],
+        pattern: sparsePattern({ 0: [1], 4: [9] }),
+        length: [4, 4],
+        degreeOffset: 0,
+        motifDirection: 1,
+        densityScale: 1,
+        velocityBias: -0.08,
+        priority: 3,
+        delaySend: 0.18,
+        reverbSend: 0.32,
+      },
+      {
+        engine: "modal",
+        id: "tail",
+        label: "TAIL",
+        register: "high",
+        range: [77, 88],
+        pattern: sparsePattern({ 3: [5], 7: [13] }),
+        length: [1, 2],
+        degreeOffset: 4,
+        motifDirection: 1,
+        densityScale: 1,
+        velocityBias: -0.14,
+        priority: 2,
+        delaySend: 0.04,
+        reverbSend: 0.42,
+      },
+      {
+        engine: "fm",
+        id: "pickup",
+        label: "PICKUP",
+        register: "low",
+        range: [53, 64],
+        pattern: sparsePattern({ 3: [7], 7: [15] }),
+        length: [1, 1],
+        degreeOffset: 2,
+        motifDirection: -1,
+        densityScale: 1,
+        velocityBias: -0.1,
+        priority: 1,
+        delaySend: 0.22,
+        reverbSend: 0.12,
+      },
+    ],
+  }),
+]);
+
+const ENSEMBLE_SCENE_BY_ID = Object.freeze(
+  Object.fromEntries(
+    ENSEMBLE_SCENE_DEFINITIONS.map((scene) => [scene.id, scene]),
+  ),
+);
+
+export const ENSEMBLE_SCENES = ENSEMBLE_SCENE_DEFINITIONS;
+
+const ENSEMBLE_SCENE_POOLS = Object.freeze({
+  IGNITION: Object.freeze(["negative-space", "motor-weave", "dub-afterimage"]),
+  ASCENT: Object.freeze(["motor-weave", "acid-relay", "resonant-orbit"]),
+  DRIVE: Object.freeze(["acid-relay", "motor-weave", "peak-interlock"]),
+  LOCK: Object.freeze(["motor-weave", "acid-relay", "resonant-orbit"]),
+  DRIFT: Object.freeze(["dub-afterimage", "resonant-orbit", "negative-space"]),
+  BRIDGE: Object.freeze(["dub-afterimage", "resonant-orbit", "negative-space"]),
+  VOID: Object.freeze(["dub-afterimage", "negative-space"]),
+  PEAK: Object.freeze(["peak-interlock", "acid-relay", "motor-weave"]),
+  RELEASE: Object.freeze(["negative-space", "dub-afterimage"]),
+  TRANSITION: Object.freeze(["resonant-orbit", "dub-afterimage", "motor-weave"]),
+});
+
+function ensembleRecallSourceIndex(movement, sectionIndex) {
+  for (let index = sectionIndex - 1; index >= 0; index -= 1) {
+    if (["LOCK", "DRIVE", "ASCENT"].includes(movement.sections[index].kind)) {
+      return index;
+    }
+  }
+  return Math.max(0, sectionIndex - 1);
+}
+
+export function selectEnsembleScene(seed, movement, section) {
+  const history = [];
+  for (let index = 0; index <= section.index; index += 1) {
+    const current = movement.sections[index];
+    if (current.kind === "RETURN" && history.length > 0) {
+      const sourceSectionIndex = ensembleRecallSourceIndex(movement, index);
+      history.push({
+        scene: history[sourceSectionIndex].scene,
+        recalled: true,
+        sourceSectionIndex,
+      });
+      continue;
+    }
+    const pool =
+      ENSEMBLE_SCENE_POOLS[current.kind] ||
+      ENSEMBLE_SCENE_POOLS.ASCENT;
+    let sceneIndex =
+      hash32(seed, movement.index, current.seed, 0x454e5343) % pool.length;
+    if (
+      pool.length > 1 &&
+      history.at(-1)?.scene.id === pool[sceneIndex]
+    ) {
+      sceneIndex = (sceneIndex + 1) % pool.length;
+    }
+    history.push({
+      scene: ENSEMBLE_SCENE_BY_ID[pool[sceneIndex]],
+      recalled: false,
+      sourceSectionIndex: index,
+    });
+  }
+  const selected = history[section.index];
+  return Object.freeze({
+    ...selected.scene,
+    recalled: selected.recalled,
+    sourceSectionIndex: selected.sourceSectionIndex,
+  });
+}
+
+export function stageEnsembleRoles(previous, candidate, phraseIndex) {
+  if (!candidate) return previous;
+  if (!previous) return candidate;
+  const mutationEngine = synthMutationEngineForPhrase(phraseIndex);
+  return Object.freeze(
+    Object.fromEntries(
+      SYNTH_ENGINE_IDS.map((engine) => [
+        engine,
+        engine === mutationEngine ? candidate[engine] : previous[engine],
+      ]),
+    ),
+  );
+}
+
 export function createMovement(seed, movementIndex, tonality = "minor") {
   const safeTonality = ["major", "neutral"].includes(tonality) ? tonality : "minor";
   const rng = makeRng(hash32(seed, movementIndex, 0x4d4f5645));
@@ -388,17 +866,6 @@ function emptyPattern(fill = 0) {
   return Array(STEPS_PER_BAR).fill(fill);
 }
 
-function weightedChoice(entries, rng) {
-  const total = entries.reduce((sum, entry) => sum + Math.max(0, entry.weight), 0);
-  if (total <= 0) return entries[0]?.id;
-  let cursor = rng() * total;
-  for (const entry of entries) {
-    cursor -= Math.max(0, entry.weight);
-    if (cursor <= 0) return entry.id;
-  }
-  return entries.at(-1)?.id;
-}
-
 function fitMidiToRange(midi, minimum, maximum) {
   let result = midi;
   while (result < minimum) result += 12;
@@ -406,111 +873,343 @@ function fitMidiToRange(midi, minimum, maximum) {
   return result;
 }
 
-function synthEngineSelection(seed, phraseIndex, section, profile) {
-  const rng = makeRng(hash32(seed, phraseIndex, section.seed, 0x53594e53));
-  const weights = [
-    {
-      id: "fm",
-      weight: 0.34 + profile.acid * 0.46 + profile.metallic * 0.28 + profile.drive * 0.2,
-    },
-    {
-      id: "modal",
-      weight: 0.3 + profile.metallic * 0.62 + profile.texture * 0.28,
-    },
-    {
-      id: "string",
-      weight: 0.34 + profile.warmth * 0.42 + profile.syncopation * 0.28 + profile.space * 0.18,
-    },
-  ];
-  const primary = weightedChoice(weights, rng);
-  const shouldLayer =
-    ["PEAK", "RETURN", "DRIVE"].includes(section.kind) && profile.density > 0.58;
-  if (!shouldLayer) return [primary];
-  const secondary = weightedChoice(
-    weights.filter((entry) => entry.id !== primary),
-    rng,
-  );
-  return [primary, secondary];
+function advancedStartsPerBar(sectionKind) {
+  if (["VOID", "RELEASE"].includes(sectionKind)) return 2;
+  if (sectionKind === "PEAK") return 8;
+  return 6;
 }
 
-function buildSynthLanes({
+function roleNoteCount(role, steps, profile, energy) {
+  if (steps.length <= 1) return steps.length;
+  const fullness = clamp(
+    0.42 +
+      profile.density * 0.3 +
+      profile.syncopation * 0.1 +
+      energy * 0.18,
+    0.48,
+    1,
+  );
+  return clamp(
+    Math.round(steps.length * fullness * role.densityScale),
+    1,
+    steps.length,
+  );
+}
+
+function resolveEnsembleOnsets(lanes, seed, phraseIndex, barOffset) {
+  for (let step = 0; step < STEPS_PER_BAR; step += 1) {
+    const attacks = SYNTH_ENGINE_IDS
+      .map((engine) => ({ engine, note: lanes[engine][barOffset][step] }))
+      .filter((entry) => entry.note)
+      .sort(
+        (left, right) =>
+          right.note.priority - left.note.priority ||
+          hash32(
+            seed,
+            phraseIndex,
+            barOffset,
+            step,
+            left.engine,
+            left.note.sourceSceneId,
+          ) -
+            hash32(
+              seed,
+              phraseIndex,
+              barOffset,
+              step,
+              right.engine,
+              right.note.sourceSceneId,
+            ),
+      );
+    for (const collision of attacks.slice(1)) {
+      lanes[collision.engine][barOffset][step] = null;
+    }
+  }
+}
+
+function enforceEnsembleStartBudget(
+  lanes,
   seed,
-  bar,
+  phraseIndex,
+  barOffset,
+  maximum,
+) {
+  const attacks = [];
+  for (const engine of SYNTH_ENGINE_IDS) {
+    for (let step = 0; step < STEPS_PER_BAR; step += 1) {
+      const note = lanes[engine][barOffset][step];
+      if (note) attacks.push({ engine, step, note });
+    }
+  }
+  if (attacks.length <= maximum) return;
+  const keep = new Set(
+    attacks
+      .sort(
+        (left, right) =>
+          right.note.priority - left.note.priority ||
+          right.note.velocity - left.note.velocity ||
+          hash32(
+            seed,
+            phraseIndex,
+            barOffset,
+            left.engine,
+            left.step,
+          ) -
+            hash32(
+              seed,
+              phraseIndex,
+              barOffset,
+              right.engine,
+              right.step,
+            ),
+      )
+      .slice(0, maximum)
+      .map((entry) => `${entry.engine}:${entry.step}`),
+  );
+  for (const attack of attacks) {
+    if (!keep.has(`${attack.engine}:${attack.step}`)) {
+      lanes[attack.engine][barOffset][attack.step] = null;
+    }
+  }
+}
+
+export function buildEnsemblePhrase({
+  seed,
   phraseIndex,
   movement,
   section,
-  energy,
   profile,
-  activeEngines,
+  roles,
 }) {
   const lanes = {
-    fm: Array(STEPS_PER_BAR).fill(null),
-    modal: Array(STEPS_PER_BAR).fill(null),
-    string: Array(STEPS_PER_BAR).fill(null),
+    fm: Array.from({ length: PHRASE_BARS }, () =>
+      Array(STEPS_PER_BAR).fill(null),
+    ),
+    modal: Array.from({ length: PHRASE_BARS }, () =>
+      Array(STEPS_PER_BAR).fill(null),
+    ),
+    string: Array.from({ length: PHRASE_BARS }, () =>
+      Array(STEPS_PER_BAR).fill(null),
+    ),
   };
-  const configs = {
-    fm: {
-      candidates: [1, 3, 6, 9, 11, 14],
-      count: clamp(Math.round(1 + profile.density * 2.2), 1, 4),
-      minimum: 48,
-      maximum: 76,
-      octave: 1,
-      maxLength: 4,
-      salt: 0x464d4c4e,
-    },
-    modal: {
-      candidates: [2, 5, 7, 10, 13, 15],
-      count: clamp(Math.round(1 + profile.metallic * 2.4), 1, 4),
-      minimum: 55,
-      maximum: 88,
-      octave: 2,
-      maxLength: 2,
-      salt: 0x4d4f444c,
-    },
-    string: {
-      candidates: [1, 4, 7, 10, 12, 15],
-      count: clamp(Math.round(2 + profile.syncopation * 2.2), 2, 5),
-      minimum: 45,
-      maximum: 74,
-      octave: 1,
-      maxLength: 3,
-      salt: 0x5354524e,
-    },
-  };
-  for (const engine of activeEngines) {
-    const config = configs[engine];
-    const rng = makeRng(hash32(seed, bar, phraseIndex, section.seed, config.salt));
-    const selected = shuffled(config.candidates, rng)
-      .slice(0, config.count)
-      .sort((left, right) => left - right);
-    selected.forEach((step, index) => {
-      const motifIndex = (index + phraseIndex + bar) % movement.motif.length;
-      let degree = movement.motif[motifIndex];
-      if (rng() < profile.syncopation * 0.24) degree += rng() < 0.5 ? -1 : 1;
-      const midi = fitMidiToRange(
-        degreeToMidi(
-          movement.root,
-          movement.mode.intervals,
-          degree,
-          config.octave,
+  const phraseStartBar = phraseIndex * PHRASE_BARS;
+  for (let barOffset = 0; barOffset < PHRASE_BARS; barOffset += 1) {
+    const targetBar = phraseStartBar + barOffset;
+    const localBar =
+      ((targetBar % MOVEMENT_BARS) + MOVEMENT_BARS) % MOVEMENT_BARS;
+    const { energy: sectionLevel } = sectionEnergy(section, localBar);
+    const energy = clamp(
+      sectionLevel * (0.58 + profile.drive * 0.5),
+      0.12,
+      1,
+    );
+    for (const engine of SYNTH_ENGINE_IDS) {
+      const role = roles[engine];
+      if (!role) continue;
+      const rng = makeRng(
+        hash32(
+          seed,
+          phraseIndex,
+          barOffset,
+          section.seed,
+          role.sourceSceneId,
+          role.id,
+          engine,
         ),
-        config.minimum,
-        config.maximum,
       );
-      lanes[engine][step] = {
-        midi,
-        degree,
-        velocity: clamp(
-          0.28 + energy * 0.34 + rng() * 0.18,
-          0.18,
-          0.86,
-        ),
-        length: clamp(1 + Math.floor(rng() * config.maxLength), 1, config.maxLength),
-        accent: rng() < 0.18 + profile.drive * 0.28,
-      };
-    });
+      const candidates = role.pattern[barOffset] || [];
+      const count = roleNoteCount(role, candidates, profile, energy);
+      const selected = shuffled(candidates, rng)
+        .slice(0, count)
+        .sort((left, right) => left - right);
+      selected.forEach((step, index) => {
+        const forwardIndex =
+          (index + barOffset + phraseIndex) % movement.motif.length;
+        const motifIndex =
+          role.motifDirection < 0
+            ? movement.motif.length - 1 - forwardIndex
+            : forwardIndex;
+        let degree = movement.motif[motifIndex] + role.degreeOffset;
+        if (rng() < profile.syncopation * 0.12) {
+          degree += rng() < 0.5 ? -1 : 1;
+        }
+        const midi = fitMidiToRange(
+          degreeToMidi(
+            movement.root,
+            movement.mode.intervals,
+            degree,
+            1,
+          ),
+          role.range[0],
+          role.range[1],
+        );
+        const length =
+          role.length[0] +
+          Math.floor(rng() * (role.length[1] - role.length[0] + 1));
+        lanes[engine][barOffset][step] = {
+          midi,
+          degree,
+          velocity: clamp(
+            0.24 +
+              energy * 0.34 +
+              role.velocityBias +
+              rng() * 0.12,
+            0.16,
+            0.82,
+          ),
+          length: clamp(length, 1, 4),
+          accent: rng() < 0.14 + profile.drive * 0.26,
+          ensembleRole: role.id,
+          register: role.register,
+          sourceSceneId: role.sourceSceneId,
+          priority: role.priority,
+          delaySend: clamp(
+            role.delaySend + profile.space * 0.08,
+            0,
+            0.42,
+          ),
+          reverbSend: clamp(
+            role.reverbSend + profile.space * 0.12,
+            0,
+            0.55,
+          ),
+        };
+      });
+    }
+    resolveEnsembleOnsets(lanes, seed, phraseIndex, barOffset);
+    enforceEnsembleStartBudget(
+      lanes,
+      seed,
+      phraseIndex,
+      barOffset,
+      advancedStartsPerBar(section.kind),
+    );
   }
   return lanes;
+}
+
+function chordOccupiesNeighbour(chord, step) {
+  return [step - 1, step, step + 1].some(
+    (target) => target >= 0 && target < STEPS_PER_BAR && chord[target],
+  );
+}
+
+function arrangementBlocksEnsembleNote({
+  engine,
+  role,
+  step,
+  bass,
+  chord,
+  metallic,
+  ride,
+}) {
+  if (engine === "modal") return Boolean(metallic[step] || ride[step]);
+  if (chordOccupiesNeighbour(chord, step)) return true;
+  return role.register === "low" && Boolean(bass[step]);
+}
+
+function fitEnsembleToArrangement({
+  phrase,
+  barInPhrase,
+  roles,
+  seed,
+  phraseIndex,
+  bass,
+  chord,
+  metallic,
+  ride,
+}) {
+  const result = Object.fromEntries(
+    SYNTH_ENGINE_IDS.map((engine) => [
+      engine,
+      Array(STEPS_PER_BAR).fill(null),
+    ]),
+  );
+  const occupied = new Set();
+  const deferred = [];
+  for (const engine of SYNTH_ENGINE_IDS) {
+    const role = roles[engine];
+    phrase[engine][barInPhrase].forEach((note, step) => {
+      if (!note) return;
+      if (
+        occupied.has(step) ||
+        arrangementBlocksEnsembleNote({
+          engine,
+          role,
+          step,
+          bass,
+          chord,
+          metallic,
+          ride,
+        })
+      ) {
+        deferred.push({ engine, role, note, step });
+        return;
+      }
+      result[engine][step] = note;
+      occupied.add(step);
+    });
+  }
+  deferred.sort(
+    (left, right) =>
+      right.note.priority - left.note.priority ||
+      hash32(
+        seed,
+        phraseIndex,
+        barInPhrase,
+        left.engine,
+        left.step,
+      ) -
+        hash32(
+          seed,
+          phraseIndex,
+          barInPhrase,
+          right.engine,
+          right.step,
+        ),
+  );
+  for (const event of deferred) {
+    const vocabulary = [
+      ...new Set(event.role.pattern.flat()),
+    ]
+      .filter(
+        (step) =>
+          ![0, 4, 8, 12].includes(step) &&
+          !occupied.has(step) &&
+          !arrangementBlocksEnsembleNote({
+            engine: event.engine,
+            role: event.role,
+            step,
+            bass,
+            chord,
+            metallic,
+            ride,
+          }),
+      )
+      .sort(
+        (left, right) =>
+          Math.abs(left - event.step) - Math.abs(right - event.step) ||
+          hash32(
+            seed,
+            phraseIndex,
+            barInPhrase,
+            event.engine,
+            left,
+          ) -
+            hash32(
+              seed,
+              phraseIndex,
+              barInPhrase,
+              event.engine,
+              right,
+            ),
+      );
+    const alternate = vocabulary[0];
+    if (alternate === undefined) continue;
+    result[event.engine][alternate] = event.note;
+    occupied.add(alternate);
+  }
+  return result;
 }
 
 function hasLaneEvents(lane) {
@@ -537,16 +1236,31 @@ function buildInstrumentation({
   synth,
   synthPalette,
   activeSynthEngines,
+  ensembleScene,
 }) {
   const items = [];
-  const add = (id, role, label, detail = "", engine = "") => {
+  const add = (id, role, label, detail = "", engine = "", part = "") => {
     const item = { id, role, label, detail };
     if (engine) item.engine = engine;
+    if (part) item.part = part;
     items.push(Object.freeze(item));
   };
   if (hasLaneEvents(kick)) add("foundation-kick", "foundation", "FOUR-FLOOR KICK");
   if (hasLaneEvents(bass)) {
     add(`bass-${bassVoice}`, "low-end", `${bassVoice.toUpperCase()} BASS`);
+  }
+  for (const engine of activeSynthEngines) {
+    if (!hasLaneEvents(synth[engine])) continue;
+    const genome = synthPalette[engine];
+    const ensembleRole = ensembleScene.roles[engine];
+    add(
+      genome.id,
+      "synth",
+      genome.label,
+      genome.detail,
+      engine,
+      ensembleRole?.label || "",
+    );
   }
   if (hasLaneEvents(clap)) add("backbeat-clap", "backbeat", "MACHINE CLAP");
   if (hasLaneEvents(hat) || hasLaneEvents(openHat) || hasLaneEvents(ride)) {
@@ -559,11 +1273,6 @@ function buildInstrumentation({
     hasLaneEvents(tom)
   ) {
     add("secondary-percussion", "percussion", "SECONDARY PERCUSSION");
-  }
-  for (const engine of activeSynthEngines) {
-    if (!hasLaneEvents(synth[engine])) continue;
-    const genome = synthPalette[engine];
-    add(genome.id, "synth", genome.label, genome.detail, engine);
   }
   if (hasLaneEvents(chord)) add("harmony-stab", "harmony", "CHORD STAB");
   if (pad) add("harmony-pad", "harmony", "LONG PAD");
@@ -580,6 +1289,7 @@ export function buildBarPlan({
   tonality = "minor",
   profile = profileForVibe(vibeId),
   instrumentProfile = profile,
+  ensembleRoles = null,
 }) {
   const movementIndex = Math.floor(Math.max(0, bar) / MOVEMENT_BARS);
   const movement = createMovement(seed, movementIndex, tonality);
@@ -759,21 +1469,55 @@ export function buildBarPlan({
     vibeId,
     profile: synthProfile,
   });
-  const activeSynthEngines = synthEngineSelection(
-    seed,
-    phraseIndex,
-    section,
-    synthProfile,
+  const targetEnsembleScene = selectEnsembleScene(seed, movement, section);
+  const effectiveEnsembleRoles =
+    ensembleRoles || targetEnsembleScene.roles;
+  const activeSynthEngines = SYNTH_ENGINE_IDS.filter(
+    (engine) => effectiveEnsembleRoles[engine],
   );
-  const synth = buildSynthLanes({
+  const ensembleScene = Object.freeze({
+    id: targetEnsembleScene.id,
+    label: targetEnsembleScene.label,
+    detail: targetEnsembleScene.detail,
+    recalled: targetEnsembleScene.recalled,
+    sourceSectionIndex: targetEnsembleScene.sourceSectionIndex,
+    mutationEngine: synthMutationEngineForPhrase(phraseIndex),
+    hybrid: activeSynthEngines.some(
+      (engine) =>
+        effectiveEnsembleRoles[engine].sourceSceneId !==
+        targetEnsembleScene.id,
+    ),
+    roles: effectiveEnsembleRoles,
+    members: Object.freeze(
+      activeSynthEngines.map((engine) =>
+        Object.freeze({
+          engine,
+          role: effectiveEnsembleRoles[engine].id,
+          label: effectiveEnsembleRoles[engine].label,
+          register: effectiveEnsembleRoles[engine].register,
+          sourceSceneId: effectiveEnsembleRoles[engine].sourceSceneId,
+        }),
+      ),
+    ),
+  });
+  const ensemblePhrase = buildEnsemblePhrase({
     seed,
-    bar,
     phraseIndex,
     movement,
     section,
-    energy,
-    profile,
-    activeEngines: activeSynthEngines,
+    profile: synthProfile,
+    roles: effectiveEnsembleRoles,
+  });
+  const synth = fitEnsembleToArrangement({
+    phrase: ensemblePhrase,
+    barInPhrase,
+    roles: effectiveEnsembleRoles,
+    seed,
+    phraseIndex,
+    bass,
+    chord,
+    metallic,
+    ride,
   });
   const texture =
     (barInPhrase === 0 || sectionStart) &&
@@ -805,6 +1549,7 @@ export function buildBarPlan({
     synth,
     synthPalette,
     activeSynthEngines,
+    ensembleScene,
   });
 
   return {
@@ -837,6 +1582,8 @@ export function buildBarPlan({
     synth,
     synthPalette,
     activeSynthEngines,
+    ensembleScene,
+    ensembleTargetRoles: targetEnsembleScene.roles,
     instrumentation,
     texture,
     texturePan,
@@ -845,7 +1592,12 @@ export function buildBarPlan({
     downlifter,
     downlifterBars: 4,
     filterOpen: clamp(0.28 + energy * 0.58 + sectionProgress * 0.14, 0.18, 1),
-    fingerprint: `${movement.index}:${section.index}:${phraseIndex}:${bassCount}:${bassVoice}:${activeSynthEngines.join("+")}`,
+    fingerprint: `${movement.index}:${section.index}:${phraseIndex}:${bassCount}:${bassVoice}:${ensembleScene.id}:${activeSynthEngines
+      .map(
+        (engine) =>
+          `${engine}:${effectiveEnsembleRoles[engine].sourceSceneId}:${effectiveEnsembleRoles[engine].id}`,
+      )
+      .join("+")}`,
   };
 }
 
@@ -881,6 +1633,13 @@ export function planPatternSignature(plan) {
     .map((event) => event.notes.map((note) => ((note % 12) + 12) % 12).join("."))
     .join("|");
   return [
+    plan.ensembleScene?.id || "",
+    ...SYNTH_ENGINE_IDS.map((engine) => {
+      const role = plan.ensembleScene?.roles?.[engine];
+      return role
+        ? `${engine}:${role.sourceSceneId}:${role.id}:${role.register}`
+        : `${engine}:`;
+    }),
     laneMask(plan.kick),
     laneMask(plan.clap),
     laneMask(plan.hat),
@@ -902,6 +1661,13 @@ export function planPatternSignature(plan) {
 
 export function planInstrumentSignature(plan) {
   return [
+    plan.ensembleScene?.id || "",
+    ...SYNTH_ENGINE_IDS.map((engine) => {
+      const role = plan.ensembleScene?.roles?.[engine];
+      return role
+        ? `${engine}:${role.sourceSceneId}:${role.id}`
+        : `${engine}:`;
+    }),
     plan.synthPalette?.fm?.id || "",
     plan.synthPalette?.modal?.id || "",
     plan.synthPalette?.string?.id || "",

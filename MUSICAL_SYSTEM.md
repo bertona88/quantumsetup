@@ -1,7 +1,7 @@
 # Infinite Techno Musical System
 
 Status: implemented generative-set grammar  
-Generator version: `1.1.0`
+Generator version: `1.2.0`
 Primary product: music  
 Quantum role: visual and poetic contour only
 
@@ -78,9 +78,10 @@ phrasing.
   gesture.
 - Movement: root, modal family, motif, chord progression, and timbre genome.
 - Advanced synthesis: one of Matrix, Resonator, or String mutates at each phrase
-  boundary; the other two retain their genomes. Vibe and New Trajectory candidates
-  are staged through that same three-phrase sequence rather than replacing the
-  whole advanced palette together.
+  boundary; the other two retain their genomes and ensemble roles. The selected
+  engine adopts its target scene role in the same handoff. Vibe, New Trajectory, and
+  section candidates therefore form deterministic hybrids instead of replacing the
+  whole advanced palette or orchestration together.
 
 The four-on-the-floor anchor remains dominant in groove sections. Odd-group
 relationships are reserved for shaker, tops, metallic percussion, and modulation.
@@ -103,14 +104,49 @@ decay, spread, and drive. A fixed two-seed, five-Vibe deterministic scan selects
 208 structures into note-bearing lanes and reaches more than 170 active parameter
 genomes.
 
+### Ensemble conversation grammar
+
+The synthesis bank is integrated through six curated scenes:
+
+| Scene | Coordinated parts | Arrangement purpose |
+| --- | --- | --- |
+| Motor Weave | String motor, Matrix counter, Resonator mark | locked and ascending groove |
+| Acid Relay | Matrix call, String reply, Resonator pickup | elastic call and response |
+| Resonant Orbit | Resonator signal, String reply, Matrix pickup | spacious bridge and transition dialogue |
+| Dub Afterimage | String call, Matrix echo, Resonator tail | negative-space afterimages |
+| Peak Interlock | Matrix motor, String weave, Resonator crown | dense but interleaved peak pressure |
+| Negative Space | String tone, Resonator tail, Matrix pickup | void, release, and sparse ignition |
+
+A scene is a section-level target, not a preset switch. Its three parts specify
+curated eight-bar masks, modal degree behavior, non-overlapping registers, note
+length, velocity bias, priority, and bounded delay/reverb sends. The masks never add
+advanced attacks to the four quarter-note kick anchors. At materialization time,
+same-step advanced collisions are resolved deterministically; low-register parts
+yield to bass onsets, Matrix/String parts yield around chord attacks, and Resonator
+parts yield around metallic or ride attacks. Scene vocabulary provides the alternate
+cells, so collision resolution does not invent a fresh random rhythm.
+
+Only the engine selected by the established three-phrase mutation sequence may
+adopt its target scene role at a phrase boundary. This couples timbral and
+orchestration change into one audible handoff while the other two parts carry
+continuity. Short sections may intentionally remain hybrid. Within an uninterrupted
+trajectory, RETURN sections target the most recent LOCK, DRIVE, or ASCENT scene,
+making recall structural rather than an accidental repeat.
+
+Advanced starts are bounded to two per bar in VOID/RELEASE, six in ordinary
+sections, and eight in PEAK. At most one advanced attack is placed on a sixteenth
+step. These structural limits are verified mechanically; whether a scene grooves,
+balances, or develops convincingly still requires listening evidence.
+
 Every parameter uses a named hash coordinate. Adding a future parameter therefore
 does not consume a shared random stream and rewrite unrelated timbres. Topology and
 genome changes occur only at eight-bar boundaries, with exactly one of the three
 runtime engines changing per phrase. Explicit high-level Vibe and trajectory
 requests feed new candidates into the same staged sequence. Note-level variation is
 limited to pitch, velocity, duration, and tiny seeded excitation differences.
-During a Vibe morph, density and effects may continue moving bar by bar, while the
-bass identity and advanced-engine selection are sampled at phrase entry.
+During a Vibe morph, dynamics and global effects may continue moving bar by bar,
+while bass identity, synthesis genomes, scene roles, and the curated phrase
+skeleton are sampled at phrase entry.
 
 The engines are informed by standard FM, modal-resonator, and digital-waveguide
 techniques. They are not copies of, preset-compatible with, or claimed equivalent to
