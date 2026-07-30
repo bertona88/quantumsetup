@@ -16,12 +16,21 @@ import {
 } from "./techno-model.js";
 import { SYNTH_VOICE_LIMIT } from "./synth-dsp.js";
 import { stageSynthPalette } from "./synth-genomes.js";
+import {
+  normalizeTasteProfile,
+  tasteFingerprint,
+} from "./taste-model.js";
 
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 const AudioWorkletNodeClass =
   window.AudioWorkletNode || globalThis.AudioWorkletNode;
 const NATIVE_VOICE_LIMIT = 72;
 const NATIVE_SOURCE_LIMIT = 144;
+const KICK_BUS_LEVEL = 0.84;
+const BASS_BUS_LEVEL = 0.96;
+const RUMBLE_BUS_LEVEL = 0.92;
+const MUSIC_BUS_LEVEL = 1;
+const SYNTH_MESSAGE_LEAD_SECONDS = 0.05;
 
 function freshSeed() {
   if (window.crypto?.getRandomValues) {
@@ -63,6 +72,64 @@ function holdParamAtTime(param, time, fallback = 0.0001) {
   param.setValueAtTime(value, time);
 }
 
+function bassNoteTiming(note, stepDuration, durationScale = 0.9) {
+  const safeStepDuration = clamp(Number(stepDuration) || 0.1, 0.02, 0.5);
+  const lengthSteps = clamp(Math.round(Number(note?.length) || 1), 1, 4);
+  const hasSlide =
+    Number.isFinite(note?.slideTo) &&
+    Number.isFinite(note?.slideSteps) &&
+    note.slideSteps > 0;
+  const maxSlideSteps = Math.max(
+    1,
+    Math.min(4, Math.floor(0.86 / safeStepDuration)),
+  );
+  const slideSteps = hasSlide
+    ? clamp(Math.round(note.slideSteps), 1, maxSlideSteps)
+    : 0;
+  const slideGap = safeStepDuration * slideSteps;
+  return Object.freeze({
+    hasSlide,
+    stepDuration: safeStepDuration,
+    slideGap,
+    duration: clamp(
+      Math.max(
+        safeStepDuration * lengthSteps * durationScale,
+        hasSlide ? slideGap * 1.025 : 0,
+      ),
+      0.075,
+      0.9,
+    ),
+  });
+}
+
+function scheduleBassPitch(
+  frequency,
+  note,
+  time,
+  stepDuration,
+  transpose = 0,
+) {
+  const startMidi = clamp(
+    (Number(note?.midi) || 36) + transpose,
+    0,
+    127,
+  );
+  const timing = bassNoteTiming(note, stepDuration);
+  const startHz = midiToHz(startMidi);
+  frequency.setValueAtTime(startHz, time);
+  if (!timing.hasSlide) return timing;
+
+  const targetMidi = clamp(Number(note.slideTo) + transpose, 0, 127);
+  const slideWindow = Math.min(0.075, timing.stepDuration * 0.66);
+  const slideStart = time + Math.max(0.02, timing.slideGap - slideWindow);
+  frequency.setValueAtTime(startHz, slideStart);
+  frequency.exponentialRampToValueAtTime(
+    midiToHz(targetMidi),
+    time + timing.slideGap,
+  );
+  return timing;
+}
+
 function summarizeEnsembleScene(scene) {
   if (!scene) return null;
   return Object.freeze({
@@ -76,6 +143,19 @@ function summarizeEnsembleScene(scene) {
   });
 }
 
+function summarizeCouncilVerdict(verdict) {
+  if (!verdict) return null;
+  return Object.freeze({
+    chair: verdict.chair,
+    directive: verdict.directive,
+    phase: verdict.phase,
+    purpose: verdict.purpose,
+    activeSynthEngines: verdict.activeSynthEngines,
+    optionalLayerBudget: verdict.optionalLayerBudget,
+    maxAdvancedStarts: verdict.maxAdvancedStarts,
+  });
+}
+
 export class InfiniteTechnoEngine {
   constructor(onEvent, options = {}) {
     this.onEvent = typeof onEvent === "function" ? onEvent : () => {};
@@ -84,12 +164,15 @@ export class InfiniteTechnoEngine {
     this.activeTonality = ["major", "neutral"].includes(options.tonality)
       ? options.tonality
       : "minor";
+    this.tasteProfile = normalizeTasteProfile(options.tasteProfile);
     this.vibeTransition = null;
     this.tonalityTransition = null;
     this.pendingSeed = null;
     this.ctx = null;
     this.running = false;
     this.starting = false;
+    this.contextReleasing = false;
+    this.contextRelease = Promise.resolve();
     this.runToken = 0;
     this.timer = null;
     this.visualTimers = new Set();
@@ -219,6 +302,25 @@ export class InfiniteTechnoEngine {
     });
   }
 
+  setTasteProfile(profile) {
+    const normalized = normalizeTasteProfile(profile);
+    if (tasteFingerprint(normalized) === tasteFingerprint(this.tasteProfile)) {
+      return;
+    }
+    this.tasteProfile = normalized;
+    this.phraseInstrumentationKey = "";
+    if (!this.running) {
+      this.planBar = -1;
+    }
+    this.onEvent({
+      type: "taste",
+      decisions: normalized.decisions,
+      likes: normalized.likes,
+      passes: normalized.passes,
+      fingerprint: tasteFingerprint(normalized),
+    });
+  }
+
   applySeed(seed) {
     if (!this.running) {
       this.runtimeSynthPalette = null;
@@ -324,6 +426,13 @@ export class InfiniteTechnoEngine {
       section: this.plan?.section?.kind || "DORMANT",
       movement: this.plan?.movement?.index || 0,
       ensembleScene: summarizeEnsembleScene(this.plan?.ensembleScene),
+      council: summarizeCouncilVerdict(this.plan?.councilVerdict),
+      taste: Object.freeze({
+        decisions: this.tasteProfile.decisions,
+        likes: this.tasteProfile.likes,
+        passes: this.tasteProfile.passes,
+        fingerprint: tasteFingerprint(this.tasteProfile),
+      }),
       transition: this.vibeTransition
         ? {
             kind: "vibe",
@@ -363,9 +472,12 @@ export class InfiniteTechnoEngine {
     const voices = new Set();
     let context = null;
     try {
+      if (this.contextReleasing) await this.waitForContextRelease();
+      if (token !== this.runToken || !this.starting || this.running) return;
+
       context = new AudioContextClass({ latencyHint: "interactive" });
       if (token !== this.runToken) {
-        this.disposeContext(context, voices);
+        await this.disposeContext(context, voices);
         return;
       }
       this.ctx = context;
@@ -374,7 +486,7 @@ export class InfiniteTechnoEngine {
       this.buildGraph();
       await context.resume();
       if (token !== this.runToken || this.ctx !== context) {
-        this.disposeContext(context, voices);
+        await this.disposeContext(context, voices);
         return;
       }
       if (context.state !== "running") {
@@ -392,14 +504,14 @@ export class InfiniteTechnoEngine {
       };
       await this.loadSynthBank(context);
       if (token !== this.runToken || this.ctx !== context) {
-        this.disposeContext(context, voices);
+        await this.disposeContext(context, voices);
         return;
       }
       if (context.state !== "running") {
         throw new Error("Audio was interrupted. Click Start to resume the set.");
       }
       this.running = true;
-      this.nextStepTime = context.currentTime + 0.065;
+      this.nextStepTime = context.currentTime + 0.14;
       this.planBar = -1;
       this.masterGain.gain.cancelScheduledValues(context.currentTime);
       this.masterGain.gain.setValueAtTime(0.0001, context.currentTime);
@@ -410,7 +522,7 @@ export class InfiniteTechnoEngine {
         this.onEvent({ type: "state", running: true, snapshot: this.getSnapshot() });
       }
     } catch (error) {
-      if (context) this.disposeContext(context, voices);
+      if (context) await this.disposeContext(context, voices);
       if (token !== this.runToken) return;
       this.running = false;
       if (this.ctx === context) this.ctx = null;
@@ -466,14 +578,34 @@ export class InfiniteTechnoEngine {
       holdParamAtTime(master.gain, now);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
     }
-    if (context) window.setTimeout(() => this.disposeContext(context, voices), 95);
-    if (wasActive) this.onEvent({ type: "state", running: false, reason });
+    if (context) {
+      const previousRelease = this.contextRelease;
+      this.contextReleasing = true;
+      const release = previousRelease
+        .then(
+          () => new Promise((resolve) => window.setTimeout(resolve, 95)),
+        )
+        .then(() => this.disposeContext(context, voices));
+      const trackedRelease = release.finally(() => {
+        if (this.contextRelease === trackedRelease) {
+          this.contextReleasing = false;
+        }
+      });
+      this.contextRelease = trackedRelease;
+    }
+    return this.waitForContextRelease().then(() => {
+      if (wasActive) this.onEvent({ type: "state", running: false, reason });
+    });
   }
 
-  disposeContext(context, voices = new Set()) {
+  waitForContextRelease() {
+    return this.contextRelease;
+  }
+
+  async disposeContext(context, voices = new Set()) {
     voices.clear();
     try {
-      if (context.state !== "closed") context.close();
+      if (context.state !== "closed") await context.close();
     } catch (_) {
       // Closing twice is harmless.
     }
@@ -482,6 +614,8 @@ export class InfiniteTechnoEngine {
   buildGraph() {
     const context = this.ctx;
     this.kickBus = context.createGain();
+    this.bassBus = context.createGain();
+    this.rumbleBus = context.createGain();
     this.musicBus = context.createGain();
     this.toneFilter = context.createBiquadFilter();
     this.preMaster = context.createGain();
@@ -491,8 +625,10 @@ export class InfiniteTechnoEngine {
     this.analyser = context.createAnalyser();
     this.masterGain = context.createGain();
 
-    this.kickBus.gain.value = 0.84;
-    this.musicBus.gain.value = 1;
+    this.kickBus.gain.value = KICK_BUS_LEVEL;
+    this.bassBus.gain.value = BASS_BUS_LEVEL;
+    this.rumbleBus.gain.value = RUMBLE_BUS_LEVEL;
+    this.musicBus.gain.value = MUSIC_BUS_LEVEL;
     this.toneFilter.type = "lowpass";
     this.toneFilter.frequency.value = 6500;
     this.toneFilter.Q.value = 0.7;
@@ -512,6 +648,8 @@ export class InfiniteTechnoEngine {
     this.masterGain.gain.value = 0.0001;
 
     this.kickBus.connect(this.preMaster);
+    this.bassBus.connect(this.preMaster);
+    this.rumbleBus.connect(this.preMaster);
     this.musicBus.connect(this.toneFilter);
     this.toneFilter.connect(this.preMaster);
     this.preMaster.connect(this.highpass);
@@ -556,17 +694,22 @@ export class InfiniteTechnoEngine {
     this.rumbleFeedback = context.createGain();
     this.rumbleFilter = context.createBiquadFilter();
     this.rumbleDrive = context.createWaveShaper();
+    this.rumbleSendGain = context.createGain();
     this.rumbleWet = context.createGain();
     this.rumbleFilter.type = "lowpass";
     this.rumbleFilter.frequency.value = 145;
     this.rumbleFilter.Q.value = 1.1;
     this.rumbleDrive.curve = driveCurve(3.2, 1024);
     this.rumbleDrive.oversample = "2x";
-    this.kickBus.connect(this.rumbleDelay);
+    this.rumbleFeedback.gain.value = 0.32;
+    this.rumbleSendGain.gain.value = 0.06;
+    this.rumbleWet.gain.value = 0.86;
+    this.kickBus.connect(this.rumbleSendGain);
+    this.rumbleSendGain.connect(this.rumbleDelay);
     this.rumbleDelay.connect(this.rumbleFilter);
     this.rumbleFilter.connect(this.rumbleDrive);
     this.rumbleDrive.connect(this.rumbleWet);
-    this.rumbleWet.connect(this.musicBus);
+    this.rumbleWet.connect(this.rumbleBus);
     this.rumbleFilter.connect(this.rumbleFeedback);
     this.rumbleFeedback.connect(this.rumbleDelay);
 
@@ -694,13 +837,34 @@ export class InfiniteTechnoEngine {
     const constant = immediate ? 0.001 : 0.42;
     const beat = 60 / Math.max(60, this.currentTempo);
     const filterOpen = plan?.filterOpen ?? 0.75;
+    const kickTimbre = plan?.kickTimbre;
+    const rumbleSend = clamp(
+      kickTimbre?.rumbleSend ??
+        plan?.lowEnd?.rumbleSend ??
+        0.018 + profile.rumble * 0.105,
+      0,
+      0.14,
+    );
+    const rumbleCutoff = clamp(
+      kickTimbre?.rumbleCutoffHz ??
+        92 + profile.rumble * 66 + profile.space * 18,
+      84,
+      176,
+    );
+    const rumbleFeedback = clamp(
+      kickTimbre?.rumbleFeedback ??
+        0.14 + profile.rumble * 0.34 + profile.space * 0.06,
+      0,
+      0.58,
+    );
     this.delay.delayTime.setTargetAtTime(beat * 0.75, now, constant);
     this.delayFeedback.gain.setTargetAtTime(clamp(0.2 + profile.space * 0.42, 0, 0.72), now, constant);
     this.delayWet.gain.setTargetAtTime(0.08 + profile.space * 0.2, now, constant);
     this.reverbWet.gain.setTargetAtTime(0.055 + profile.space * 0.22, now, constant);
     this.rumbleDelay.delayTime.setTargetAtTime(beat * 0.5, now, constant);
-    this.rumbleFeedback.gain.setTargetAtTime(clamp(0.16 + profile.rumble * 0.34, 0, 0.58), now, constant);
-    this.rumbleWet.gain.setTargetAtTime(0.018 + profile.rumble * 0.09, now, constant);
+    this.rumbleSendGain.gain.setTargetAtTime(rumbleSend, now, constant);
+    this.rumbleFilter.frequency.setTargetAtTime(rumbleCutoff, now, constant);
+    this.rumbleFeedback.gain.setTargetAtTime(rumbleFeedback, now, constant);
     this.toneFilter.frequency.setTargetAtTime(
       680 + filterOpen * 10600 + profile.warmth * 900,
       now,
@@ -777,6 +941,7 @@ export class InfiniteTechnoEngine {
       tonality: settledState.dominantTonality,
       profile: settledState.profile,
       instrumentProfile: this.instrumentProfile,
+      tasteProfile: this.tasteProfile,
     };
     const candidatePlan = buildBarPlan(planInput);
     const ensemblePlan = this.adoptRuntimeEnsemble(
@@ -800,7 +965,7 @@ export class InfiniteTechnoEngine {
       this.runtimeEnsembleRoles = stageEnsembleRoles(
         this.runtimeEnsembleRoles,
         candidatePlan.ensembleTargetRoles,
-        candidatePlan.phraseIndex,
+        candidatePlan.synthHandoff,
       );
       this.runtimeEnsemblePhraseIndex = candidatePlan.phraseIndex;
     }
@@ -825,7 +990,7 @@ export class InfiniteTechnoEngine {
       this.runtimeSynthPalette = stageSynthPalette(
         this.runtimeSynthPalette,
         plan.synthPalette,
-        plan.phraseIndex,
+        plan.synthHandoff,
       );
       this.runtimeSynthPhraseIndex = plan.phraseIndex;
     }
@@ -887,6 +1052,7 @@ export class InfiniteTechnoEngine {
                 profile: targetState.profile,
                 instrumentProfile: this.instrumentProfile,
                 ensembleRoles: this.runtimeEnsembleRoles,
+                tasteProfile: this.tasteProfile,
               }),
             );
       for (const item of plan.instrumentation) {
@@ -912,6 +1078,10 @@ export class InfiniteTechnoEngine {
 
   scheduleSynthNote(engine, time, note, stepDuration, genome, profile) {
     if (!this.synthBank || !this.synthWorkletReady || !this.ctx || !genome) return;
+    const safeStartTime = Math.max(
+      Number.isFinite(time) ? time : this.ctx.currentTime,
+      this.ctx.currentTime + SYNTH_MESSAGE_LEAD_SECONDS,
+    );
     const durationScale = engine === "fm" ? genome.durationScale : 1;
     const durationFrames = Math.round(
       stepDuration *
@@ -925,7 +1095,7 @@ export class InfiniteTechnoEngine {
       genomeId: genome.id,
       midi: note.midi,
       velocity: note.velocity,
-      startFrame: Math.round(time * this.ctx.sampleRate),
+      startFrame: Math.round(safeStartTime * this.ctx.sampleRate),
       durationFrames,
       noteSeed: hash32(this.seed, this.bar, this.step, genome.id),
       priority: Number.isFinite(note.priority)
@@ -971,8 +1141,8 @@ export class InfiniteTechnoEngine {
     let synthPulse = 0;
 
     if (plan.kick[step]) {
-      this.kick(eventTime, plan.kick[step], plan.energy, plan.movement.timbre);
-      this.duck(eventTime, plan.kick[step]);
+      this.kick(eventTime, plan.kick[step], plan.kickTimbre);
+      this.duck(eventTime, plan.kick[step], plan.lowEnd);
       kickPulse = plan.kick[step];
     }
     if (plan.clap[step]) this.clap(eventTime, plan.clap[step], plan.movement.timbre.clapTone);
@@ -1075,6 +1245,8 @@ export class InfiniteTechnoEngine {
           : null,
       ensembleScene:
         step === 0 ? summarizeEnsembleScene(plan.ensembleScene) : null,
+      council:
+        step === 0 ? summarizeCouncilVerdict(plan.councilVerdict) : null,
       synthEngines: step === 0 ? [...plan.activeSynthEngines] : null,
     });
   }
@@ -1143,24 +1315,34 @@ export class InfiniteTechnoEngine {
     return { node, pan };
   }
 
-  route(output, dry = 1, delay = 0, reverb = 0, kick = false) {
+  route(output, dry = 1, delay = 0, reverb = 0, destination = "music") {
     const context = this.ctx;
     const nodes = [];
     const dryGain = context.createGain();
-    dryGain.gain.value = dry;
+    const destinationBus =
+      destination === "bass"
+        ? this.bassBus
+        : destination === "kick"
+          ? this.kickBus
+          : destination === "rumble"
+            ? this.rumbleBus
+            : this.musicBus;
+    dryGain.gain.value = clamp(Number(dry) || 0, 0, 1);
     output.connect(dryGain);
-    dryGain.connect(kick ? this.kickBus : this.musicBus);
+    dryGain.connect(destinationBus);
     nodes.push(dryGain);
-    if (delay > 0) {
+    const delayAmount = clamp(Number(delay) || 0, 0, 0.42);
+    if (delayAmount > 0) {
       const send = context.createGain();
-      send.gain.value = delay;
+      send.gain.value = delayAmount;
       output.connect(send);
       send.connect(this.delayIn);
       nodes.push(send);
     }
-    if (reverb > 0) {
+    const reverbAmount = clamp(Number(reverb) || 0, 0, 0.55);
+    if (reverbAmount > 0) {
       const send = context.createGain();
-      send.gain.value = reverb;
+      send.gain.value = reverbAmount;
       output.connect(send);
       send.connect(this.reverbIn);
       nodes.push(send);
@@ -1168,42 +1350,127 @@ export class InfiniteTechnoEngine {
     return nodes;
   }
 
-  duck(time, amount) {
-    const gain = this.musicBus.gain;
-    holdParamAtTime(gain, time, 1);
-    gain.exponentialRampToValueAtTime(0.46 + (1 - amount) * 0.18, time + 0.008);
-    gain.exponentialRampToValueAtTime(1, time + 0.19);
+  duck(time, amount, lowEnd = null) {
+    const impact = clamp(Number(amount) || 0, 0, 1);
+    const musicDepth = clamp(
+      Number(lowEnd?.musicDuckDepth) || 0.5,
+      0.2,
+      0.72,
+    );
+    const bassDepth = clamp(
+      Number(lowEnd?.bassDuckDepth) || 0.7,
+      0.42,
+      0.86,
+    );
+    const musicFloor = clamp(
+      MUSIC_BUS_LEVEL * (1 - musicDepth * impact),
+      0.18,
+      MUSIC_BUS_LEVEL,
+    );
+    const bassFloor = clamp(
+      BASS_BUS_LEVEL * (1 - bassDepth * impact),
+      0.12,
+      BASS_BUS_LEVEL,
+    );
+
+    holdParamAtTime(this.musicBus.gain, time, MUSIC_BUS_LEVEL);
+    this.musicBus.gain.exponentialRampToValueAtTime(
+      musicFloor,
+      time + 0.008,
+    );
+    this.musicBus.gain.exponentialRampToValueAtTime(
+      MUSIC_BUS_LEVEL,
+      time + 0.15,
+    );
+
+    holdParamAtTime(this.bassBus.gain, time, BASS_BUS_LEVEL);
+    this.bassBus.gain.exponentialRampToValueAtTime(
+      bassFloor,
+      time + 0.006,
+    );
+    this.bassBus.gain.exponentialRampToValueAtTime(
+      BASS_BUS_LEVEL,
+      time + 0.19,
+    );
   }
 
-  kick(time, velocity, energy, timbre) {
+  curveForKick(drive) {
+    const key = `kick:${Math.round(clamp(drive, 1.2, 3.5) * 8)}`;
+    if (!this.cachedCurves.has(key)) {
+      this.cachedCurves.set(
+        key,
+        driveCurve(clamp(drive, 1.2, 3.5), 512),
+      );
+    }
+    return this.cachedCurves.get(key);
+  }
+
+  kick(time, velocity, timbre = {}) {
     const context = this.ctx;
     if (!context) return;
     const oscillator = context.createOscillator();
     const gain = context.createGain();
+    const bodyDrive = context.createWaveShaper();
+    const bodyTrim = context.createGain();
     const click = context.createBufferSource();
     const clickFilter = context.createBiquadFilter();
     const clickGain = context.createGain();
-    const decay = 0.38 + timbre.kickDecay * 0.22;
-    const startFrequency = 138 + energy * 24 + timbre.kickTone * 26;
-    oscillator.type = timbre.kickTone > 0.78 ? "triangle" : "sine";
+    const level = clamp(Number(velocity) || 0, 0, 1);
+    const bodyFrequency = clamp(Number(timbre.bodyHz) || 47, 36, 60);
+    const startFrequency = clamp(
+      Number(timbre.pitchStartHz) || 158,
+      bodyFrequency + 12,
+      220,
+    );
+    const pitchDrop = clamp(
+      Number(timbre.pitchDropSeconds) || 0.045,
+      0.02,
+      0.08,
+    );
+    const decay = clamp(Number(timbre.decaySeconds) || 0.48, 0.24, 0.72);
+    const clickFrequency = clamp(Number(timbre.clickHz) || 4200, 2200, 7600);
+    const clickLevel = clamp(Number(timbre.clickLevel) || 0.1, 0.02, 0.18);
+    const drive = clamp(Number(timbre.drive) || 2, 1.2, 3.5);
+    oscillator.type = "sine";
     oscillator.frequency.setValueAtTime(startFrequency, time);
-    oscillator.frequency.exponentialRampToValueAtTime(50 + timbre.kickTone * 6, time + 0.045);
-    oscillator.frequency.exponentialRampToValueAtTime(43 + timbre.kickTone * 4, time + decay * 0.9);
+    oscillator.frequency.exponentialRampToValueAtTime(
+      bodyFrequency,
+      time + pitchDrop,
+    );
+    oscillator.frequency.exponentialRampToValueAtTime(
+      Math.max(30, bodyFrequency * 0.86),
+      time + decay * 0.9,
+    );
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(0.8 * velocity, time + 0.003);
-    gain.gain.exponentialRampToValueAtTime(0.27 * velocity, time + 0.075);
+    gain.gain.exponentialRampToValueAtTime(0.8 * level, time + 0.003);
+    gain.gain.exponentialRampToValueAtTime(
+      0.27 * level,
+      time + Math.max(0.065, pitchDrop * 1.45),
+    );
     gain.gain.exponentialRampToValueAtTime(0.0001, time + decay);
     oscillator.connect(gain);
-    gain.connect(this.kickBus);
+    bodyDrive.curve = this.curveForKick(drive);
+    bodyDrive.oversample = "2x";
+    bodyTrim.gain.value = 0.76;
+    gain.connect(bodyDrive);
+    bodyDrive.connect(bodyTrim);
+    bodyTrim.connect(this.kickBus);
     click.buffer = this.noiseBuffer;
     clickFilter.type = "highpass";
-    clickFilter.frequency.value = 3400 + timbre.kickTone * 2100;
-    clickGain.gain.setValueAtTime(0.1 * velocity, time);
+    clickFilter.frequency.value = clickFrequency;
+    clickGain.gain.setValueAtTime(clickLevel * level, time);
     clickGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.014);
     click.connect(clickFilter);
     clickFilter.connect(clickGain);
     clickGain.connect(this.kickBus);
-    if (!this.registerVoice([oscillator, click], [gain, clickFilter, clickGain])) return;
+    if (
+      !this.registerVoice(
+        [oscillator, click],
+        [gain, bodyDrive, bodyTrim, clickFilter, clickGain],
+      )
+    ) {
+      return;
+    }
     oscillator.start(time);
     oscillator.stop(time + decay + 0.04);
     click.start(time, (hash32(this.seed, this.bar, this.step) % 1000) / 1000, 0.02);
@@ -1448,13 +1715,15 @@ export class InfiniteTechnoEngine {
     const filterB = context.createBiquadFilter();
     const gain = context.createGain();
     const localDrive = context.createWaveShaper();
-    const slideGap = stepDuration * note.slideSteps;
-    const duration = clamp(
-      note.slideTo !== null ? slideGap * 1.025 : stepDuration * note.length * 0.9,
-      0.09,
-      0.8,
+    const timing = scheduleBassPitch(
+      oscillator.frequency,
+      note,
+      time,
+      stepDuration,
     );
+    const duration = timing.duration;
     const accent = note.accent ? 1 : 0;
+    const velocity = clamp(Number(note.velocity) || 0.68, 0, 1);
     const baseCutoff = 160 + filterBias * 360 + profile.drive * 170;
     const peakCutoff = clamp(
       baseCutoff * (3.4 + profile.acid * 6.4 + accent * 2.8),
@@ -1462,13 +1731,6 @@ export class InfiniteTechnoEngine {
       5800,
     );
     oscillator.type = filterBias > 0.5 ? "sawtooth" : "square";
-    oscillator.frequency.setValueAtTime(midiToHz(note.midi), time);
-    if (note.slideTo !== null) {
-      const slideWindow = Math.min(0.075, stepDuration * 0.66);
-      const slideStart = time + Math.max(0.02, slideGap - slideWindow);
-      oscillator.frequency.setValueAtTime(midiToHz(note.midi), slideStart);
-      oscillator.frequency.exponentialRampToValueAtTime(midiToHz(note.slideTo), time + slideGap);
-    }
     filterA.type = "lowpass";
     filterA.Q.value = 7 + profile.acid * 9 + accent * 2;
     filterA.frequency.setValueAtTime(baseCutoff, time);
@@ -1480,7 +1742,10 @@ export class InfiniteTechnoEngine {
     localDrive.curve = this.curveForBass(profile.drive);
     localDrive.oversample = "2x";
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(0.11 + accent * 0.05, time + 0.006);
+    gain.gain.exponentialRampToValueAtTime(
+      0.085 + velocity * 0.055 + accent * 0.035,
+      time + 0.006,
+    );
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
     oscillator.connect(filterA);
     filterA.connect(filterB);
@@ -1491,6 +1756,7 @@ export class InfiniteTechnoEngine {
       0.88,
       0.025 + profile.space * 0.09,
       0.015 + profile.space * 0.035,
+      "bass",
     );
     if (!this.registerVoice([oscillator], [filterA, filterB, localDrive, gain, ...routes])) return;
     oscillator.start(time);
@@ -1504,22 +1770,43 @@ export class InfiniteTechnoEngine {
     const triangle = context.createOscillator();
     const filter = context.createBiquadFilter();
     const gain = context.createGain();
-    const duration = clamp(stepDuration * note.length * 0.92, 0.1, 0.9);
+    const timing = scheduleBassPitch(
+      sine.frequency,
+      note,
+      time,
+      stepDuration,
+    );
+    scheduleBassPitch(
+      triangle.frequency,
+      note,
+      time,
+      stepDuration,
+      12,
+    );
+    const duration = timing.duration;
+    const velocity = clamp(Number(note.velocity) || 0.68, 0, 1);
     sine.type = "sine";
     triangle.type = "triangle";
-    sine.frequency.value = midiToHz(note.midi);
-    triangle.frequency.value = midiToHz(note.midi + 12);
     triangle.detune.value = 3;
     filter.type = "lowpass";
     filter.frequency.value = 210 + profile.warmth * 380;
     filter.Q.value = 0.8;
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(0.11 + (note.accent ? 0.025 : 0), time + 0.008);
+    gain.gain.exponentialRampToValueAtTime(
+      0.085 + velocity * 0.05 + (note.accent ? 0.025 : 0),
+      time + 0.008,
+    );
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
     sine.connect(filter);
     triangle.connect(filter);
     filter.connect(gain);
-    const routes = this.route(gain, 0.92, 0.015, 0.012 + profile.space * 0.025);
+    const routes = this.route(
+      gain,
+      0.92,
+      0.015,
+      0.012 + profile.space * 0.025,
+      "bass",
+    );
     if (!this.registerVoice([sine, triangle], [filter, gain, ...routes])) return;
     sine.start(time);
     triangle.start(time);
@@ -1534,9 +1821,15 @@ export class InfiniteTechnoEngine {
     const filter = context.createBiquadFilter();
     const shaper = context.createWaveShaper();
     const gain = context.createGain();
-    const duration = clamp(stepDuration * note.length * 0.72, 0.075, 0.55);
+    const timing = scheduleBassPitch(
+      oscillator.frequency,
+      note,
+      time,
+      stepDuration,
+    );
+    const duration = timing.duration;
+    const velocity = clamp(Number(note.velocity) || 0.68, 0, 1);
     oscillator.type = "square";
-    oscillator.frequency.value = midiToHz(note.midi);
     filter.type = "lowpass";
     filter.frequency.setValueAtTime(320 + profile.drive * 280, time);
     filter.frequency.exponentialRampToValueAtTime(1100 + profile.drive * 1900, time + 0.016);
@@ -1545,12 +1838,15 @@ export class InfiniteTechnoEngine {
     shaper.curve = this.curveForBass(profile.drive);
     shaper.oversample = "2x";
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(0.08 + (note.accent ? 0.035 : 0), time + 0.004);
+    gain.gain.exponentialRampToValueAtTime(
+      0.075 + velocity * 0.055 + (note.accent ? 0.025 : 0),
+      time + 0.004,
+    );
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
     oscillator.connect(filter);
     filter.connect(shaper);
     shaper.connect(gain);
-    const routes = this.route(gain, 0.84, 0.035, 0.018);
+    const routes = this.route(gain, 0.84, 0.035, 0.018, "bass");
     if (!this.registerVoice([oscillator], [filter, shaper, gain, ...routes])) return;
     oscillator.start(time);
     oscillator.stop(time + duration + 0.025);

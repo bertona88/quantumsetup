@@ -17,16 +17,19 @@
     "claimsAndValidation": "CLAIMS_AND_VALIDATION.md",
     "acceptance": "ACCEPTANCE_TESTS.md"
   },
-  "firstAcceptedSlice": "Run one endless, audio-first techno set with phrase-aware long-form arrangement, locally synthesized voices, slow high-level direction changes, and an explicitly artistic quantum contour.",
+  "firstAcceptedSlice": "Run one endless, audio-first techno set with causal recurrent phrase state, motif-lineage musical identity, locally synthesized voices, slow high-level direction changes, and an explicitly artistic quantum contour.",
   "ownershipBoundary": "QuantumSetup owns its musical planner, Web Audio engine, single-page music interface, and artistic contour. It claims no scientific quantum model or cross-setup interface.",
   "claimGate": "Do not claim uninterrupted playback through suspension, proven professional-DJ equivalence, multi-day nonrepetition, quantum computation, quantum randomness, or physical sonification without separate evidence.",
   "currentApp": {
     "path": "app/",
     "role": "production-audio-instrument",
     "musicSystem": "MUSICAL_SYSTEM.md",
-    "generatorVersion": "1.2.0",
+    "generatorVersion": "1.4.0",
     "audioFirst": true,
-    "quantumRole": "artistic-contour"
+    "quantumRole": "artistic-contour",
+    "formAuthority": "recurrent-state-and-motif-lineage",
+    "kickFamilyAuthority": "earned-release-or-floor-recommit-with-24-phrase-cooldown",
+    "observationWindowRole": "readout-rle-cache-only"
   },
   "currentPrototype": {
     "status": "temporary-live-demo",

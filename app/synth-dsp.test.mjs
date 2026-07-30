@@ -84,7 +84,7 @@ test("all 208 structural forms render finite, bounded, non-silent audio", () => 
   for (const vibeId of ["hypnotic", "dub", "detroit", "acid", "peak"]) {
     for (
       let bar = 0;
-      bar < 4096 && representatives.size < SYNTH_BASE_ARCHITECTURES;
+      bar < 8192 && representatives.size < SYNTH_BASE_ARCHITECTURES;
       bar += 8
     ) {
       const palette = createSynthPalette({
@@ -92,6 +92,12 @@ test("all 208 structural forms render finite, bounded, non-silent audio", () => 
         bar,
         vibeId,
         profile: profileForVibe(vibeId),
+        form: {
+          phraseIndex: bar / 8,
+          motifOperation: "replace",
+          motifLineageId: bar / 8 + 1,
+          motifMutationCount: 0,
+        },
       });
       for (const engine of ["fm", "modal", "string"]) {
         const genome = palette[engine];

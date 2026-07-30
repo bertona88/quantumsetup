@@ -34,7 +34,21 @@ jobs:
       - name: Stage static site
         run: |
           mkdir _site
-          cp app/index.html app/styles.css app/main.js app/audio-engine.js app/techno-model.js app/generative-utils.js app/synth-genomes.js app/synth-dsp.js app/synth-worklet.js _site/
+          cp \
+            app/index.html \
+            app/styles.css \
+            app/main.js \
+            app/audio-engine.js \
+            app/techno-model.js \
+            app/emergent-form.js \
+            app/generative-utils.js \
+            app/synth-genomes.js \
+            app/synth-dsp.js \
+            app/synth-worklet.js \
+            app/taste-model.js \
+            app/instrument-preview.js \
+            app/signal-deck.js \
+            _site/
           cp prototype/robots.txt _site/robots.txt
 
       - name: Upload static site

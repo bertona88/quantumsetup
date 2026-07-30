@@ -1,0 +1,431 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+class FakeAudioParam {
+  constructor(value = 1) {
+    this.value = value;
+    this.events = [];
+  }
+
+  cancelAndHoldAtTime(time) {
+    this.events.push({ type: "hold", time });
+  }
+
+  cancelScheduledValues(time) {
+    this.events.push({ type: "cancel", time });
+  }
+
+  setValueAtTime(value, time) {
+    this.value = value;
+    this.events.push({ type: "set", value, time });
+  }
+
+  exponentialRampToValueAtTime(value, time) {
+    this.value = value;
+    this.events.push({ type: "ramp", value, time });
+  }
+
+  setTargetAtTime(value, time, constant) {
+    this.value = value;
+    this.events.push({ type: "target", value, time, constant });
+  }
+}
+
+class FakeAudioNode {
+  constructor(kind) {
+    this.kind = kind;
+    this.connections = [];
+    this.starts = [];
+    this.stops = [];
+    this.gain = new FakeAudioParam();
+    this.frequency = new FakeAudioParam();
+    this.Q = new FakeAudioParam();
+    this.detune = new FakeAudioParam();
+    this.delayTime = new FakeAudioParam();
+    this.playbackRate = new FakeAudioParam();
+    this.pan = new FakeAudioParam();
+    this.threshold = new FakeAudioParam();
+    this.knee = new FakeAudioParam();
+    this.ratio = new FakeAudioParam();
+    this.attack = new FakeAudioParam();
+    this.release = new FakeAudioParam();
+  }
+
+  connect(node, ...args) {
+    this.connections.push({
+      node,
+      args,
+      gainAtConnect: this.gain.value,
+    });
+    return node;
+  }
+
+  disconnect() {}
+
+  start(...args) {
+    this.starts.push(args);
+  }
+
+  stop(...args) {
+    this.stops.push(args);
+  }
+}
+
+class FakeAudioContext {
+  constructor() {
+    this.currentTime = 0;
+    this.sampleRate = 8000;
+    this.nodes = [];
+    this.gains = [];
+    this.filters = [];
+    this.oscillators = [];
+    this.bufferSources = [];
+    this.shapers = [];
+    this.destination = this.makeNode("destination");
+  }
+
+  makeNode(kind) {
+    const node = new FakeAudioNode(kind);
+    this.nodes.push(node);
+    return node;
+  }
+
+  createGain() {
+    const node = this.makeNode("gain");
+    this.gains.push(node);
+    return node;
+  }
+
+  createBiquadFilter() {
+    const node = this.makeNode("filter");
+    this.filters.push(node);
+    return node;
+  }
+
+  createWaveShaper() {
+    const node = this.makeNode("shaper");
+    this.shapers.push(node);
+    return node;
+  }
+
+  createDynamicsCompressor() {
+    return this.makeNode("compressor");
+  }
+
+  createAnalyser() {
+    return this.makeNode("analyser");
+  }
+
+  createDelay() {
+    return this.makeNode("delay");
+  }
+
+  createConvolver() {
+    return this.makeNode("convolver");
+  }
+
+  createOscillator() {
+    const node = this.makeNode("oscillator");
+    this.oscillators.push(node);
+    return node;
+  }
+
+  createBufferSource() {
+    const node = this.makeNode("buffer-source");
+    this.bufferSources.push(node);
+    return node;
+  }
+
+  createStereoPanner() {
+    return this.makeNode("stereo-panner");
+  }
+
+  createBuffer(channels, length) {
+    const data = Array.from(
+      { length: channels },
+      () => new Float32Array(length),
+    );
+    return {
+      getChannelData(channel) {
+        return data[channel];
+      },
+    };
+  }
+}
+
+globalThis.window = {
+  AudioContext: class {},
+  AudioWorkletNode: null,
+  clearInterval() {},
+  clearTimeout() {},
+  setInterval() {
+    return 1;
+  },
+  setTimeout(callback) {
+    queueMicrotask(callback);
+    return 1;
+  },
+  crypto: {
+    getRandomValues(values) {
+      values[0] = 0x12345678;
+      return values;
+    },
+  },
+};
+
+const { InfiniteTechnoEngine } = await import("./audio-engine.js");
+
+function makeEngine() {
+  const context = new FakeAudioContext();
+  const engine = new InfiniteTechnoEngine(() => {}, { seed: 0x51eed });
+  engine.ctx = context;
+  return { context, engine };
+}
+
+function connectionTargets(node) {
+  return node.connections.map((connection) => connection.node);
+}
+
+function lastEvent(param, type) {
+  return param.events.filter((event) => event.type === type).at(-1);
+}
+
+function midiToHz(midi) {
+  return 440 * 2 ** ((midi - 69) / 12);
+}
+
+function approximatelyEqual(actual, expected, epsilon = 1e-9) {
+  assert.ok(
+    Math.abs(actual - expected) <= epsilon,
+    `${actual} differed from ${expected}`,
+  );
+}
+
+test("the graph keeps kick, bass, rumble, and music on distinct bounded buses", () => {
+  const { engine } = makeEngine();
+  engine.buildGraph();
+
+  assert.notEqual(engine.kickBus, engine.bassBus);
+  assert.notEqual(engine.kickBus, engine.rumbleBus);
+  assert.notEqual(engine.kickBus, engine.musicBus);
+  assert.notEqual(engine.bassBus, engine.rumbleBus);
+  assert.notEqual(engine.bassBus, engine.musicBus);
+  assert.notEqual(engine.rumbleBus, engine.musicBus);
+
+  assert.deepEqual(connectionTargets(engine.kickBus), [
+    engine.preMaster,
+    engine.rumbleSendGain,
+  ]);
+  assert.deepEqual(connectionTargets(engine.bassBus), [engine.preMaster]);
+  assert.deepEqual(connectionTargets(engine.rumbleBus), [engine.preMaster]);
+  assert.deepEqual(connectionTargets(engine.musicBus), [engine.toneFilter]);
+  assert.deepEqual(connectionTargets(engine.rumbleWet), [engine.rumbleBus]);
+
+  const feedbackConnection = engine.rumbleFeedback.connections[0];
+  assert.equal(feedbackConnection.node, engine.rumbleDelay);
+  assert.equal(feedbackConnection.gainAtConnect, 0.32);
+  assert.ok(feedbackConnection.gainAtConnect <= 0.58);
+
+  engine.syncEffects(
+    {
+      space: 0.5,
+      rumble: 0.7,
+      warmth: 0.5,
+    },
+    {
+      filterOpen: 0.7,
+      kickTimbre: {
+        rumbleSend: 9,
+        rumbleCutoffHz: 999,
+        rumbleFeedback: 9,
+      },
+    },
+    true,
+  );
+  assert.equal(lastEvent(engine.rumbleSendGain.gain, "target").value, 0.14);
+  assert.equal(lastEvent(engine.rumbleFilter.frequency, "target").value, 176);
+  assert.equal(lastEvent(engine.rumbleFeedback.gain, "target").value, 0.58);
+});
+
+test("kick synthesis consumes physical timbre fields and always stops finitely", () => {
+  const { context, engine } = makeEngine();
+  engine.kickBus = context.createGain();
+  engine.noiseBuffer = context.createBuffer(1, 64);
+  let registration = null;
+  engine.registerVoice = (sources, nodes) => {
+    registration = { sources, nodes };
+    return true;
+  };
+
+  const startTime = 2;
+  engine.kick(startTime, 0.88, {
+    bodyHz: 49,
+    pitchStartHz: 188,
+    pitchDropSeconds: 0.04,
+    decaySeconds: 0.54,
+    clickHz: 6100,
+    clickLevel: 0.13,
+    drive: 3.1,
+  });
+
+  assert.ok(registration);
+  assert.equal(registration.sources.length, 2);
+  const oscillator = context.oscillators[0];
+  const bufferSource = context.bufferSources[0];
+  assert.deepEqual(oscillator.frequency.events.slice(0, 2), [
+    { type: "set", value: 188, time: startTime },
+    { type: "ramp", value: 49, time: startTime + 0.04 },
+  ]);
+  approximatelyEqual(
+    oscillator.frequency.events[2].value,
+    49 * 0.86,
+  );
+  approximatelyEqual(
+    oscillator.frequency.events[2].time,
+    startTime + 0.54 * 0.9,
+  );
+  assert.deepEqual(oscillator.stops, [[startTime + 0.58]]);
+  assert.ok(oscillator.stops.flat().every(Number.isFinite));
+  assert.equal(bufferSource.starts.length, 1);
+  assert.ok(bufferSource.starts[0].every(Number.isFinite));
+  assert.equal(context.filters[0].frequency.value, 6100);
+
+  const bodyDrive = registration.nodes.find((node) => node.kind === "shaper");
+  assert.ok(bodyDrive?.curve instanceof Float32Array);
+  assert.ok(
+    [...bodyDrive.curve].every(
+      (sample) => Number.isFinite(sample) && Math.abs(sample) <= 1,
+    ),
+  );
+});
+
+test("music and bass duck independently and restore their declared bus levels", () => {
+  const { context, engine } = makeEngine();
+  engine.musicBus = context.createGain();
+  engine.bassBus = context.createGain();
+  engine.musicBus.gain.value = 1;
+  engine.bassBus.gain.value = 0.96;
+
+  engine.duck(3, 0.9, {
+    musicDuckDepth: 0.5,
+    bassDuckDepth: 0.72,
+  });
+
+  const musicRamps = engine.musicBus.gain.events.filter(
+    (event) => event.type === "ramp",
+  );
+  const bassRamps = engine.bassBus.gain.events.filter(
+    (event) => event.type === "ramp",
+  );
+  approximatelyEqual(musicRamps[0].value, 0.55);
+  approximatelyEqual(musicRamps[0].time, 3.008);
+  assert.equal(musicRamps[1].value, 1);
+  approximatelyEqual(musicRamps[1].time, 3.15);
+
+  approximatelyEqual(bassRamps[0].value, 0.96 * (1 - 0.72 * 0.9));
+  approximatelyEqual(bassRamps[0].time, 3.006);
+  assert.equal(bassRamps[1].value, 0.96);
+  approximatelyEqual(bassRamps[1].time, 3.19);
+  assert.ok(musicRamps[0].value > 0);
+  assert.ok(bassRamps[0].value > 0);
+  assert.notEqual(musicRamps[0].value, bassRamps[0].value);
+});
+
+test("acid, pulse, and both sub oscillators share bounded slide timing", () => {
+  const { context, engine } = makeEngine();
+  engine.bassBus = context.createGain();
+  engine.musicBus = context.createGain();
+  engine.delayIn = context.createGain();
+  engine.reverbIn = context.createGain();
+  engine.registerVoice = () => true;
+  const note = {
+    midi: 39,
+    slideTo: 43,
+    slideSteps: 2,
+    length: 2,
+    velocity: 0.75,
+    accent: true,
+  };
+  const profile = {
+    acid: 0.8,
+    drive: 0.7,
+    space: 0.4,
+    warmth: 0.6,
+  };
+  const stepDuration = 0.12;
+
+  engine.acidBass(1, note, stepDuration, 0.5, profile);
+  engine.subBass(2, note, stepDuration, profile);
+  engine.pulseBass(3, note, stepDuration, profile);
+
+  assert.equal(context.oscillators.length, 4);
+  const targetMidis = [43, 43, 55, 43];
+  const startTimes = [1, 2, 2, 3];
+  for (let index = 0; index < context.oscillators.length; index += 1) {
+    const oscillator = context.oscillators[index];
+    const ramp = oscillator.frequency.events.find(
+      (event) => event.type === "ramp",
+    );
+    approximatelyEqual(ramp.value, midiToHz(targetMidis[index]));
+    approximatelyEqual(ramp.time, startTimes[index] + 0.24);
+    assert.equal(oscillator.stops.length, 1);
+    const stopTime = oscillator.stops[0][0];
+    assert.ok(Number.isFinite(stopTime));
+    assert.ok(stopTime > ramp.time);
+    assert.ok(stopTime <= startTimes[index] + 0.925);
+  }
+});
+
+test("routing clamps dry, delay, and reverb gains before connecting", () => {
+  const { context, engine } = makeEngine();
+  engine.bassBus = context.createGain();
+  engine.musicBus = context.createGain();
+  engine.kickBus = context.createGain();
+  engine.rumbleBus = context.createGain();
+  engine.delayIn = context.createGain();
+  engine.reverbIn = context.createGain();
+  const output = context.createGain();
+
+  const routes = engine.route(output, 4, 3, 2, "bass");
+
+  assert.equal(routes.length, 3);
+  assert.deepEqual(
+    routes.map((route) => route.gain.value),
+    [1, 0.42, 0.55],
+  );
+  assert.deepEqual(connectionTargets(routes[0]), [engine.bassBus]);
+  assert.deepEqual(connectionTargets(routes[1]), [engine.delayIn]);
+  assert.deepEqual(connectionTargets(routes[2]), [engine.reverbIn]);
+});
+
+test("advanced notes retain a small worklet message lead after scheduler stalls", () => {
+  const { context, engine } = makeEngine();
+  context.currentTime = 10;
+  const messages = [];
+  engine.synthWorkletReady = true;
+  engine.synthBank = {
+    port: {
+      postMessage(message) {
+        messages.push(message);
+      },
+    },
+  };
+  const note = {
+    midi: 57,
+    velocity: 0.7,
+    length: 2,
+    priority: 2,
+    delaySend: 0.1,
+    reverbSend: 0.2,
+  };
+  const genome = { id: "fm-test", durationScale: 1 };
+  const profile = { space: 0.5 };
+
+  engine.scheduleSynthNote("fm", 9.95, note, 0.12, genome, profile);
+  engine.scheduleSynthNote("fm", 10.1, note, 0.12, genome, profile);
+
+  assert.equal(messages.length, 2);
+  assert.equal(messages[0].startFrame, Math.round(10.05 * context.sampleRate));
+  assert.equal(messages[1].startFrame, Math.round(10.1 * context.sampleRate));
+  assert.ok(messages.every((message) => Number.isFinite(message.startFrame)));
+});

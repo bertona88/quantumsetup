@@ -1,8 +1,21 @@
 import { clamp, hash32, makeRng } from "./generative-utils.js";
+import {
+  tasteScoreForGenome,
+  tasteStrength,
+} from "./taste-model.js";
 
-export const SYNTH_GENOME_VERSION = "1.1.0";
+export const SYNTH_GENOME_VERSION = "1.2.0";
 export const SYNTH_REACHABILITY_TARGET = 170;
 export const SYNTH_BASE_ARCHITECTURES = 208;
+const SYNTH_HANDOFF_OPERATIONS = Object.freeze([
+  "mutate",
+  "replace",
+  "recall",
+]);
+
+function hasTasteSignal(profile) {
+  return tasteStrength(profile) > 0;
+}
 
 export const SYNTH_ENGINE_DEFINITIONS = Object.freeze([
   Object.freeze({ id: "fm", label: "MATRIX", detail: "4-OP FM", mutationOffset: 0 }),
@@ -148,6 +161,10 @@ function profileIdentity(profile) {
 }
 
 function coordinateUnit(context, parameter, index = 0) {
+  const candidateCoordinate =
+    context.candidateIndex > 0
+      ? ["candidate", context.candidateIndex]
+      : [];
   return makeRng(
     hash32(
       SYNTH_GENOME_VERSION,
@@ -155,6 +172,7 @@ function coordinateUnit(context, parameter, index = 0) {
       context.seed,
       context.epoch,
       context.vibeId,
+      ...candidateCoordinate,
       parameter,
       index,
     ),
@@ -170,11 +188,11 @@ function rangedAt(context, parameter, minimum, maximum, index = 0) {
   return round(minimum + coordinateUnit(context, parameter, index) * (maximum - minimum));
 }
 
-function mutationEpoch(phraseIndex, offset) {
-  return Math.floor((Math.max(0, phraseIndex) + (3 - offset)) / 3);
-}
-
 function genomeIdentity(context) {
+  const candidateCoordinate =
+    context.candidateIndex > 0
+      ? ["candidate", context.candidateIndex]
+      : [];
   const digest = hash32(
     SYNTH_GENOME_VERSION,
     context.engine,
@@ -182,6 +200,7 @@ function genomeIdentity(context) {
     context.epoch,
     context.vibeId,
     context.profileIdentity,
+    ...candidateCoordinate,
   )
     .toString(16)
     .toUpperCase()
@@ -204,7 +223,13 @@ function freezeGenome(genome) {
   return Object.freeze(genome);
 }
 
-function createFmGenome(seed, epoch, vibeId, sourceProfile) {
+function createFmGenome(
+  seed,
+  epoch,
+  vibeId,
+  sourceProfile,
+  candidateIndex = 0,
+) {
   const profile = normalizedProfile(sourceProfile);
   const context = {
     engine: "fm",
@@ -212,6 +237,7 @@ function createFmGenome(seed, epoch, vibeId, sourceProfile) {
     epoch,
     vibeId,
     profileIdentity: profileIdentity(profile),
+    candidateIndex,
   };
   const algorithm = pickAt(context, "algorithm", FM_ALGORITHMS);
   const ratioFamily = pickAt(
@@ -311,7 +337,13 @@ function createFmGenome(seed, epoch, vibeId, sourceProfile) {
   });
 }
 
-function createModalGenome(seed, epoch, vibeId, sourceProfile) {
+function createModalGenome(
+  seed,
+  epoch,
+  vibeId,
+  sourceProfile,
+  candidateIndex = 0,
+) {
   const profile = normalizedProfile(sourceProfile);
   const context = {
     engine: "modal",
@@ -319,6 +351,7 @@ function createModalGenome(seed, epoch, vibeId, sourceProfile) {
     epoch,
     vibeId,
     profileIdentity: profileIdentity(profile),
+    candidateIndex,
   };
   const materials = Object.keys(MODAL_MATERIAL_RATIOS);
   const material = pickAt(context, "material", materials);
@@ -375,7 +408,13 @@ function createModalGenome(seed, epoch, vibeId, sourceProfile) {
   });
 }
 
-function createStringGenome(seed, epoch, vibeId, sourceProfile) {
+function createStringGenome(
+  seed,
+  epoch,
+  vibeId,
+  sourceProfile,
+  candidateIndex = 0,
+) {
   const profile = normalizedProfile(sourceProfile);
   const context = {
     engine: "string",
@@ -383,6 +422,7 @@ function createStringGenome(seed, epoch, vibeId, sourceProfile) {
     epoch,
     vibeId,
     profileIdentity: profileIdentity(profile),
+    candidateIndex,
   };
   const exciter = pickAt(context, "exciter", STRING_EXCITERS);
   const body = pickAt(context, "body", STRING_BODIES);
@@ -422,27 +462,178 @@ function createStringGenome(seed, epoch, vibeId, sourceProfile) {
   });
 }
 
-export function createSynthPalette({
+export function createSynthCandidates({
   seed,
-  bar,
+  engine,
+  epoch = 0,
   vibeId = "hypnotic",
   profile = DEFAULT_PROFILE,
+  candidateCount = 8,
 }) {
-  const phraseIndex = Math.floor(Math.max(0, bar) / 8);
+  if (!SYNTH_ENGINE_IDS.includes(engine)) return Object.freeze([]);
+  const count = clamp(Math.floor(candidateCount), 1, 8);
+  const factory =
+    engine === "fm"
+      ? createFmGenome
+      : engine === "modal"
+        ? createModalGenome
+        : createStringGenome;
+  return Object.freeze(
+    Array.from({ length: count }, (_, candidateIndex) =>
+      factory(
+        seed,
+        Math.max(0, Math.floor(epoch)),
+        vibeId,
+        profile,
+        candidateIndex,
+      ),
+    ),
+  );
+}
+
+export function selectSynthCandidate({
+  candidates,
+  tasteProfile = null,
+  selectionSeed = 0,
+}) {
+  const valid = (Array.isArray(candidates) ? candidates : []).filter(
+    validateSynthGenome,
+  );
+  if (valid.length === 0) return null;
+  if (!hasTasteSignal(tasteProfile)) return valid[0];
+  const strength = tasteStrength(tasteProfile);
+  return [...valid].sort((left, right) => {
+    const leftScore =
+      tasteScoreForGenome(tasteProfile, left) * strength +
+      (((hash32(selectionSeed, left.id, "explore") >>> 0) / 4294967295) -
+        0.5) *
+        (1 - strength) *
+        0.16;
+    const rightScore =
+      tasteScoreForGenome(tasteProfile, right) * strength +
+      (((hash32(selectionSeed, right.id, "explore") >>> 0) / 4294967295) -
+        0.5) *
+        (1 - strength) *
+        0.16;
+    return rightScore - leftScore || left.id.localeCompare(right.id);
+  })[0];
+}
+
+export function createSynthPalette({
+  seed,
+  bar = 0,
+  vibeId = "hypnotic",
+  profile = DEFAULT_PROFILE,
+  tasteProfile = null,
+  form = null,
+}) {
+  const phraseIndex = Number.isFinite(form?.phraseIndex)
+    ? Math.max(0, Math.floor(form.phraseIndex))
+    : Math.floor(Math.max(0, Number(bar) || 0) / 8);
+  const lineageId = form?.motifLineageId;
+  const mutationCount = Number.isFinite(form?.motifMutationCount)
+    ? Math.max(0, Math.floor(form.motifMutationCount))
+    : 0;
+  const handoff = form ? synthHandoffForForm(seed, form) : null;
+  const select = (engine) => {
+    const epoch =
+      lineageId !== undefined && lineageId !== null
+        ? hash32(
+            SYNTH_GENOME_VERSION,
+            seed,
+            lineageId,
+            mutationCount,
+            engine,
+            "form-palette-epoch",
+          ) >>> 0
+        : hash32(
+            SYNTH_GENOME_VERSION,
+            seed,
+            engine,
+            "standalone-palette-origin",
+          ) >>> 0;
+    const tasteAuthorized =
+      handoff?.engine === engine && hasTasteSignal(tasteProfile);
+    return selectSynthCandidate({
+      candidates: createSynthCandidates({
+        seed,
+        engine,
+        epoch,
+        vibeId,
+        profile,
+        candidateCount: tasteAuthorized ? 8 : 1,
+      }),
+      tasteProfile: tasteAuthorized ? tasteProfile : null,
+      selectionSeed: hash32(
+        SYNTH_GENOME_VERSION,
+        seed,
+        lineageId ?? "standalone",
+        mutationCount,
+        engine,
+        "form-taste-selection",
+      ),
+    });
+  };
   return Object.freeze({
     phraseIndex,
-    fm: createFmGenome(seed, mutationEpoch(phraseIndex, 0), vibeId, profile),
-    modal: createModalGenome(seed, mutationEpoch(phraseIndex, 1), vibeId, profile),
-    string: createStringGenome(seed, mutationEpoch(phraseIndex, 2), vibeId, profile),
+    fm: select("fm"),
+    modal: select("modal"),
+    string: select("string"),
   });
 }
 
-export function synthMutationEngineForPhrase(phraseIndex) {
-  const index = Math.max(0, Math.floor(phraseIndex)) % SYNTH_ENGINE_IDS.length;
-  return SYNTH_ENGINE_IDS[index];
+export function synthHandoffForForm(seed, form) {
+  const operation = form?.motifOperation;
+  if (!SYNTH_HANDOFF_OPERATIONS.includes(operation)) return null;
+  const lineageId = form?.motifLineageId;
+  if (lineageId === undefined || lineageId === null) return null;
+  const mutationCount = Number.isFinite(form?.motifMutationCount)
+    ? Math.max(0, Math.floor(form.motifMutationCount))
+    : 0;
+  const phraseIndex = Number.isFinite(form?.phraseIndex)
+    ? Math.max(0, Math.floor(form.phraseIndex))
+    : 0;
+  const scores = Object.fromEntries(
+    SYNTH_ENGINE_IDS.map((engine) => [
+      engine,
+      hash32(
+        SYNTH_GENOME_VERSION,
+        seed,
+        lineageId,
+        mutationCount,
+        operation,
+        engine,
+        "form-handoff-engine",
+      ) >>> 0,
+    ]),
+  );
+  const engine = SYNTH_ENGINE_IDS.reduce((winner, candidate) =>
+    scores[candidate] > scores[winner] ? candidate : winner,
+  );
+  const digest = hash32(
+    SYNTH_GENOME_VERSION,
+    seed,
+    lineageId,
+    mutationCount,
+    operation,
+    phraseIndex,
+    engine,
+    "form-handoff-id",
+  )
+    .toString(16)
+    .toUpperCase()
+    .padStart(8, "0");
+  return Object.freeze({
+    id: `synth-handoff-${digest}`,
+    engine,
+    operation,
+    lineageId,
+    mutationCount,
+    phraseIndex,
+  });
 }
 
-export function stageSynthPalette(previous, candidate, phraseIndex) {
+export function stageSynthPalette(previous, candidate, handoff = null) {
   const validCandidate = SYNTH_ENGINE_IDS.every((engine) =>
     validateSynthGenome(candidate?.[engine]),
   );
@@ -451,13 +642,21 @@ export function stageSynthPalette(previous, candidate, phraseIndex) {
     validateSynthGenome(previous?.[engine]),
   );
   if (!validPrevious) return candidate;
-  const mutationEngine = synthMutationEngineForPhrase(phraseIndex);
+  if (
+    !handoff ||
+    !SYNTH_ENGINE_IDS.includes(handoff.engine) ||
+    !SYNTH_HANDOFF_OPERATIONS.includes(handoff.operation)
+  ) {
+    return previous;
+  }
   return Object.freeze({
-    phraseIndex: Math.max(0, Math.floor(phraseIndex)),
+    phraseIndex: Number.isFinite(handoff.phraseIndex)
+      ? Math.max(0, Math.floor(handoff.phraseIndex))
+      : previous.phraseIndex,
     ...Object.fromEntries(
       SYNTH_ENGINE_IDS.map((engine) => [
         engine,
-        engine === mutationEngine ? candidate[engine] : previous[engine],
+        engine === handoff.engine ? candidate[engine] : previous[engine],
       ]),
     ),
   });

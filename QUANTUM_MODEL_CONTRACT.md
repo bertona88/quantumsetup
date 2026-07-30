@@ -1,6 +1,6 @@
 # Quantum Contour Contract
 
-Applies to: Infinite Techno `1.2.0`
+Applies to: Infinite Techno `1.4.0`
 Scientific status: artistic audio visualization, not a quantum model
 
 ## Boundary
@@ -30,6 +30,10 @@ not a physics simulation.
 The audio clock and musical planner drive visual pulse state. The visual render loop
 never schedules or controls notes. If Canvas 2D is unavailable, audio can continue
 with a readable status.
+
+Derived form labels, section run lengths, and the 192-bar observation index may
+inform display or diagnostics only. They do not cause tonal, arrangement, bass, or
+synthesis changes.
 
 This boundary lets the product have fun with real physics vocabulary without
 confusing atmosphere with evidence.

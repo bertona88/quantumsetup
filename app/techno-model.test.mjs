@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
+  ARTISTIC_COUNCIL,
   ENSEMBLE_SCENES,
   MOVEMENT_BARS,
   VIBES,
@@ -11,6 +12,7 @@ import {
   blendProfiles,
   buildBarPlan,
   buildEnsemblePhrase,
+  conveneCouncil,
   createMovement,
   hash32,
   makeRng,
@@ -26,9 +28,13 @@ import {
   transitionProgress,
 } from "./techno-model.js";
 import {
-  synthMutationEngineForPhrase,
+  synthHandoffForForm,
   validateSynthGenome,
 } from "./synth-genomes.js";
+import {
+  applyTasteDecision,
+  createTasteProfile,
+} from "./taste-model.js";
 
 test("canonical supplied generator remains byte-identical", () => {
   const source = readFileSync(
@@ -116,7 +122,7 @@ test("all vibe and tonality combinations survive a long scan", () => {
           assert.ok(note.midi >= 34 && note.midi <= 55);
           assert.ok(note.length >= 1 && note.length <= 3);
         }
-        assert.ok(plan.activeSynthEngines.length >= 1);
+        assert.ok(plan.activeSynthEngines.length >= 0);
         assert.ok(plan.activeSynthEngines.length <= 3);
         for (const engine of ["fm", "modal", "string"]) {
           assert.equal(plan.synth[engine].length, 16);
@@ -180,19 +186,71 @@ test("instrument plans stay stable inside phrases and expose renderer-backed ide
   }
 });
 
-test("ensemble scenes are deterministic, section-stable, reachable, and recalled", () => {
+test("ensemble scenes are deterministic, phrase-stable, and causally handed off", () => {
   const reached = new Set();
   for (let seed = 0; seed < 64; seed += 1) {
-    const movement = createMovement(seed, 0, "minor");
-    let previousSceneId = "";
-    for (const section of movement.sections) {
-      const first = selectEnsembleScene(seed, movement, section);
-      const second = selectEnsembleScene(seed, movement, section);
+    const sceneByMaterial = new Map();
+    let previousPlan = null;
+    for (let phraseIndex = 0; phraseIndex < 96; phraseIndex += 1) {
+      const phraseStart = phraseIndex * 8;
+      const firstPlan = buildBarPlan({
+        seed,
+        bar: phraseStart,
+        vibeId: "hypnotic",
+        tonality: "minor",
+        profile: profileForVibe("hypnotic"),
+      });
+      const lastPlan = buildBarPlan({
+        seed,
+        bar: phraseStart + 7,
+        vibeId: "hypnotic",
+        tonality: "minor",
+        profile: profileForVibe("hypnotic"),
+      });
+      const first = selectEnsembleScene(
+        seed,
+        firstPlan.movement,
+        firstPlan.section,
+        phraseIndex,
+      );
+      const second = selectEnsembleScene(
+        seed,
+        firstPlan.movement,
+        firstPlan.section,
+        phraseIndex,
+      );
       assert.deepEqual(first, second);
+      assert.equal(firstPlan.ensembleScene.id, first.id);
+      assert.equal(lastPlan.ensembleScene.id, first.id);
       assert.ok(first.label.length <= 14);
       reached.add(first.id);
 
-      for (const bar of [section.startBar, section.endBar - 1]) {
+      const sceneMaterialId = firstPlan.form.sceneMaterialId;
+      if (sceneByMaterial.has(sceneMaterialId)) {
+        assert.equal(first.id, sceneByMaterial.get(sceneMaterialId));
+      } else {
+        sceneByMaterial.set(sceneMaterialId, first.id);
+      }
+      if (previousPlan) {
+        if (firstPlan.form.sceneOperation === "handoff") {
+          assert.equal(firstPlan.form.motifOperation, "mutate");
+          assert.ok(firstPlan.synthHandoff);
+          assert.notEqual(
+            firstPlan.form.sceneMaterialId,
+            previousPlan.form.sceneMaterialId,
+          );
+        } else {
+          assert.equal(
+            firstPlan.form.sceneMaterialId,
+            previousPlan.form.sceneMaterialId,
+          );
+          assert.equal(first.id, previousPlan.ensembleScene.id);
+        }
+      }
+      if (first.recalled) {
+        assert.ok(first.sourceSectionIndex < firstPlan.section.index);
+      }
+      for (const bar of [phraseStart, phraseStart + 7]) {
         const plan = buildBarPlan({
           seed,
           bar,
@@ -202,21 +260,7 @@ test("ensemble scenes are deterministic, section-stable, reachable, and recalled
         });
         assert.equal(plan.ensembleScene.id, first.id);
       }
-
-      if (section.kind === "RETURN") {
-        assert.equal(first.recalled, true);
-        assert.equal(
-          first.id,
-          selectEnsembleScene(
-            seed,
-            movement,
-            movement.sections[first.sourceSectionIndex],
-          ).id,
-        );
-      } else if (previousSceneId) {
-        assert.notEqual(first.id, previousSceneId);
-      }
-      previousSceneId = first.id;
+      previousPlan = firstPlan;
     }
   }
   assert.deepEqual(
@@ -234,6 +278,7 @@ test("ensemble phrases are pure scored conversations with bounded placements", (
   const phraseIndex = section.startBar / 8;
   const profile = profileForVibe("peak");
 
+  const reachedEngines = new Set();
   for (const scene of ENSEMBLE_SCENES) {
     const input = {
       seed,
@@ -251,11 +296,14 @@ test("ensemble phrases are pure scored conversations with bounded placements", (
     const second = buildEnsemblePhrase(input);
     assert.deepEqual(first, second);
 
+    const leadEngine = ["fm", "modal", "string"].find(
+      (engine) => scene.roles[engine].priority === 3,
+    );
+    assert.ok(first[leadEngine].some((bar) => bar.some(Boolean)));
     for (const engine of ["fm", "modal", "string"]) {
-      assert.ok(
-        first[engine].some((bar) => bar.some(Boolean)),
-        `${scene.id}/${engine} is not note-bearing`,
-      );
+      if (first[engine].some((bar) => bar.some(Boolean))) {
+        reachedEngines.add(engine);
+      }
     }
 
     for (let bar = 0; bar < 8; bar += 1) {
@@ -281,46 +329,68 @@ test("ensemble phrases are pure scored conversations with bounded placements", (
           assert.ok(note.reverbSend >= 0 && note.reverbSend <= 0.55);
         }
       }
-      assert.ok(starts <= 8);
+      assert.ok(starts <= 4);
     }
   }
+  assert.deepEqual([...reachedEngines].sort(), ["fm", "modal", "string"]);
 });
 
-test("ensemble role handoffs follow the same one-engine phrase sequence as timbre", () => {
-  let runtime = stageEnsembleRoles(
-    null,
-    ENSEMBLE_SCENES[0].roles,
-    0,
-  );
-  assert.equal(runtime, ENSEMBLE_SCENES[0].roles);
+test("ensemble roles obey the same causal one-engine handoff as timbre", () => {
+  let runtime = null;
+  let holdCount = 0;
+  let eventCount = 0;
+  const authorizedEngines = new Set();
 
-  for (let phraseIndex = 1; phraseIndex <= 12; phraseIndex += 1) {
-    const candidate =
-      ENSEMBLE_SCENES[phraseIndex % ENSEMBLE_SCENES.length].roles;
-    const staged = stageEnsembleRoles(
+  for (let phraseIndex = 0; phraseIndex < 384; phraseIndex += 1) {
+    const candidatePlan = buildBarPlan({
+      seed: 0xdecafbad,
+      bar: phraseIndex * 8,
+      vibeId: "detroit",
+      tonality: "minor",
+      profile: profileForVibe("detroit"),
+    });
+    const handoff = synthHandoffForForm(
+      0xdecafbad,
+      candidatePlan.form,
+    );
+    assert.deepEqual(candidatePlan.synthHandoff, handoff);
+    const previous = runtime;
+    runtime = stageEnsembleRoles(
       runtime,
-      candidate,
-      phraseIndex,
+      candidatePlan.ensembleTargetRoles,
+      handoff,
     );
+    if (!previous) continue;
+
     const changed = ["fm", "modal", "string"].filter(
-      (engine) => staged[engine] !== runtime[engine],
+      (engine) => runtime[engine] !== previous[engine],
     );
-    assert.deepEqual(changed, [
-      synthMutationEngineForPhrase(phraseIndex),
-    ]);
-    for (const engine of ["fm", "modal", "string"]) {
-      assert.equal(
-        staged[engine],
-        engine === synthMutationEngineForPhrase(phraseIndex)
-          ? candidate[engine]
-          : runtime[engine],
-      );
+    if (!handoff) {
+      holdCount += 1;
+      assert.equal(runtime, previous);
+      continue;
     }
-    runtime = staged;
+    eventCount += 1;
+    authorizedEngines.add(handoff.engine);
+    assert.deepEqual(
+      changed,
+      candidatePlan.ensembleTargetRoles[handoff.engine] ===
+        previous[handoff.engine]
+        ? []
+        : [handoff.engine],
+    );
+    for (const engine of ["fm", "modal", "string"]) {
+      if (engine !== handoff.engine) {
+        assert.equal(runtime[engine], previous[engine]);
+      }
+    }
   }
+  assert.ok(holdCount > eventCount);
+  assert.ok(eventCount > 0);
+  assert.deepEqual([...authorizedEngines].sort(), ["fm", "modal", "string"]);
 });
 
-test("runtime-style section changes become stable one-engine hybrid phrases", () => {
+test("runtime-style causal scene changes become stable one-engine hybrids", () => {
   const seed = 0xdecafbad;
   const profile = profileForVibe("detroit");
   let runtime = null;
@@ -339,7 +409,7 @@ test("runtime-style section changes become stable one-engine hybrid phrases", ()
     runtime = stageEnsembleRoles(
       runtime,
       candidate.ensembleTargetRoles,
-      phraseIndex,
+      candidate.synthHandoff,
     );
     assert.deepEqual(
       ["fm", "string", "modal"].map(
@@ -349,14 +419,14 @@ test("runtime-style section changes become stable one-engine hybrid phrases", ()
     );
 
     if (previous) {
-      const mutationEngine =
-        synthMutationEngineForPhrase(phraseIndex);
+      const mutationEngine = candidate.synthHandoff?.engine ?? null;
       const changed = ["fm", "modal", "string"].filter(
         (engine) => runtime[engine] !== previous[engine],
       );
       assert.deepEqual(
         changed,
-        candidate.ensembleTargetRoles[mutationEngine] ===
+        !mutationEngine ||
+          candidate.ensembleTargetRoles[mutationEngine] ===
           previous[mutationEngine]
           ? []
           : [mutationEngine],
@@ -376,7 +446,7 @@ test("runtime-style section changes become stable one-engine hybrid phrases", ()
       assert.equal(plan.ensembleScene.roles, runtime);
       assert.equal(
         plan.ensembleScene.hybrid,
-        ["fm", "modal", "string"].some(
+        plan.activeSynthEngines.some(
           (engine) =>
             runtime[engine].sourceSceneId !== plan.ensembleScene.id,
         ),
@@ -426,15 +496,203 @@ test("arrangement-aware ensemble lanes avoid unscored collisions and stay inside
             }
           }
         }
-        const maximum = ["VOID", "RELEASE"].includes(plan.section.kind)
-          ? 2
-          : plan.section.kind === "PEAK"
-            ? 8
-            : 6;
-        assert.ok(starts <= maximum);
+        assert.ok(starts <= plan.councilVerdict.maxAdvancedStarts);
       }
     }
   }
+});
+
+test("the four-lens council enforces one idea, earned dialogue, and rare fills", () => {
+  assert.deepEqual(
+    ARTISTIC_COUNCIL.map((member) => member.attribution),
+    ["Carl Cox", "Sven Väth", "Richie Hawtin", "Derrick May"],
+  );
+  const reachedChairs = new Set();
+  const reachedEngines = new Set();
+  for (const seed of [0, 1, 2, 3, 0x51eed, 0xa11ce]) {
+    for (let bar = 0; bar < 768; bar += 1) {
+      const plan = buildBarPlan({
+        seed,
+        bar,
+        vibeId: "detroit",
+        tonality: "minor",
+        profile: profileForVibe("detroit"),
+      });
+      const verdict = plan.councilVerdict;
+      reachedChairs.add(verdict.chair);
+      plan.activeSynthEngines.forEach((engine) => reachedEngines.add(engine));
+      assert.deepEqual(
+        verdict,
+        conveneCouncil({
+          seed,
+          movement: plan.movement,
+          section: plan.section,
+          phraseIndex: plan.phraseIndex,
+          roles: plan.ensembleScene.roles,
+        }),
+      );
+      assert.ok(plan.activeSynthEngines.length <= 2);
+      if (!plan.form.earnedDialogue) {
+        assert.ok(plan.activeSynthEngines.length <= 1);
+      }
+      for (const engine of ["fm", "modal", "string"]) {
+        if (!plan.activeSynthEngines.includes(engine)) {
+          assert.equal(plan.synth[engine].some(Boolean), false);
+        }
+      }
+      const optionalLayers = [
+        plan.shaker.some(Boolean),
+        plan.rim.some(Boolean),
+        plan.ride.some(Boolean),
+        plan.metallic.some(Boolean),
+        plan.chord.some(Boolean),
+        Boolean(plan.pad),
+        Boolean(plan.texture),
+      ].filter(Boolean).length;
+      assert.ok(optionalLayers <= verdict.optionalLayerBudget);
+      if (plan.tom.some(Boolean)) {
+        assert.equal(plan.phraseEnd, true);
+        assert.equal(verdict.allowFill, true);
+      }
+      if (plan.form.kickPolicy === "anchor") {
+        for (const step of [0, 4, 8, 12]) assert.ok(plan.kick[step] > 0);
+      } else if (plan.form.kickPolicy === "withdraw") {
+        for (const step of [0, 4, 8, 12]) assert.equal(plan.kick[step], 0);
+      }
+    }
+  }
+  assert.deepEqual([...reachedChairs].sort(), [
+    "floor-authority",
+    "long-arc",
+    "machine-soul",
+    "radical-reduction",
+  ]);
+  assert.deepEqual([...reachedEngines].sort(), ["fm", "modal", "string"]);
+});
+
+test("equal-priority foreground follows causal lineage-chair residency, not labels", () => {
+  const equalRoles = Object.freeze(
+    Object.fromEntries(
+      ["fm", "modal", "string"].map((engine) => [
+        engine,
+        Object.freeze({ engine, priority: 2 }),
+      ]),
+    ),
+  );
+  let crossedReadoutBoundary = false;
+  for (const seed of [0, 7, 94, 0xa11ce]) {
+    const foregroundByCausalResidency = new Map();
+    let previous = null;
+    for (let phraseIndex = 0; phraseIndex < 192; phraseIndex += 1) {
+      const plan = buildBarPlan({
+        seed,
+        bar: phraseIndex * 8,
+        vibeId: "detroit",
+        tonality: "minor",
+        profile: profileForVibe("detroit"),
+      });
+      const verdict = conveneCouncil({
+        seed,
+        movement: plan.movement,
+        section: plan.section,
+        phraseIndex,
+        roles: equalRoles,
+      });
+      const key = `${plan.form.motifLineageId}:${plan.form.chair}`;
+      const foreground = verdict.activeSynthEngines[0] ?? null;
+      if (foreground) {
+        if (foregroundByCausalResidency.has(key)) {
+          assert.equal(foreground, foregroundByCausalResidency.get(key));
+        } else {
+          foregroundByCausalResidency.set(key, foreground);
+        }
+      }
+      if (
+        previous &&
+        previous.label !== plan.form.label &&
+        previous.key === key &&
+        previous.foreground &&
+        foreground
+      ) {
+        crossedReadoutBoundary = true;
+        assert.equal(foreground, previous.foreground);
+      }
+      previous = {
+        label: plan.form.label,
+        key,
+        foreground,
+      };
+    }
+  }
+  assert.equal(crossedReadoutBoundary, true);
+});
+
+test("taste can change timbre selection but cannot change the arrangement", () => {
+  const seed = 0xdecafbad;
+  const profile = profileForVibe("acid");
+  const reference = buildBarPlan({
+    seed,
+    bar: 0,
+    vibeId: "acid",
+    tonality: "minor",
+    profile,
+  });
+  let taste = createTasteProfile();
+  for (let index = 0; index < 12; index += 1) {
+    taste = applyTasteDecision(taste, reference.synthPalette.fm, "like");
+  }
+
+  const arrangementKeys = [
+    "movement",
+    "section",
+    "sectionProgress",
+    "sectionStart",
+    "sectionEnd",
+    "kick",
+    "kickTimbre",
+    "clap",
+    "hat",
+    "openHat",
+    "shaker",
+    "rim",
+    "ride",
+    "metallic",
+    "tom",
+    "bass",
+    "bassVoice",
+    "lowEnd",
+    "chord",
+    "pad",
+    "synth",
+    "synthHandoff",
+    "activeSynthEngines",
+    "ensembleScene",
+    "councilVerdict",
+    "texture",
+    "riser",
+    "downlifter",
+    "filterOpen",
+  ];
+  let paletteChanged = false;
+  for (let bar = 0; bar < 384; bar += 8) {
+    const common = {
+      seed,
+      bar,
+      vibeId: "acid",
+      tonality: "minor",
+      profile,
+      instrumentProfile: profile,
+    };
+    const plain = buildBarPlan(common);
+    const tasted = buildBarPlan({ ...common, tasteProfile: taste });
+    for (const key of arrangementKeys) {
+      assert.deepEqual(tasted[key], plain[key], `${key} changed at bar ${bar}`);
+    }
+    paletteChanged ||= ["fm", "modal", "string"].some(
+      (engine) => tasted.synthPalette[engine].id !== plain.synthPalette[engine].id,
+    );
+  }
+  assert.equal(paletteChanged, true);
 });
 
 test("bar-wise Vibe morphing cannot switch instruments inside a phrase", () => {
@@ -532,9 +790,11 @@ test("major, minor, and neutral create distinct pitch material", () => {
   assert.ok(planNotesBelongToMode(neutral));
 });
 
-test("long phrase scans avoid exact recent pattern repetition", () => {
+test("long phrase scans remain diverse without outlawing deliberate recall", () => {
   for (const vibe of VIBES) {
     const recent = [];
+    let repeats = 0;
+    let phrases = 0;
     for (let bar = 0; bar < 4096; bar += 8) {
       const plan = buildBarPlan({
         seed: 0x51eed,
@@ -544,13 +804,14 @@ test("long phrase scans avoid exact recent pattern repetition", () => {
         profile: profileForVibe(vibe.id),
       });
       const signature = planPatternSignature(plan);
-      assert.equal(
-        recent.includes(signature),
-        false,
-        `${vibe.id} repeated an exact phrase pattern near bar ${bar}`,
-      );
+      if (recent.includes(signature)) repeats += 1;
+      phrases += 1;
       recent.push(signature);
       if (recent.length > 64) recent.shift();
     }
+    assert.ok(
+      repeats / phrases < 0.08,
+      `${vibe.id} repeated ${repeats} of ${phrases} phrases`,
+    );
   }
 });

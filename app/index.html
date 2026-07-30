@@ -164,6 +164,58 @@
             </button>
           </div>
         </div>
+
+        <section class="signal-deck" aria-labelledby="signal-deck-title">
+          <header class="signal-deck-heading">
+            <div>
+              <span class="label">SIGNAL DECK</span>
+              <h2 id="signal-deck-title">TEACH THE SET WHAT HOLDS</h2>
+            </div>
+            <p>
+              ONE GENERATED TIMBRE AT A TIME · TASTE STAYS LOCAL
+              <strong id="signal-taste-count">00 SIGNALS</strong>
+            </p>
+          </header>
+
+          <div
+            class="signal-card"
+            id="signal-card"
+            role="group"
+            tabindex="0"
+            aria-labelledby="signal-name"
+            aria-describedby="signal-instruction signal-detail"
+            aria-keyshortcuts="ArrowLeft ArrowRight"
+          >
+            <p class="sr-only" id="signal-instruction">
+              Hear the instrument, then drag left to pass or right to keep.
+              The Pass and Keep buttons provide the same actions. When the card is
+              focused, use Left Arrow to pass or Right Arrow to keep.
+            </p>
+            <span class="signal-verdict signal-verdict-pass" aria-hidden="true">PASS</span>
+            <span class="signal-verdict signal-verdict-keep" aria-hidden="true">KEEP</span>
+            <div class="signal-orbit" aria-hidden="true">
+              <i></i><i></i><i></i><i></i>
+            </div>
+            <div class="signal-specimen">
+              <span id="signal-family">SPECIMEN 001 · MATRIX</span>
+              <strong id="signal-name">FORMING SIGNAL…</strong>
+              <small id="signal-detail">DETERMINISTIC TIMBRE</small>
+              <span class="signal-traits" id="signal-traits">TASTE UNTRAINED</span>
+            </div>
+            <div class="signal-actions" role="group" aria-label="Rate this instrument">
+              <button id="signal-pass" type="button">
+                <span aria-hidden="true">←</span> PASS
+              </button>
+              <button id="signal-audition" type="button">
+                <span aria-hidden="true">▶</span> HEAR
+              </button>
+              <button id="signal-keep" type="button">
+                KEEP <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </div>
+          <p class="sr-only" id="signal-live" aria-live="polite"></p>
+        </section>
       </section>
 
       <footer class="footer">

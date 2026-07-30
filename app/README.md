@@ -20,7 +20,10 @@ Open `http://localhost:4173/`. Audio starts only after a user gesture.
 - **Start / Stop** owns the one browser `AudioContext`.
 - **Vibe** sets a long-term destination: Hypnotic, Dub, Detroit, Acid, or Peak.
 - **Harmonic gravity** sets Minor, Neutral, or Major.
-- **New trajectory** queues new deterministic musical DNA at a 16-bar boundary.
+- **New trajectory** queues new deterministic musical DNA at a 16-bar seed-change
+  boundary; this is not a synth-mutation clock.
+- **Signal Deck** previews one stopped-transport timbre and records an explicit
+  local Pass/Keep preference by button, keyboard, or swipe.
 
 Vibe changes begin at a safe 8-bar phrase boundary and morph over 64, 96, or 128
 bars according to profile distance. Major/minor changes use a neutral suspended
@@ -32,30 +35,65 @@ field between the two tonal families rather than replacing the scale immediately
 
 - 16 sixteenth-note steps per 4/4 bar;
 - 8-bar phrases with bounded bar-level ornaments;
-- 8–32-bar sections such as Ignition, Lock, Bridge, Void, Peak, Return, and
-  Transition;
-- 192-bar movements, roughly six minutes near 128 BPM;
+- recurrent phrase state whose adjacent labels are grouped into section readouts
+  that may exceed 32 bars;
+- 192-bar observation/RLE/cache windows, roughly six minutes near 128 BPM, with no
+  musical authority or scripted energy arc;
 - slow profile interpolation and a maximum tempo change of 0.12 BPM per bar.
+
+`emergent-form.js` owns the causal long-form state. Four competing council lenses
+read energy, tension, density, space, floor trust, fatigue, motif salience,
+contrast/payoff/novelty debt, and gesture cooldowns. The winning lens applies
+bounded phrase deltas. There is no movement template, fixed section energy curve,
+or section-to-chair lookup. Climax entry requires accumulated threshold state and
+a seed-specific appetite; it can remain absent or sustain for a bounded 16–64 bars.
 
 `audio-engine.js` owns the audio clock and synthesis. Its voices include synthesized
 kick, clap, closed/open hat, ride, shaker, rim, tom, metallic FM percussion,
 acid/pulse/sub bass, chord stabs, pads, noise textures, risers, and downlifters.
 An AudioWorklet bank adds Matrix four-operator FM, Resonator modal synthesis, and
 String fractional-delay physical modelling. Their 208 discrete base architectures
-combine with bounded, deterministic parameter genomes that mutate one engine at a
-time on eight-bar boundaries. Vibe and New Trajectory palette changes are staged
-across three phrases instead of replacing all advanced synths together.
+combine with bounded, deterministic parameter genomes. Initial construction seeds
+all three engines. During playback, motif `mutate`, `replace`, or `recall` alone
+authorizes one deterministic engine handoff at a stable phrase boundary; `hold`
+authorizes none. Engine choice is scored from the causal event rather than phrase
+modulo, elapsed time, or a round-robin. Vibe and New Trajectory may supply candidate
+state but cannot authorize an extra handoff.
 
 Six curated ensemble scenes coordinate those engines as calls, replies, motors,
 weaves, marks, tails, and pickups. They use scored phrase masks and separated
-registers rather than free random masks. A section establishes a target scene, then
-the matching orchestration role and synthesis genome move together one engine per
-phrase. Arrangement-aware placement keeps advanced attacks off the four kick
-anchors, resolves synth-on-synth collisions, protects low-end space around the bass,
-and thins modal events around metallic percussion.
+registers rather than free random masks. The highest-scoring council lens chairs the
+phrase and edits the scene down to one foreground advanced engine in ordinary
+phrases, zero for intentional rests, or two for a developed climax or recalled
+lineage. Arrangement-aware placement keeps
+advanced attacks off the four kick anchors, resolves synth-on-synth collisions,
+protects low-end space around the bass, and thins modal events around metallic
+percussion.
 
-The shared graph provides sidechain ducking, filtered delay, generated convolution
-reverb, synthetic kick rumble, soft clipping, compression, and spectrum analysis.
+Kick behavior follows the form state: `anchor` preserves all four quarter-note
+anchors, `thin` keeps one to three, and rare `withdraw` removes them for at most two
+phrases before cooldown. The planner also emits bounded kick body, pitch-drop,
+decay, click, drive, and rumble parameters. A separate kick-family lineage may
+morph only after an earned release or floor recommit, has a 24-phrase cooldown, and
+interpolates those physical fields across its event phrase. Bass is a generated
+two-bar cell carried by a persistent lineage that can mutate, be replaced with
+archival history, or be recalled. Bass onsets yield to the current kick plan. Its
+voice identity has independent residency rather than changing every 32 bars.
+Motif/bass-cell, tonal, harmony-position, scene, and bass-voice material are
+separate domains: motif replacement cannot reset them together. Harmony position
+changes only through a state-earned cooled-down turn, and a 192-bar cache boundary
+cannot restart the public form residency.
+
+`taste-model.js`, `signal-deck.js`, and `instrument-preview.js` implement the local
+explicit-feedback loop. Pass/Keep decisions rank up to eight deterministic genomes
+only when a motif event has already authorized that engine to change. A hold event
+consumes no taste decision and preserves the palette. The preference path is
+isolated from the arrangement planner.
+
+The graph separates kick, bass, rumble, and remaining music before the shared
+master chain. Bass and music receive independent kick ducking; rumble has bounded
+send, cutoff, and feedback. Filtered delay, generated convolution reverb, soft
+clipping, compression, and spectrum analysis remain generator-owned.
 Native temporary voices are capped at 72 and the advanced bank at 24, preserving a
 combined ceiling of 96. Every voice has a finite hard end.
 
@@ -75,8 +113,9 @@ This implementation preserves the musical strengths of the user-supplied
 - retained concepts: deterministic seed, Web Audio lookahead scheduling, bounded
   voice cleanup, sidechain buses, synthetic percussion and acid bass, generated
   delay/reverb, analyser-driven visuals;
-- replaced limitation: its rigid 32-bar arrangement loop is now a long-form
-  phrase/section/movement system.
+- replaced limitation: its rigid 32-bar arrangement loop is now a recurrent
+  phrase-state system with non-causal derived readouts and bounded observation
+  caches.
 
 An exact byte-for-byte copy is preserved at
 `reference/infinite-hypnotic-techno.html`; its hash matches the untouched supplied

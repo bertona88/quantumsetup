@@ -1,4 +1,6 @@
 import { InfiniteTechnoEngine, formatSeed } from "./audio-engine.js";
+import { InstrumentAuditioner } from "./instrument-preview.js";
+import { SignalDeckModel } from "./signal-deck.js";
 import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js";
 
 const app = document.querySelector("#app");
@@ -16,6 +18,16 @@ const transitionFill = document.querySelector("#transition-fill");
 const liveRegion = document.querySelector("#live-region");
 const instrumentRoster = document.querySelector("#instrument-roster");
 const ensembleMeta = document.querySelector("#ensemble-meta");
+const signalCard = document.querySelector("#signal-card");
+const signalFamily = document.querySelector("#signal-family");
+const signalName = document.querySelector("#signal-name");
+const signalDetail = document.querySelector("#signal-detail");
+const signalTraits = document.querySelector("#signal-traits");
+const signalTasteCount = document.querySelector("#signal-taste-count");
+const signalPassButton = document.querySelector("#signal-pass");
+const signalAuditionButton = document.querySelector("#signal-audition");
+const signalKeepButton = document.querySelector("#signal-keep");
+const signalLive = document.querySelector("#signal-live");
 const vibeButtons = [...document.querySelectorAll("[data-vibe]")];
 const tonalityButtons = [...document.querySelectorAll("[data-tonality]")];
 
@@ -42,10 +54,13 @@ const visualState = {
   running: false,
 };
 
+const signalDeck = new SignalDeckModel();
+const signalAuditioner = new InstrumentAuditioner();
 const engine = new InfiniteTechnoEngine(handleEngineEvent, {
   seed: parsedSeed,
   vibe: "hypnotic",
   tonality: "minor",
+  tasteProfile: signalDeck.tasteProfile,
 });
 
 let uiBusy = false;
@@ -56,6 +71,10 @@ let displayedInstrumentCount = 0;
 let advancedSynthAvailable = null;
 let currentInstrumentation = [];
 let currentEnsembleScene = null;
+let currentSignal = signalDeck.currentSpecimen;
+let signalDecisionLocked = false;
+let signalPointer = null;
+let signalAuditionTimer = null;
 
 function titleCase(text) {
   return String(text)
@@ -82,6 +101,145 @@ function selectTarget(buttons, attribute, value) {
     const active = button.dataset[attribute] === value;
     button.setAttribute("aria-pressed", String(active));
   }
+}
+
+function signalControlsAvailable() {
+  return Boolean(
+    currentSignal &&
+      !engine.running &&
+      !engine.starting &&
+      !engine.contextReleasing &&
+      !uiBusy &&
+      !signalDecisionLocked,
+  );
+}
+
+function resetSignalDrag() {
+  signalCard.classList.remove("is-dragging");
+  signalCard.style.setProperty("--signal-drag-x", "0px");
+  signalCard.style.setProperty("--signal-drag-rotate", "0deg");
+  signalCard.style.setProperty("--signal-pass-opacity", "0");
+  signalCard.style.setProperty("--signal-keep-opacity", "0");
+}
+
+function updateSignalAvailability() {
+  const available = signalControlsAvailable();
+  for (const button of [
+    signalPassButton,
+    signalAuditionButton,
+    signalKeepButton,
+  ]) {
+    button.disabled = !available;
+  }
+  signalCard.setAttribute("aria-disabled", String(!available));
+  signalCard.dataset.availability = engine.running
+    ? "transport-running"
+    : available
+      ? "ready"
+      : "busy";
+}
+
+function renderSignalSpecimen(specimen = currentSignal) {
+  currentSignal = specimen || null;
+  const snapshot = signalDeck.getSnapshot();
+  const count = String(snapshot.tasteProfile.decisions).padStart(2, "0");
+  const storageLabel =
+    snapshot.storageMode === "local" ? "LOCAL" : "SESSION";
+  signalTasteCount.textContent = `${count} SIGNALS · ${storageLabel}`;
+  app.dataset.signalStorage = snapshot.storageMode;
+  app.dataset.signalDecisions = String(snapshot.tasteProfile.decisions);
+  if (!currentSignal) {
+    signalFamily.textContent = "SIGNAL UNAVAILABLE";
+    signalName.textContent = "NO VALID SPECIMEN";
+    signalDetail.textContent = "THE SET WILL CONTINUE WITHOUT TASTE BIAS";
+    signalTraits.textContent = "UNTRAINED";
+    signalCard.dataset.engine = "";
+    signalCard.dataset.specimenId = "";
+    signalCard.dataset.exploration = "false";
+    updateSignalAvailability();
+    return;
+  }
+  signalFamily.textContent = `SPECIMEN ${String(currentSignal.cursor + 1).padStart(3, "0")} · ${currentSignal.family.label} · ${currentSignal.vibeLabel}`;
+  signalName.textContent = currentSignal.label;
+  signalDetail.textContent = currentSignal.detail;
+  signalTraits.textContent =
+    currentSignal.traits.length > 0
+      ? currentSignal.traits.join(" / ").toUpperCase()
+      : "UNMAPPED TIMBRE";
+  signalCard.dataset.engine = currentSignal.engine;
+  signalCard.dataset.specimenId = currentSignal.id;
+  signalCard.dataset.exploration = String(currentSignal.exploration);
+  updateSignalAvailability();
+}
+
+function stopSignalAudition() {
+  const wasActive =
+    signalAuditioner.active ||
+    signalCard.classList.contains("is-auditioning");
+  if (signalAuditionTimer) {
+    window.clearTimeout(signalAuditionTimer);
+    signalAuditionTimer = null;
+  }
+  signalCard.classList.remove("is-auditioning");
+  if (wasActive) {
+    app.dataset.signalAudition = "stopped";
+    signalLive.textContent = "Instrument preview stopped.";
+  }
+  return signalAuditioner.close();
+}
+
+async function auditionSignal() {
+  if (!signalControlsAvailable()) return;
+  signalDecisionLocked = true;
+  updateSignalAvailability();
+  signalCard.classList.add("is-auditioning");
+  signalLive.textContent = `Playing ${currentSignal.label}.`;
+  try {
+    await engine.waitForContextRelease();
+    if (engine.running || engine.starting || uiBusy) return;
+    const result = await signalAuditioner.audition(currentSignal.genome);
+    if (!result) return;
+    app.dataset.signalAudition = "started";
+    if (signalAuditionTimer) window.clearTimeout(signalAuditionTimer);
+    signalAuditionTimer = window.setTimeout(() => {
+      signalAuditionTimer = null;
+      signalCard.classList.remove("is-auditioning");
+      app.dataset.signalAudition = "ended";
+    }, Math.ceil(result.durationSeconds * 1000));
+  } catch (error) {
+    signalCard.classList.remove("is-auditioning");
+    app.dataset.signalAudition = "error";
+    signalLive.textContent =
+      error?.message || "This instrument could not be previewed.";
+  } finally {
+    signalDecisionLocked = false;
+    updateSignalAvailability();
+  }
+}
+
+function decideSignal(decision) {
+  if (!signalControlsAvailable()) return;
+  const previous = currentSignal;
+  const result = signalDeck.decide(previous.id, decision);
+  if (!result.accepted) return;
+  signalDecisionLocked = true;
+  updateSignalAvailability();
+  resetSignalDrag();
+  const previewRelease = stopSignalAudition();
+  engine.setTasteProfile(signalDeck.tasteProfile);
+  signalCard.classList.add(decision === "like" ? "is-keeping" : "is-passing");
+  const nextLabel = result.current?.label || "the next signal";
+  signalLive.textContent = `${decision === "like" ? "Kept" : "Passed"} ${previous.label}. Next: ${nextLabel}.`;
+  const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const transitionDelay = new Promise((resolve) =>
+    window.setTimeout(resolve, reduced ? 1 : 190),
+  );
+  void Promise.all([previewRelease, transitionDelay]).then(() => {
+    signalCard.classList.remove("is-keeping", "is-passing");
+    currentSignal = result.current;
+    signalDecisionLocked = false;
+    renderSignalSpecimen(currentSignal);
+  });
 }
 
 function updateEnsembleMeta(scene = currentEnsembleScene) {
@@ -210,6 +368,8 @@ function handleEngineEvent(event) {
       sectionReadout.textContent = "DORMANT";
       renderEnsemble(null, []);
     }
+    if (event.running) void stopSignalAudition();
+    updateSignalAvailability();
   }
 
   if (event.type === "synth-state") {
@@ -283,7 +443,9 @@ function handleEngineEvent(event) {
         transitionCopy.textContent = `DRIFTING TOWARD ${titleCase(event.transition.to).toUpperCase()} · ${progress}%`;
         transitionFill.style.width = `${progress}%`;
       } else {
-        transitionCopy.textContent = `${event.section} · MOVEMENT ${String(event.movement + 1).padStart(2, "0")} · SELF-GENERATING`;
+        const direction = event.council?.directive || "DIRECTED ARC";
+        const phase = event.council?.phase || event.section;
+        transitionCopy.textContent = `${direction} · ${phase}`;
         transitionFill.style.width = `${Math.round(event.sectionProgress * 100)}%`;
       }
     }
@@ -293,12 +455,14 @@ function handleEngineEvent(event) {
 async function toggleTransport() {
   if (uiBusy) return;
   uiBusy = true;
+  updateSignalAvailability();
   transportButton.disabled = true;
   transportButton.setAttribute("aria-busy", "true");
   try {
     if (engine.running) {
-      engine.stop();
+      await engine.stop();
     } else {
+      await stopSignalAudition();
       setStatus("STARTING AUDIO…");
       await engine.start();
     }
@@ -306,6 +470,7 @@ async function toggleTransport() {
     setStatus(error?.message?.toUpperCase() || "AUDIO COULD NOT START", "error");
   } finally {
     uiBusy = false;
+    updateSignalAvailability();
     transportButton.disabled = false;
     transportButton.setAttribute("aria-busy", "false");
   }
@@ -330,11 +495,107 @@ for (const button of tonalityButtons) {
   });
 }
 
+signalPassButton.addEventListener("click", () => decideSignal("pass"));
+signalAuditionButton.addEventListener("click", auditionSignal);
+signalKeepButton.addEventListener("click", () => decideSignal("like"));
+
+signalCard.addEventListener("pointerdown", (event) => {
+  if (
+    !signalControlsAvailable() ||
+    event.button !== 0 ||
+    event.target.closest("button")
+  ) {
+    return;
+  }
+  signalPointer = {
+    id: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    dx: 0,
+    dragging: false,
+    vertical: false,
+  };
+  signalCard.setPointerCapture?.(event.pointerId);
+});
+
+signalCard.addEventListener("pointermove", (event) => {
+  if (!signalPointer || signalPointer.id !== event.pointerId) return;
+  const dx = event.clientX - signalPointer.startX;
+  const dy = event.clientY - signalPointer.startY;
+  signalPointer.dx = dx;
+  if (!signalPointer.dragging) {
+    if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) {
+      signalPointer.vertical = true;
+      return;
+    }
+    if (Math.abs(dx) < 10 || Math.abs(dx) <= Math.abs(dy) * 1.2) return;
+    signalPointer.dragging = true;
+    signalCard.classList.add("is-dragging");
+  }
+  if (signalPointer.vertical) return;
+  event.preventDefault();
+  const maximum = Math.max(90, signalCard.clientWidth * 0.42);
+  const bounded = Math.max(-maximum, Math.min(maximum, dx));
+  const ratio = bounded / maximum;
+  signalCard.style.setProperty("--signal-drag-x", `${bounded}px`);
+  signalCard.style.setProperty(
+    "--signal-drag-rotate",
+    `${(ratio * 2).toFixed(3)}deg`,
+  );
+  signalCard.style.setProperty(
+    "--signal-pass-opacity",
+    String(Math.max(0, -ratio)),
+  );
+  signalCard.style.setProperty(
+    "--signal-keep-opacity",
+    String(Math.max(0, ratio)),
+  );
+});
+
+function finishSignalPointer(event, cancelled = false) {
+  if (!signalPointer || signalPointer.id !== event.pointerId) return;
+  const pointer = signalPointer;
+  signalPointer = null;
+  if (signalCard.hasPointerCapture?.(event.pointerId)) {
+    signalCard.releasePointerCapture(event.pointerId);
+  }
+  signalCard.classList.remove("is-dragging");
+  const threshold = Math.max(72, signalCard.clientWidth * 0.28);
+  if (
+    !cancelled &&
+    pointer.dragging &&
+    !pointer.vertical &&
+    Math.abs(pointer.dx) >= threshold
+  ) {
+    decideSignal(pointer.dx > 0 ? "like" : "pass");
+    return;
+  }
+  resetSignalDrag();
+}
+
+signalCard.addEventListener("pointerup", (event) =>
+  finishSignalPointer(event),
+);
+signalCard.addEventListener("pointercancel", (event) =>
+  finishSignalPointer(event, true),
+);
+signalCard.addEventListener("keydown", (event) => {
+  if (event.target !== signalCard || event.repeat) return;
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    decideSignal("pass");
+  }
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    decideSignal("like");
+  }
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.repeat) return;
   const interactive = Boolean(
     event.target?.closest?.(
-      "button, input, textarea, select, summary, a, [contenteditable='true']",
+      "button, input, textarea, select, summary, a, [tabindex], [contenteditable='true']",
     ),
   );
   if (event.code === "Space" && !interactive) {
@@ -348,12 +609,16 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("visibilitychange", () => {
+  if (document.hidden) void stopSignalAudition();
   if (!document.hidden && engine.running && engine.ctx?.state !== "running") {
     engine.stop("interrupted");
   }
 });
 
-window.addEventListener("pagehide", () => engine.stop());
+window.addEventListener("pagehide", () => {
+  void stopSignalAudition();
+  engine.stop();
+});
 
 window.QuantumTechno = Object.freeze({
   version: GENERATOR_VERSION,
@@ -364,6 +629,7 @@ window.QuantumTechno = Object.freeze({
 
 updateSeed(engine.seed);
 bpmReadout.textContent = engine.currentTempo.toFixed(1);
+renderSignalSpecimen(currentSignal);
 
 const canvas = document.querySelector("#quantum-contour");
 const canvasContext = canvas?.getContext?.("2d", { alpha: false }) || null;
