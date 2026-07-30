@@ -20,6 +20,11 @@ import {
   normalizeTasteProfile,
   tasteFingerprint,
 } from "./taste-model.js";
+import {
+  formatTrajectoryId,
+  freshTrajectoryId,
+  normalizeTrajectoryId,
+} from "./trajectory-identity.js";
 
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 const AudioWorkletNodeClass =
@@ -33,15 +38,11 @@ const MUSIC_BUS_LEVEL = 1;
 const SYNTH_MESSAGE_LEAD_SECONDS = 0.05;
 
 function freshSeed() {
-  if (window.crypto?.getRandomValues) {
-    return window.crypto.getRandomValues(new Uint32Array(1))[0] >>> 0;
-  }
-  return hash32(Date.now(), performance.now() * 1000);
+  return freshTrajectoryId(window.crypto);
 }
 
 export function formatSeed(seed) {
-  const hex = (seed >>> 0).toString(16).toUpperCase().padStart(8, "0");
-  return `${hex.slice(0, 4)}-${hex.slice(4)}`;
+  return formatTrajectoryId(seed);
 }
 
 function safeDisconnect(node) {
@@ -159,7 +160,7 @@ function summarizeCouncilVerdict(verdict) {
 export class InfiniteTechnoEngine {
   constructor(onEvent, options = {}) {
     this.onEvent = typeof onEvent === "function" ? onEvent : () => {};
-    this.seed = Number.isFinite(options.seed) ? options.seed >>> 0 : freshSeed();
+    this.seed = normalizeTrajectoryId(options.seed) ?? freshSeed();
     this.activeVibe = profileForVibe(options.vibe).id;
     this.activeTonality = ["major", "neutral"].includes(options.tonality)
       ? options.tonality
@@ -212,8 +213,12 @@ export class InfiniteTechnoEngine {
   profileTempo(profile, bar) {
     const center = (profile.bpm[0] + profile.bpm[1]) / 2;
     const span = (profile.bpm[1] - profile.bpm[0]) / 2;
-    const longWave = Math.sin((bar + (this.seed % 97)) / 93);
-    const slowWave = Math.sin((bar + (this.seed % 211)) / 317);
+    const longWave = Math.sin(
+      (bar + (hash32(this.seed, "tempo-long-phase") % 97)) / 93,
+    );
+    const slowWave = Math.sin(
+      (bar + (hash32(this.seed, "tempo-slow-phase") % 211)) / 317,
+    );
     return clamp(
       center + (longWave * 0.65 + slowWave * 0.35) * span * profile.tempoDrift,
       profile.bpm[0],
@@ -328,7 +333,7 @@ export class InfiniteTechnoEngine {
       this.runtimeEnsembleRoles = null;
       this.runtimeEnsemblePhraseIndex = -1;
     }
-    this.seed = seed >>> 0;
+    this.seed = normalizeTrajectoryId(seed) ?? freshSeed();
     this.pendingSeed = null;
     this.planBar = -1;
     this.plan = null;

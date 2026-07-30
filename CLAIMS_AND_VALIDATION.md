@@ -9,6 +9,11 @@ The application may claim that it:
 - synthesizes audio locally with the Web Audio API and uses no samples;
 - has no fixed musical ending while its active audio context survives;
 - uses deterministic seed-based composition;
+- samples a 128-bit trajectory ID from the browser cryptographic random source on
+  each clean page load and derives the initial Vibe and harmonic field from it;
+- has \(2^{128}\), or about \(3.4 \times 10^{38}\), possible trajectory IDs, so two
+  independent uniform ID draws match with probability \(1 / 2^{128}\), or about
+  \(2.9 \times 10^{-39}\);
 - advances bounded recurrent musical state at eight-bar phrase boundaries;
 - derives section readouts by run-length encoding adjacent phrase labels, with no
   fixed maximum section duration or musical authority;
@@ -65,6 +70,9 @@ The application does not claim:
 
 - uninterrupted playback through browser or operating-system suspension;
 - that deterministic generation cannot repeat over multi-day listening;
+- that different trajectory IDs can never produce similar or colliding musical
+  passages, or that \(1 / 2^{128}\) is the measured probability of two rendered
+  one-minute audio segments being identical;
 - subjective equivalence to a named artist, professional producer, or top DJ;
 - machine learning, training on a music catalog, or artist imitation;
 - participation, endorsement, approval, or literal opinions from the named artistic

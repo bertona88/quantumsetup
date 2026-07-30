@@ -42,6 +42,7 @@ jobs:
             app/techno-model.js \
             app/emergent-form.js \
             app/generative-utils.js \
+            app/trajectory-identity.js \
             app/synth-genomes.js \
             app/synth-dsp.js \
             app/synth-worklet.js \

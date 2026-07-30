@@ -15,6 +15,15 @@ npm run check
 
 Open `http://localhost:4173/`. Audio starts only after a user gesture.
 
+Each clean page load samples a 128-bit trajectory ID and deterministically derives
+its initial Vibe, harmonic field, form, rhythm, material lineages, and synthesis
+coordinates. A URL containing `?seed=<32 hex digits>` intentionally replays that
+starting identity. There are \(2^{128}\), about \(3.4 \times 10^{38}\), possible
+IDs; two independent uniform ID draws match with probability \(1 / 2^{128}\), about
+\(2.9 \times 10^{-39}\). This is a trajectory-ID collision statement, not a claim
+that different IDs can never produce similar passages or that rendered audio is
+quantum-random.
+
 ## High-level controls
 
 - **Start / Stop** owns the one browser `AudioContext`.

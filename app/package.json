@@ -7,7 +7,7 @@
   "scripts": {
     "start": "python3 -m http.server 4173",
     "test": "node --test *.test.mjs",
-    "check": "node --check generative-utils.js && node --check emergent-form.js && node --check taste-model.js && node --check synth-genomes.js && node --check synth-dsp.js && node --check synth-worklet.js && node --check instrument-preview.js && node --check signal-deck.js && node --check techno-model.js && node --check audio-engine.js && node --check main.js && node --check audio-engine.lifecycle.test.mjs && node --test *.test.mjs"
+    "check": "node --check generative-utils.js && node --check trajectory-identity.js && node --check emergent-form.js && node --check taste-model.js && node --check synth-genomes.js && node --check synth-dsp.js && node --check synth-worklet.js && node --check instrument-preview.js && node --check signal-deck.js && node --check techno-model.js && node --check audio-engine.js && node --check main.js && node --check audio-engine.lifecycle.test.mjs && node --test *.test.mjs"
   },
   "engines": {
     "node": ">=18"

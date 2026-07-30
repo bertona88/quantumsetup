@@ -56,6 +56,24 @@ test("hash and random stream are deterministic", () => {
   );
 });
 
+test("the full 128-bit trajectory identity affects the musical plan", () => {
+  const common = {
+    bar: 0,
+    vibeId: "hypnotic",
+    tonality: "minor",
+    profile: profileForVibe("hypnotic"),
+  };
+  const first = buildBarPlan({
+    ...common,
+    seed: "0123456789abcdeffedcba9876543210",
+  });
+  const changedTail = buildBarPlan({
+    ...common,
+    seed: "0123456789abcdeffedcba9876543211",
+  });
+  assert.notDeepEqual(first, changedTail);
+});
+
 test("every movement is a complete long-form arrangement", () => {
   for (const tonality of ["minor", "major", "neutral"]) {
     for (let index = 0; index < 32; index += 1) {

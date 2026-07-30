@@ -2,6 +2,12 @@ import { InfiniteTechnoEngine, formatSeed } from "./audio-engine.js";
 import { InstrumentAuditioner } from "./instrument-preview.js";
 import { SignalDeckModel } from "./signal-deck.js";
 import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js";
+import {
+  deriveInitialDirection,
+  freshTrajectoryId,
+  parseTrajectoryId,
+  trajectoryIdForUrl,
+} from "./trajectory-identity.js";
 
 const app = document.querySelector("#app");
 const transportButton = document.querySelector("#transport-button");
@@ -33,10 +39,9 @@ const tonalityButtons = [...document.querySelectorAll("[data-tonality]")];
 
 const params = new URLSearchParams(window.location.search);
 const seedText = params.get("seed");
-const parsedSeed =
-  seedText && /^[0-9a-f]{1,8}$/i.test(seedText)
-    ? Number.parseInt(seedText, 16) >>> 0
-    : undefined;
+const parsedSeed = parseTrajectoryId(seedText);
+const initialSeed = parsedSeed ?? freshTrajectoryId(window.crypto);
+const initialDirection = deriveInitialDirection(initialSeed);
 
 const visualState = {
   kick: 0,
@@ -57,15 +62,15 @@ const visualState = {
 const signalDeck = new SignalDeckModel();
 const signalAuditioner = new InstrumentAuditioner();
 const engine = new InfiniteTechnoEngine(handleEngineEvent, {
-  seed: parsedSeed,
-  vibe: "hypnotic",
-  tonality: "minor",
+  seed: initialSeed,
+  vibe: initialDirection.vibe,
+  tonality: initialDirection.tonality,
   tasteProfile: signalDeck.tasteProfile,
 });
 
 let uiBusy = false;
-let targetVibe = "hypnotic";
-let targetTonality = "minor";
+let targetVibe = initialDirection.vibe;
+let targetTonality = initialDirection.tonality;
 let instrumentationSignature = "";
 let displayedInstrumentCount = 0;
 let advancedSynthAvailable = null;
@@ -89,10 +94,12 @@ function setStatus(message, state = "idle") {
   visualState.running = engine.running;
 }
 
-function updateSeed(seed) {
+function updateSeed(seed, { writeUrl = true } = {}) {
   seedReadout.textContent = formatSeed(seed);
+  seedReadout.title = `Full 128-bit trajectory ID: ${trajectoryIdForUrl(seed)}`;
+  if (!writeUrl) return;
   const url = new URL(window.location.href);
-  url.searchParams.set("seed", (seed >>> 0).toString(16).padStart(8, "0"));
+  url.searchParams.set("seed", trajectoryIdForUrl(seed));
   window.history.replaceState(null, "", url);
 }
 
@@ -627,7 +634,10 @@ window.QuantumTechno = Object.freeze({
   requestTonality: (tonality) => engine.requestTonality(tonality),
 });
 
-updateSeed(engine.seed);
+updateSeed(engine.seed, { writeUrl: parsedSeed !== undefined });
+nowVibe.textContent = profileForVibe(initialDirection.vibe).label.toUpperCase();
+selectTarget(vibeButtons, "vibe", initialDirection.vibe);
+selectTarget(tonalityButtons, "tonality", initialDirection.tonality);
 bpmReadout.textContent = engine.currentTempo.toFixed(1);
 renderSignalSpecimen(currentSignal);
 

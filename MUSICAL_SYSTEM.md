@@ -230,8 +230,11 @@ techniques. They are not copies of, preset-compatible with, or claimed equivalen
 commercial instruments. The modal and string voices are creative synthesis models,
 not calibrated simulations of physical objects.
 
-The current implementation is deterministic and coordinate-addressed by seed, bar,
-phrase, lineage, and step. It has recurrent form state, bounded climax and kick
+The current implementation samples a 128-bit trajectory ID on each clean page load
+and is deterministic and coordinate-addressed by that ID, bar, phrase, lineage, and
+step. The initial Vibe and harmonic field are also derived from the ID, so a fresh
+session does not always enter through the same musical posture. A seed-bearing URL
+is an intentional replay path. It has recurrent form state, bounded climax and kick
 withdrawal, lineage recall, and a small scored timbre-candidate pool. It does not
 yet establish persuasive long-form musical quality, multi-day runtime performance,
 or a complete long-horizon recurrence ledger. Those remain separate quality
@@ -283,6 +286,8 @@ Feedback is bounded below 0.72 for the main delay and below 0.58 for rumble.
 Allowed:
 
 - deterministic, procedural, locally synthesized techno;
+- a 128-bit trajectory-ID space with a \(1 / 2^{128}\) chance that two independent
+  uniform ID draws match;
 - three deterministic advanced synthesis engines with 208 base architectures;
 - a local explicit-feedback profile that influences bounded timbre candidates only;
 - deterministic recurrent phrase-state arrangement with derived section readouts;
