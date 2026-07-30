@@ -24,6 +24,18 @@ The generator preserves the strong audio core of the supplied
 - Major, Minor, and Neutral tonal families;
 - 64–128-bar phrase-safe transitions.
 
+Version `1.1.0` adds a bounded 24-voice advanced synthesis bank:
+
+- **Matrix** — four-operator FM with eight acyclic routing algorithms;
+- **Resonator** — mallet/noise excitation across curated modal bodies;
+- **String** — fractional-delay plucked-string physical modelling.
+
+Together they expose 208 discrete base architectures before bounded continuous
+parameters. Parameter genomes are deterministic and coordinate-addressed. One
+advanced engine mutates at each eight-bar phrase boundary. Vibe and New Trajectory
+palettes are staged through the same sequence instead of replacing all three synths
+together.
+
 Read [MUSICAL_SYSTEM.md](./MUSICAL_SYSTEM.md) for the composition grammar and
 research basis.
 

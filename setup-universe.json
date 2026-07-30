@@ -24,7 +24,7 @@
     "path": "app/",
     "role": "production-audio-instrument",
     "musicSystem": "MUSICAL_SYSTEM.md",
-    "generatorVersion": "1.0.0",
+    "generatorVersion": "1.1.0",
     "audioFirst": true,
     "quantumRole": "artistic-contour"
   },

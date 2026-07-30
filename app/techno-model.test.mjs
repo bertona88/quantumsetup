@@ -13,6 +13,7 @@ import {
   hash32,
   makeRng,
   nextPhraseBoundary,
+  planInstrumentSignature,
   planNotesBelongToMode,
   planPatternSignature,
   profileDistance,
@@ -20,6 +21,7 @@ import {
   transitionDurationFor,
   transitionProgress,
 } from "./techno-model.js";
+import { validateSynthGenome } from "./synth-genomes.js";
 
 test("canonical supplied generator remains byte-identical", () => {
   const source = readFileSync(
@@ -107,9 +109,101 @@ test("all vibe and tonality combinations survive a long scan", () => {
           assert.ok(note.midi >= 34 && note.midi <= 55);
           assert.ok(note.length >= 1 && note.length <= 3);
         }
+        assert.ok(plan.activeSynthEngines.length >= 1);
+        assert.ok(plan.activeSynthEngines.length <= 2);
+        for (const engine of ["fm", "modal", "string"]) {
+          assert.equal(plan.synth[engine].length, 16);
+          assert.ok(validateSynthGenome(plan.synthPalette[engine]));
+          for (const note of plan.synth[engine].filter(Boolean)) {
+            assert.ok(Number.isFinite(note.midi));
+            assert.ok(note.midi >= 45 && note.midi <= 88);
+            assert.ok(note.velocity >= 0 && note.velocity <= 1);
+            assert.ok(note.length >= 1 && note.length <= 4);
+          }
+        }
       }
     }
   }
+});
+
+test("instrument plans stay stable inside phrases and expose renderer-backed identities", () => {
+  for (let phrase = 0; phrase < 96; phrase += 1) {
+    const startBar = phrase * 8;
+    const first = buildBarPlan({
+      seed: 0x1a57,
+      bar: startBar,
+      vibeId: "detroit",
+      tonality: "minor",
+      profile: profileForVibe("detroit"),
+    });
+    const last = buildBarPlan({
+      seed: 0x1a57,
+      bar: startBar + 7,
+      vibeId: "detroit",
+      tonality: "minor",
+      profile: profileForVibe("detroit"),
+    });
+    assert.deepEqual(
+      Object.fromEntries(
+        ["fm", "modal", "string"].map((engine) => [
+          engine,
+          first.synthPalette[engine].id,
+        ]),
+      ),
+      Object.fromEntries(
+        ["fm", "modal", "string"].map((engine) => [
+          engine,
+          last.synthPalette[engine].id,
+        ]),
+      ),
+    );
+    assert.equal(first.bassVoice, last.bassVoice);
+    assert.ok(planInstrumentSignature(first).length > 0);
+    assert.ok(
+      first.instrumentation.every(
+        (item) =>
+          typeof item.id === "string" &&
+          typeof item.role === "string" &&
+          typeof item.label === "string",
+      ),
+    );
+  }
+});
+
+test("bar-wise Vibe morphing cannot switch instruments inside a phrase", () => {
+  const instrumentProfile = blendProfiles("dub", "hypnotic", 24 / 64);
+  const signatures = [];
+  for (let bar = 32; bar < 40; bar += 1) {
+    const profile = blendProfiles("dub", "hypnotic", (bar - 8) / 64);
+    const plan = buildBarPlan({
+      seed: 2,
+      bar,
+      vibeId: "dub",
+      tonality: "minor",
+      profile,
+      instrumentProfile,
+    });
+    signatures.push({
+      bassVoice: plan.bassVoice,
+      engines: plan.activeSynthEngines,
+      palette: ["fm", "modal", "string"].map(
+        (engine) => plan.synthPalette[engine].id,
+      ),
+    });
+  }
+  assert.ok(signatures.every((signature) => signature.bassVoice === signatures[0].bassVoice));
+  assert.ok(
+    signatures.every(
+      (signature) =>
+        JSON.stringify(signature.engines) === JSON.stringify(signatures[0].engines),
+    ),
+  );
+  assert.ok(
+    signatures.every(
+      (signature) =>
+        JSON.stringify(signature.palette) === JSON.stringify(signatures[0].palette),
+    ),
+  );
 });
 
 test("vibe transitions interpolate instead of switching", () => {

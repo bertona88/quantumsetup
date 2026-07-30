@@ -1,6 +1,6 @@
 # Claims and Validation
 
-Status: claim register for Infinite Techno `1.0.0`
+Status: claim register for Infinite Techno `1.1.0`
 
 ## Allowed claims
 
@@ -15,6 +15,9 @@ The application may claim that it:
 - queues user direction at musical boundaries;
 - morphs Vibe over 64–128 bars and Major/Minor over 96 bars;
 - caps temporary voices at 96 and gives them finite stop times;
+- uses three advanced synthesis engines with 208 discrete base architectures;
+- mutates deterministic, bounded synthesis genomes one engine per eight-bar phrase,
+  including staged Vibe and New Trajectory palette changes;
 - drives its quantum-inspired contour from audio analysis and scheduled musical
   events.
 
@@ -28,6 +31,8 @@ The application does not claim:
 - machine learning, training on a music catalog, or artist imitation;
 - quantum computation, quantum randomness, scientific sonification, or simulation;
 - calibrated mastering, universal loudness, or safe output level for every device;
+- equivalence to, compatibility with, or emulation accuracy for Ableton instruments;
+- calibrated physical simulation of a particular string, membrane, bar, or body;
 - current cross-setup interoperability.
 
 ## Validation matrix
@@ -35,6 +40,8 @@ The application does not claim:
 | Evidence | Validates | Does not validate |
 | --- | --- | --- |
 | model tests | deterministic plans, legal structure, bounded lanes and pitch families | subjective groove quality |
+| pure DSP tests | finite deterministic samples, hard voice endings, and renderer coverage for all 208 base forms | perceived sound quality |
+| worklet processor tests | queue and voice ceilings, bounded stealing, clean all-notes-off | long-run browser or device stability |
 | syntax checks | loadable JavaScript modules | browser audio behavior |
 | active browser smoke | user-gesture start, audible analyser activity, controls, transitions, clean stop | long-duration reliability |
 | responsive visual review | one-surface hierarchy and mobile layout | screen-reader quality |

@@ -1,5 +1,6 @@
 import { InfiniteTechnoEngine, formatSeed } from "./audio-engine.js";
 import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js";
+import { SYNTH_BASE_ARCHITECTURES } from "./synth-genomes.js";
 
 const app = document.querySelector("#app");
 const transportButton = document.querySelector("#transport-button");
@@ -14,6 +15,8 @@ const seedReadout = document.querySelector("#seed-readout");
 const transitionCopy = document.querySelector("#transition-copy");
 const transitionFill = document.querySelector("#transition-fill");
 const liveRegion = document.querySelector("#live-region");
+const instrumentRoster = document.querySelector("#instrument-roster");
+const instrumentCount = document.querySelector("#instrument-count");
 const vibeButtons = [...document.querySelectorAll("[data-vibe]")];
 const tonalityButtons = [...document.querySelectorAll("[data-tonality]")];
 
@@ -29,6 +32,7 @@ const visualState = {
   bass: 0,
   hat: 0,
   chord: 0,
+  synth: 0,
   energy: 0.42,
   bar: 0,
   step: 0,
@@ -48,6 +52,10 @@ const engine = new InfiniteTechnoEngine(handleEngineEvent, {
 let uiBusy = false;
 let targetVibe = "hypnotic";
 let targetTonality = "minor";
+let instrumentationSignature = "";
+let displayedInstrumentCount = 0;
+let advancedSynthAvailable = null;
+let currentInstrumentation = [];
 
 function titleCase(text) {
   return String(text)
@@ -55,12 +63,11 @@ function titleCase(text) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function setStatus(message, state = "idle", announce = false) {
+function setStatus(message, state = "idle") {
   statusText.textContent = message;
   app.classList.toggle("is-running", engine.running);
   app.classList.toggle("is-error", state === "error");
   visualState.running = engine.running;
-  if (announce) liveRegion.textContent = message;
 }
 
 function updateSeed(seed) {
@@ -75,6 +82,67 @@ function selectTarget(buttons, attribute, value) {
     const active = button.dataset[attribute] === value;
     button.setAttribute("aria-pressed", String(active));
   }
+}
+
+function updateInstrumentCount() {
+  const capability =
+    advancedSynthAvailable === false
+      ? "CORE ENGINE FALLBACK"
+      : `${SYNTH_BASE_ARCHITECTURES} BASE FORMS`;
+  instrumentCount.textContent = `${String(displayedInstrumentCount).padStart(2, "0")} VOICES · ${capability}`;
+}
+
+function renderInstrumentation(items = []) {
+  const unique = [];
+  const seen = new Set();
+  for (const item of items) {
+    if (!item?.id || seen.has(item.id)) continue;
+    seen.add(item.id);
+    unique.push(item);
+  }
+  const signature = unique.map((item) => item.id).join("|");
+  currentInstrumentation = unique;
+  displayedInstrumentCount = unique.length;
+  updateInstrumentCount();
+  if (signature === instrumentationSignature) return;
+  instrumentationSignature = signature;
+  const visible = unique.slice(0, 6);
+  const fragment = document.createDocumentFragment();
+  if (visible.length === 0) {
+    const item = document.createElement("li");
+    item.textContent = "GENERATOR DORMANT";
+    fragment.append(item);
+  } else {
+    for (const entry of visible) {
+      const item = document.createElement("li");
+      item.dataset.role = entry.role || "voice";
+      const label = document.createElement("span");
+      label.textContent = entry.label;
+      item.append(label);
+      if (entry.detail) {
+        const detail = document.createElement("small");
+        detail.textContent = `/ ${entry.detail}`;
+        item.append(detail);
+        item.title = `${entry.label} — ${entry.detail}`;
+      }
+      fragment.append(item);
+    }
+    if (unique.length > visible.length) {
+      const remainder = document.createElement("li");
+      remainder.className = "roster-remainder";
+      remainder.textContent = `+${unique.length - visible.length} MORE`;
+      fragment.append(remainder);
+    }
+    if (unique.length > 2) {
+      const mobileRemainder = document.createElement("li");
+      mobileRemainder.className = "mobile-roster-remainder";
+      mobileRemainder.textContent = `+${unique.length - 2} MORE`;
+      fragment.append(mobileRemainder);
+    }
+  }
+  instrumentRoster.replaceChildren(fragment);
+  instrumentRoster.classList.remove("is-updating");
+  window.requestAnimationFrame(() => instrumentRoster.classList.add("is-updating"));
 }
 
 function describeIntent(event) {
@@ -104,13 +172,42 @@ function handleEngineEvent(event) {
           ? "PAUSED BY BROWSER — TAP START"
           : "READY — TAP START",
       interrupted ? "error" : event.running ? "running" : "idle",
-      true,
     );
-    if (!event.running) sectionReadout.textContent = "DORMANT";
+    if (!event.running) {
+      sectionReadout.textContent = "DORMANT";
+      renderInstrumentation([]);
+    }
+  }
+
+  if (event.type === "synth-state") {
+    advancedSynthAvailable = event.available;
+    app.classList.toggle("synth-degraded", !event.available);
+    app.dataset.synthBank = event.available ? "ready" : "fallback";
+    app.dataset.synthVoices = "0";
+    app.dataset.synthQueued = "0";
+    app.dataset.synthLateEvents = "0";
+    app.dataset.synthDroppedEvents = "0";
+    app.dataset.synthStartedEvents = "0";
+    updateInstrumentCount();
+    if (!event.available) {
+      renderInstrumentation(
+        currentInstrumentation.filter((item) => item.role !== "synth"),
+      );
+      liveRegion.textContent =
+        event.message || "Advanced synthesis is unavailable; the core engine continues.";
+    }
+  }
+
+  if (event.type === "synth-stats") {
+    app.dataset.synthVoices = String(event.voices);
+    app.dataset.synthQueued = String(event.queued);
+    app.dataset.synthLateEvents = String(event.lateEvents);
+    app.dataset.synthDroppedEvents = String(event.droppedEvents);
+    app.dataset.synthStartedEvents = String(event.startedEvents);
   }
 
   if (event.type === "error") {
-    setStatus(event.message.toUpperCase(), "error", true);
+    setStatus(event.message.toUpperCase(), "error");
   }
 
   if (event.type === "intent") describeIntent(event);
@@ -128,6 +225,7 @@ function handleEngineEvent(event) {
     visualState.bass = Math.max(visualState.bass, event.bass);
     visualState.hat = Math.max(visualState.hat, event.hat);
     visualState.chord = Math.max(visualState.chord, event.chord);
+    visualState.synth = Math.max(visualState.synth, event.synth || 0);
     visualState.energy = event.energy;
     visualState.bar = event.bar;
     visualState.step = event.step;
@@ -136,6 +234,7 @@ function handleEngineEvent(event) {
     visualState.transitionProgress = event.transition?.progress || 0;
 
     if (event.step === 0) {
+      renderInstrumentation(event.instrumentation || []);
       const vibe = profileForVibe(event.vibe);
       nowVibe.textContent = vibe.label.toUpperCase();
       sectionReadout.textContent = event.section;
@@ -167,7 +266,7 @@ async function toggleTransport() {
       await engine.start();
     }
   } catch (error) {
-    setStatus(error?.message?.toUpperCase() || "AUDIO COULD NOT START", "error", true);
+    setStatus(error?.message?.toUpperCase() || "AUDIO COULD NOT START", "error");
   } finally {
     uiBusy = false;
     transportButton.disabled = false;
@@ -261,7 +360,10 @@ function drawBackdrop(context, width, height, time) {
     height * 0.38,
     Math.max(width, height) * 0.72,
   );
-  gradient.addColorStop(0, `rgba(91, 55, 170, ${0.15 + visualState.chord * 0.13})`);
+  gradient.addColorStop(
+    0,
+    `rgba(91, 55, 170, ${0.15 + visualState.chord * 0.13 + visualState.synth * 0.055})`,
+  );
   gradient.addColorStop(0.36, "rgba(26, 15, 48, 0.16)");
   gradient.addColorStop(1, "#070609");
   context.fillStyle = gradient;
@@ -316,6 +418,10 @@ function drawProbabilityContours(context, width, height, time, running) {
       const kickLift = visualState.kick * packet * 0.23;
       const seedRipple =
         visualState.seedFlash * Math.sin(ratio * Math.PI * 28) * 19;
+      const synthesisFold =
+        visualState.synth *
+        Math.sin(ratio * Math.PI * (5 + layer * 0.72) + time * 1.2 * motion) *
+        (8 + bin * 18);
       const x = left + ratio * span;
       const y =
         center +
@@ -324,6 +430,7 @@ function drawProbabilityContours(context, width, height, time, running) {
         bassPull -
         packet * (0.18 + layer * 0.025) -
         kickLift +
+        synthesisFold +
         seedRipple;
       if (index === 0) context.moveTo(x, y);
       else context.lineTo(x, y);
@@ -369,6 +476,7 @@ function render(now) {
   visualState.bass *= Math.exp(-delta * 5.8);
   visualState.hat *= Math.exp(-delta * 13);
   visualState.chord *= Math.exp(-delta * 2.4);
+  visualState.synth *= Math.exp(-delta * 3.8);
   visualState.seedFlash *= Math.exp(-delta * 3.2);
   if (engine.running && !reducedMotion.matches) {
     renderHandle = window.requestAnimationFrame(render);

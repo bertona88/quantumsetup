@@ -275,6 +275,7 @@ h1 em {
 }
 
 .now-playing strong,
+.orchestration-line strong,
 .transition-line strong,
 .footer strong {
   overflow: hidden;
@@ -286,8 +287,93 @@ h1 em {
   white-space: nowrap;
 }
 
-.transition-line {
+.stage-telemetry {
   grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.orchestration-line {
+  min-width: 0;
+  min-height: 30px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+}
+
+.orchestration-line > strong {
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.synth-degraded .orchestration-line > strong {
+  color: var(--danger);
+}
+
+.instrument-roster {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: baseline;
+  overflow: hidden;
+  list-style: none;
+  white-space: nowrap;
+}
+
+.instrument-roster li {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--text);
+  font-family: var(--data);
+  font-size: 0.61rem;
+  font-weight: 650;
+  letter-spacing: 0.075em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.instrument-roster li + li {
+  position: relative;
+  margin-left: 12px;
+  padding-left: 12px;
+}
+
+.instrument-roster li + li::before {
+  position: absolute;
+  top: 0.2em;
+  bottom: 0.2em;
+  left: 0;
+  width: 1px;
+  background: var(--line-strong);
+  content: "";
+}
+
+.instrument-roster small {
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.52rem;
+  font-weight: 500;
+}
+
+.instrument-roster .roster-remainder {
+  color: var(--cyan);
+}
+
+.instrument-roster .mobile-roster-remainder {
+  display: none;
+  color: var(--cyan);
+}
+
+.instrument-roster.is-updating li {
+  animation: roster-in 260ms both cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.transition-line {
   min-height: 36px;
   display: grid;
   grid-template-columns: auto minmax(160px, auto) minmax(160px, 1fr);
@@ -584,6 +670,13 @@ kbd {
   }
 }
 
+@keyframes roster-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 @media (max-width: 1180px) {
   .sound-stage {
     min-height: 580px;
@@ -758,6 +851,32 @@ kbd {
 
   .transition-line {
     grid-template-columns: auto 1fr;
+  }
+
+  .orchestration-line {
+    grid-template-columns: auto 1fr;
+    gap: 7px 14px;
+  }
+
+  .orchestration-line > strong {
+    justify-self: end;
+  }
+
+  .instrument-roster {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .instrument-roster small {
+    display: none;
+  }
+
+  .instrument-roster li:nth-child(n + 3):not(.mobile-roster-remainder) {
+    display: none;
+  }
+
+  .instrument-roster .mobile-roster-remainder {
+    display: inline-flex;
   }
 
   .transition-track {

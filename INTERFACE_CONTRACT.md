@@ -1,6 +1,6 @@
 # Interface Contract
 
-Implemented browser API: `window.QuantumTechno/1.0.0`
+Implemented browser API: `window.QuantumTechno/1.1.0`
 Scope: one audio-first generative techno instrument
 
 ## One-surface rule
@@ -50,6 +50,8 @@ The page reports:
 - bar;
 - seed;
 - queued or active trajectory progress.
+- current phrase instrumentation, shown as a passive roster updated only at
+  eight-bar boundaries.
 
 ## Global object
 
@@ -57,7 +59,7 @@ After startup:
 
 ```js
 window.QuantumTechno = Object.freeze({
-  version: "1.0.0",
+  version: "1.1.0",
   getSnapshot,
   requestVibe,
   requestTonality,
@@ -65,8 +67,12 @@ window.QuantumTechno = Object.freeze({
 ```
 
 `getSnapshot()` returns version, seed, transport state, bar, step, BPM, current vibe,
-tonality, section, movement, and active transition summary. The object is a local
-application API, not a versioned Setup Universe interface.
+tonality, section, movement, active transition summary, current instrumentation, and
+advanced-synth availability/voice statistics. The object is a local application API,
+not a versioned Setup Universe interface.
+
+The instrumentation roster is read-only. It introduces no individual instrument,
+synthesis, mixer, or parameter controls.
 
 ## Accessibility and failure behavior
 

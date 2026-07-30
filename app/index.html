@@ -52,7 +52,7 @@
           </p>
         </div>
 
-        <div class="now-playing" aria-label="Now playing">
+        <section class="now-playing" aria-label="Now playing">
           <div>
             <span class="label">NOW</span>
             <strong id="now-vibe">HYPNOTIC</strong>
@@ -73,12 +73,25 @@
             <span class="label">BAR</span>
             <strong id="bar-readout">00001</strong>
           </div>
-        </div>
+        </section>
 
-        <div class="transition-line" id="transition-line" aria-live="polite">
-          <span class="label">TRAJECTORY</span>
-          <strong id="transition-copy">SELF-GENERATING</strong>
-          <span class="transition-track" aria-hidden="true"><i id="transition-fill"></i></span>
+        <div class="stage-telemetry">
+          <section
+            class="orchestration-line"
+            aria-labelledby="instrument-roster-heading"
+          >
+            <span class="label" id="instrument-roster-heading">IN THE MIX</span>
+            <ul class="instrument-roster" id="instrument-roster">
+              <li>GENERATOR DORMANT</li>
+            </ul>
+            <strong id="instrument-count">00 VOICES · 208 BASE FORMS</strong>
+          </section>
+
+          <div class="transition-line" id="transition-line">
+            <span class="label">TRAJECTORY</span>
+            <strong id="transition-copy">SELF-GENERATING</strong>
+            <span class="transition-track" aria-hidden="true"><i id="transition-fill"></i></span>
+          </div>
         </div>
       </section>
 

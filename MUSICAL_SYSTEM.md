@@ -1,7 +1,7 @@
 # Infinite Techno Musical System
 
 Status: implemented generative-set grammar  
-Generator version: `1.0.0`  
+Generator version: `1.1.0`
 Primary product: music  
 Quantum role: visual and poetic contour only
 
@@ -77,10 +77,45 @@ phrasing.
 - Section: instrument entry/exit, filter range, space, rumble, or a transition
   gesture.
 - Movement: root, modal family, motif, chord progression, and timbre genome.
+- Advanced synthesis: one of Matrix, Resonator, or String mutates at each phrase
+  boundary; the other two retain their genomes. Vibe and New Trajectory candidates
+  are staged through that same three-phrase sequence rather than replacing the
+  whole advanced palette together.
 
 The four-on-the-floor anchor remains dominant in groove sections. Odd-group
 relationships are reserved for shaker, tops, metallic percussion, and modulation.
 No phrase regenerates every lane at once.
+
+## Advanced synthesis bank
+
+Three original Web Audio DSP engines extend the existing drum, bass, harmony, and
+atmosphere voices:
+
+| Engine | Method | Discrete structure |
+| --- | --- | ---: |
+| Matrix | four-operator FM with finite envelopes | 8 algorithms × 4 ratio families × 3 envelope families = 96 |
+| Resonator | additive modal bank with bounded excitation and coupling | 4 exciters × 8 materials × 2 structures = 64 |
+| String | fractional-delay waveguide with damping and body filtering | 4 exciters × 4 bodies × 3 terminations = 48 |
+
+The total is 208 discrete base architectures before continuous parameters such as
+FM index, oscillator level, brightness, stiffness, damping, strike or pick position,
+decay, spread, and drive. A fixed two-seed, five-Vibe deterministic scan selects all
+208 structures into note-bearing lanes and reaches more than 170 active parameter
+genomes.
+
+Every parameter uses a named hash coordinate. Adding a future parameter therefore
+does not consume a shared random stream and rewrite unrelated timbres. Topology and
+genome changes occur only at eight-bar boundaries, with exactly one of the three
+runtime engines changing per phrase. Explicit high-level Vibe and trajectory
+requests feed new candidates into the same staged sequence. Note-level variation is
+limited to pitch, velocity, duration, and tiny seeded excitation differences.
+During a Vibe morph, density and effects may continue moving bar by bar, while the
+bass identity and advanced-engine selection are sampled at phrase entry.
+
+The engines are informed by standard FM, modal-resonator, and digital-waveguide
+techniques. They are not copies of, preset-compatible with, or claimed equivalent to
+commercial instruments. The modal and string voices are creative synthesis models,
+not calibrated simulations of physical objects.
 
 The current implementation is deterministic and coordinate-addressed by seed, bar,
 phrase, section, and step. It has long-form structure and bounded variation, but it
@@ -132,6 +167,7 @@ Feedback is bounded below 0.72 for the main delay and below 0.58 for rumble.
 Allowed:
 
 - deterministic, procedural, locally synthesized techno;
+- three deterministic advanced synthesis engines with 208 base architectures;
 - phrase-, section-, and movement-aware arrangement;
 - gradual, phrase-quantized high-level direction changes;
 - analyser-driven quantum-inspired visual contour.

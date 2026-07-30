@@ -1,6 +1,6 @@
 # Quantum Contour Contract
 
-Applies to: Infinite Techno `1.0.0`
+Applies to: Infinite Techno `1.1.0`
 Scientific status: artistic audio visualization, not a quantum model
 
 ## Boundary

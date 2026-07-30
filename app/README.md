@@ -40,9 +40,15 @@ field between the two tonal families rather than replacing the scale immediately
 `audio-engine.js` owns the audio clock and synthesis. Its voices include synthesized
 kick, clap, closed/open hat, ride, shaker, rim, tom, metallic FM percussion,
 acid/pulse/sub bass, chord stabs, pads, noise textures, risers, and downlifters.
+An AudioWorklet bank adds Matrix four-operator FM, Resonator modal synthesis, and
+String fractional-delay physical modelling. Their 208 discrete base architectures
+combine with bounded, deterministic parameter genomes that mutate one engine at a
+time on eight-bar boundaries. Vibe and New Trajectory palette changes are staged
+across three phrases instead of replacing all advanced synths together.
 The shared graph provides sidechain ducking, filtered delay, generated convolution
 reverb, synthetic kick rumble, soft clipping, compression, and spectrum analysis.
-Temporary voices have finite stop times and are capped at 96.
+Native temporary voices are capped at 72 and the advanced bank at 24, preserving a
+combined ceiling of 96. Every voice has a finite hard end.
 
 `main.js` owns the single audio-first interface and the analyser-driven contour. The
 canvas follows audio-clock events; it never drives the music.

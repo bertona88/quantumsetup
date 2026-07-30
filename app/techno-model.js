@@ -1,39 +1,18 @@
-export const GENERATOR_VERSION = "1.0.0";
+import {
+  clamp,
+  hash32,
+  lerp,
+  makeRng,
+  midiToHz,
+} from "./generative-utils.js";
+import { createSynthPalette } from "./synth-genomes.js";
+
+export { clamp, hash32, lerp, makeRng, midiToHz };
+
+export const GENERATOR_VERSION = "1.1.0";
 export const STEPS_PER_BAR = 16;
 export const PHRASE_BARS = 8;
 export const MOVEMENT_BARS = 192;
-
-export const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-export const lerp = (from, to, amount) => from + (to - from) * amount;
-export const midiToHz = (midi) => 440 * 2 ** ((midi - 69) / 12);
-
-export function hash32(...values) {
-  let hash = 0x811c9dc5;
-  for (const value of values) {
-    const text = typeof value === "string" ? value : String(Number(value) >>> 0);
-    for (let index = 0; index < text.length; index += 1) {
-      hash ^= text.charCodeAt(index);
-      hash = Math.imul(hash, 0x01000193);
-      hash ^= hash >>> 13;
-      hash = Math.imul(hash, 0x85ebca6b);
-    }
-  }
-  hash ^= hash >>> 16;
-  hash = Math.imul(hash, 0x7feb352d);
-  hash ^= hash >>> 15;
-  return hash >>> 0;
-}
-
-export function makeRng(seed) {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let value = state;
-    value = Math.imul(value ^ (value >>> 15), value | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 const PROFILE_KEYS = [
   "density",
@@ -409,12 +388,198 @@ function emptyPattern(fill = 0) {
   return Array(STEPS_PER_BAR).fill(fill);
 }
 
+function weightedChoice(entries, rng) {
+  const total = entries.reduce((sum, entry) => sum + Math.max(0, entry.weight), 0);
+  if (total <= 0) return entries[0]?.id;
+  let cursor = rng() * total;
+  for (const entry of entries) {
+    cursor -= Math.max(0, entry.weight);
+    if (cursor <= 0) return entry.id;
+  }
+  return entries.at(-1)?.id;
+}
+
+function fitMidiToRange(midi, minimum, maximum) {
+  let result = midi;
+  while (result < minimum) result += 12;
+  while (result > maximum) result -= 12;
+  return result;
+}
+
+function synthEngineSelection(seed, phraseIndex, section, profile) {
+  const rng = makeRng(hash32(seed, phraseIndex, section.seed, 0x53594e53));
+  const weights = [
+    {
+      id: "fm",
+      weight: 0.34 + profile.acid * 0.46 + profile.metallic * 0.28 + profile.drive * 0.2,
+    },
+    {
+      id: "modal",
+      weight: 0.3 + profile.metallic * 0.62 + profile.texture * 0.28,
+    },
+    {
+      id: "string",
+      weight: 0.34 + profile.warmth * 0.42 + profile.syncopation * 0.28 + profile.space * 0.18,
+    },
+  ];
+  const primary = weightedChoice(weights, rng);
+  const shouldLayer =
+    ["PEAK", "RETURN", "DRIVE"].includes(section.kind) && profile.density > 0.58;
+  if (!shouldLayer) return [primary];
+  const secondary = weightedChoice(
+    weights.filter((entry) => entry.id !== primary),
+    rng,
+  );
+  return [primary, secondary];
+}
+
+function buildSynthLanes({
+  seed,
+  bar,
+  phraseIndex,
+  movement,
+  section,
+  energy,
+  profile,
+  activeEngines,
+}) {
+  const lanes = {
+    fm: Array(STEPS_PER_BAR).fill(null),
+    modal: Array(STEPS_PER_BAR).fill(null),
+    string: Array(STEPS_PER_BAR).fill(null),
+  };
+  const configs = {
+    fm: {
+      candidates: [1, 3, 6, 9, 11, 14],
+      count: clamp(Math.round(1 + profile.density * 2.2), 1, 4),
+      minimum: 48,
+      maximum: 76,
+      octave: 1,
+      maxLength: 4,
+      salt: 0x464d4c4e,
+    },
+    modal: {
+      candidates: [2, 5, 7, 10, 13, 15],
+      count: clamp(Math.round(1 + profile.metallic * 2.4), 1, 4),
+      minimum: 55,
+      maximum: 88,
+      octave: 2,
+      maxLength: 2,
+      salt: 0x4d4f444c,
+    },
+    string: {
+      candidates: [1, 4, 7, 10, 12, 15],
+      count: clamp(Math.round(2 + profile.syncopation * 2.2), 2, 5),
+      minimum: 45,
+      maximum: 74,
+      octave: 1,
+      maxLength: 3,
+      salt: 0x5354524e,
+    },
+  };
+  for (const engine of activeEngines) {
+    const config = configs[engine];
+    const rng = makeRng(hash32(seed, bar, phraseIndex, section.seed, config.salt));
+    const selected = shuffled(config.candidates, rng)
+      .slice(0, config.count)
+      .sort((left, right) => left - right);
+    selected.forEach((step, index) => {
+      const motifIndex = (index + phraseIndex + bar) % movement.motif.length;
+      let degree = movement.motif[motifIndex];
+      if (rng() < profile.syncopation * 0.24) degree += rng() < 0.5 ? -1 : 1;
+      const midi = fitMidiToRange(
+        degreeToMidi(
+          movement.root,
+          movement.mode.intervals,
+          degree,
+          config.octave,
+        ),
+        config.minimum,
+        config.maximum,
+      );
+      lanes[engine][step] = {
+        midi,
+        degree,
+        velocity: clamp(
+          0.28 + energy * 0.34 + rng() * 0.18,
+          0.18,
+          0.86,
+        ),
+        length: clamp(1 + Math.floor(rng() * config.maxLength), 1, config.maxLength),
+        accent: rng() < 0.18 + profile.drive * 0.28,
+      };
+    });
+  }
+  return lanes;
+}
+
+function hasLaneEvents(lane) {
+  return lane.some(Boolean);
+}
+
+function buildInstrumentation({
+  kick,
+  clap,
+  hat,
+  openHat,
+  shaker,
+  rim,
+  ride,
+  metallic,
+  tom,
+  bass,
+  bassVoice,
+  chord,
+  pad,
+  texture,
+  riser,
+  downlifter,
+  synth,
+  synthPalette,
+  activeSynthEngines,
+}) {
+  const items = [];
+  const add = (id, role, label, detail = "", engine = "") => {
+    const item = { id, role, label, detail };
+    if (engine) item.engine = engine;
+    items.push(Object.freeze(item));
+  };
+  if (hasLaneEvents(kick)) add("foundation-kick", "foundation", "FOUR-FLOOR KICK");
+  if (hasLaneEvents(bass)) {
+    add(`bass-${bassVoice}`, "low-end", `${bassVoice.toUpperCase()} BASS`);
+  }
+  if (hasLaneEvents(clap)) add("backbeat-clap", "backbeat", "MACHINE CLAP");
+  if (hasLaneEvents(hat) || hasLaneEvents(openHat) || hasLaneEvents(ride)) {
+    add("tops-cymbals", "tops", hasLaneEvents(ride) ? "RIDE / HATS" : "HAT ARRAY");
+  }
+  if (
+    hasLaneEvents(shaker) ||
+    hasLaneEvents(rim) ||
+    hasLaneEvents(metallic) ||
+    hasLaneEvents(tom)
+  ) {
+    add("secondary-percussion", "percussion", "SECONDARY PERCUSSION");
+  }
+  for (const engine of activeSynthEngines) {
+    if (!hasLaneEvents(synth[engine])) continue;
+    const genome = synthPalette[engine];
+    add(genome.id, "synth", genome.label, genome.detail, engine);
+  }
+  if (hasLaneEvents(chord)) add("harmony-stab", "harmony", "CHORD STAB");
+  if (pad) add("harmony-pad", "harmony", "LONG PAD");
+  if (texture) add("atmosphere-texture", "atmosphere", "NOISE TEXTURE");
+  if (riser) add("transition-riser", "transition", "EIGHT-BAR RISER");
+  if (downlifter) add("transition-downlifter", "transition", "DOWNLIFTER");
+  return Object.freeze(items);
+}
+
 export function buildBarPlan({
   seed,
   bar,
   vibeId = "hypnotic",
   tonality = "minor",
   profile = profileForVibe(vibeId),
+  instrumentProfile = profile,
 }) {
   const movementIndex = Math.floor(Math.max(0, bar) / MOVEMENT_BARS);
   const movement = createMovement(seed, movementIndex, tonality);
@@ -577,15 +742,70 @@ export function buildBarPlan({
       : null;
 
   const bassVoice =
-    profile.acid > 0.72
+    instrumentProfile.acid > 0.72
       ? "acid"
-      : profile.rumble > 0.68 && profile.warmth > 0.5
+      : instrumentProfile.rumble > 0.68 && instrumentProfile.warmth > 0.5
         ? "sub"
-        : profile.drive > 0.78
+        : instrumentProfile.drive > 0.78
           ? "pulse"
-          : barInPhrase < 4
+          : hash32(seed, phraseIndex, section.seed, 0x42415353) % 2 === 0
             ? "sub"
             : "acid";
+
+  const synthProfile = instrumentProfile;
+  const synthPalette = createSynthPalette({
+    seed,
+    bar,
+    vibeId,
+    profile: synthProfile,
+  });
+  const activeSynthEngines = synthEngineSelection(
+    seed,
+    phraseIndex,
+    section,
+    synthProfile,
+  );
+  const synth = buildSynthLanes({
+    seed,
+    bar,
+    phraseIndex,
+    movement,
+    section,
+    energy,
+    profile,
+    activeEngines: activeSynthEngines,
+  });
+  const texture =
+    (barInPhrase === 0 || sectionStart) &&
+    barRng() < 0.16 + profile.texture * 0.62;
+  const texturePan =
+    movement.timbre.stereoBias * 0.55 + barRng() * 0.35 - 0.175;
+  const riser =
+    section.endBar - localBar === 8 &&
+    !["RELEASE", "VOID"].includes(section.kind);
+  const downlifter =
+    sectionStart && ["VOID", "BRIDGE", "RELEASE"].includes(section.kind);
+  const instrumentation = buildInstrumentation({
+    kick,
+    clap,
+    hat,
+    openHat,
+    shaker,
+    rim,
+    ride,
+    metallic,
+    tom,
+    bass,
+    bassVoice,
+    chord,
+    pad,
+    texture,
+    riser,
+    downlifter,
+    synth,
+    synthPalette,
+    activeSynthEngines,
+  });
 
   return {
     bar,
@@ -614,18 +834,18 @@ export function buildBarPlan({
     bassVoice,
     chord,
     pad,
-    texture:
-      (barInPhrase === 0 || sectionStart) &&
-      barRng() < 0.16 + profile.texture * 0.62,
-    texturePan: movement.timbre.stereoBias * 0.55 + barRng() * 0.35 - 0.175,
-    riser:
-      section.endBar - localBar === 8 &&
-      !["RELEASE", "VOID"].includes(section.kind),
+    synth,
+    synthPalette,
+    activeSynthEngines,
+    instrumentation,
+    texture,
+    texturePan,
+    riser,
     riserBars: 8,
-    downlifter: sectionStart && ["VOID", "BRIDGE", "RELEASE"].includes(section.kind),
+    downlifter,
     downlifterBars: 4,
     filterOpen: clamp(0.28 + energy * 0.58 + sectionProgress * 0.14, 0.18, 1),
-    fingerprint: `${movement.index}:${section.index}:${phraseIndex}:${bassCount}:${bassVoice}`,
+    fingerprint: `${movement.index}:${section.index}:${phraseIndex}:${bassCount}:${bassVoice}:${activeSynthEngines.join("+")}`,
   };
 }
 
@@ -639,6 +859,10 @@ export function planNotesBelongToMode(plan) {
     ...plan.bass.filter(Boolean).map((note) => note.midi),
     ...plan.chord.filter(Boolean).flatMap((event) => event.notes),
     ...(plan.pad?.notes || []),
+    ...Object.values(plan.synth || {})
+      .flat()
+      .filter(Boolean)
+      .map((note) => note.midi),
   ];
   return notes.every((note) => pitchClasses.has(((note % 12) + 12) % 12));
 }
@@ -667,8 +891,20 @@ export function planPatternSignature(plan) {
     laneMask(plan.metallic),
     laneMask(plan.tom),
     laneMask(plan.bass),
+    laneMask(plan.synth?.fm || []),
+    laneMask(plan.synth?.modal || []),
+    laneMask(plan.synth?.string || []),
     bassDegrees,
     plan.bassVoice,
     chordPitchClasses,
+  ].join("/");
+}
+
+export function planInstrumentSignature(plan) {
+  return [
+    plan.synthPalette?.fm?.id || "",
+    plan.synthPalette?.modal?.id || "",
+    plan.synthPalette?.string?.id || "",
+    ...(plan.instrumentation || []).map((item) => item.id),
   ].join("/");
 }

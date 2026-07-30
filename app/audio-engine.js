@@ -13,8 +13,14 @@ import {
   transitionDurationFor,
   transitionProgress,
 } from "./techno-model.js";
+import { SYNTH_VOICE_LIMIT } from "./synth-dsp.js";
+import { stageSynthPalette } from "./synth-genomes.js";
 
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+const AudioWorkletNodeClass =
+  window.AudioWorkletNode || globalThis.AudioWorkletNode;
+const NATIVE_VOICE_LIMIT = 72;
+const NATIVE_SOURCE_LIMIT = 144;
 
 function freshSeed() {
   if (window.crypto?.getRandomValues) {
@@ -74,6 +80,7 @@ export class InfiniteTechnoEngine {
     this.timer = null;
     this.visualTimers = new Set();
     this.activeVoices = new Set();
+    this.activeSourceCount = 0;
     this.bar = 0;
     this.step = 0;
     this.nextStepTime = 0;
@@ -85,6 +92,22 @@ export class InfiniteTechnoEngine {
     this.lastOpenHatEnd = 0;
     this.analyser = null;
     this.cachedCurves = new Map();
+    this.synthBank = null;
+    this.synthWorkletReady = false;
+    this.runtimeSynthPalette = null;
+    this.runtimeSynthPhraseIndex = -1;
+    this.instrumentProfile = null;
+    this.instrumentProfilePhraseIndex = -1;
+    this.phraseInstrumentation = Object.freeze([]);
+    this.phraseInstrumentationKey = "";
+    this.sentSynthGenomeIds = new Set();
+    this.synthStats = {
+      voices: 0,
+      queued: 0,
+      lateEvents: 0,
+      droppedEvents: 0,
+      startedEvents: 0,
+    };
   }
 
   profileTempo(profile, bar) {
@@ -107,6 +130,11 @@ export class InfiniteTechnoEngine {
     if (!this.running) {
       this.activeVibe = vibeId;
       this.vibeTransition = null;
+      this.runtimeSynthPalette = null;
+      this.runtimeSynthPhraseIndex = -1;
+      this.instrumentProfile = null;
+      this.instrumentProfilePhraseIndex = -1;
+      this.phraseInstrumentationKey = "";
       this.currentTempo = this.profileTempo(profileForVibe(vibeId), this.bar);
       this.planBar = -1;
       this.onEvent({ type: "intent", kind: "vibe", active: vibeId, immediate: true });
@@ -139,6 +167,7 @@ export class InfiniteTechnoEngine {
     if (!this.running) {
       this.activeTonality = tonality;
       this.tonalityTransition = null;
+      this.phraseInstrumentationKey = "";
       this.planBar = -1;
       this.onEvent({ type: "intent", kind: "tonality", active: tonality, immediate: true });
       return;
@@ -175,10 +204,15 @@ export class InfiniteTechnoEngine {
   }
 
   applySeed(seed) {
+    if (!this.running) {
+      this.runtimeSynthPalette = null;
+      this.runtimeSynthPhraseIndex = -1;
+    }
     this.seed = seed >>> 0;
     this.pendingSeed = null;
     this.planBar = -1;
     this.plan = null;
+    this.phraseInstrumentationKey = "";
     if (this.ctx) {
       this.noiseBuffer = this.makeNoise(2, hash32(this.seed, 0x29));
       if (this.convolver) this.convolver.buffer = this.makeImpulse(2.6, hash32(this.seed, 0x71));
@@ -288,6 +322,16 @@ export class InfiniteTechnoEngine {
               progress: state.tonalityProgress,
             }
           : null,
+      instrumentation: Object.freeze(
+        (this.phraseInstrumentation || []).filter(
+          (item) => item.role !== "synth" || this.synthWorkletReady,
+        ),
+      ),
+      synth: Object.freeze({
+        available: this.synthWorkletReady,
+        voiceLimit: SYNTH_VOICE_LIMIT,
+        ...this.synthStats,
+      }),
     });
   }
 
@@ -307,6 +351,7 @@ export class InfiniteTechnoEngine {
       }
       this.ctx = context;
       this.activeVoices = voices;
+      this.activeSourceCount = 0;
       this.buildGraph();
       await context.resume();
       if (token !== this.runToken || this.ctx !== context) {
@@ -316,17 +361,25 @@ export class InfiniteTechnoEngine {
       if (context.state !== "running") {
         throw new Error("Audio was blocked. Click Start again to allow sound.");
       }
-      this.running = true;
       context.onstatechange = () => {
         if (
           token === this.runToken &&
           this.ctx === context &&
-          this.running &&
+          (this.running || this.starting) &&
           context.state !== "running"
         ) {
           this.stop("interrupted");
         }
       };
+      await this.loadSynthBank(context);
+      if (token !== this.runToken || this.ctx !== context) {
+        this.disposeContext(context, voices);
+        return;
+      }
+      if (context.state !== "running") {
+        throw new Error("Audio was interrupted. Click Start to resume the set.");
+      }
+      this.running = true;
       this.nextStepTime = context.currentTime + 0.065;
       this.planBar = -1;
       this.masterGain.gain.cancelScheduledValues(context.currentTime);
@@ -342,7 +395,10 @@ export class InfiniteTechnoEngine {
       if (token !== this.runToken) return;
       this.running = false;
       if (this.ctx === context) this.ctx = null;
-      if (this.activeVoices === voices) this.activeVoices = new Set();
+      if (this.activeVoices === voices) {
+        this.activeVoices = new Set();
+        this.activeSourceCount = 0;
+      }
       throw error;
     } finally {
       if (token === this.runToken) this.starting = false;
@@ -362,9 +418,27 @@ export class InfiniteTechnoEngine {
     const context = this.ctx;
     const master = this.masterGain;
     const voices = this.activeVoices;
+    try {
+      this.synthBank?.port?.postMessage({ type: "all-notes-off" });
+    } catch (_) {
+      // The worklet may already be gone during page teardown.
+    }
     this.activeVoices = new Set();
+    this.activeSourceCount = 0;
     this.ctx = null;
     this.analyser = null;
+    this.synthBank = null;
+    this.synthWorkletReady = false;
+    this.phraseInstrumentation = Object.freeze([]);
+    this.phraseInstrumentationKey = "";
+    this.sentSynthGenomeIds.clear();
+    this.synthStats = {
+      voices: 0,
+      queued: 0,
+      lateEvents: 0,
+      droppedEvents: 0,
+      startedEvents: 0,
+    };
     this.lastOpenHatGain = null;
     this.lastOpenHatEnd = 0;
 
@@ -481,6 +555,89 @@ export class InfiniteTechnoEngine {
     this.syncEffects(profileForVibe(this.activeVibe), null, true);
   }
 
+  async loadSynthBank(context) {
+    this.synthBank = null;
+    this.synthWorkletReady = false;
+    if (!context.audioWorklet || typeof AudioWorkletNodeClass !== "function") {
+      this.onEvent({
+        type: "synth-state",
+        available: false,
+        message: "Advanced synthesis is unavailable in this browser.",
+      });
+      return;
+    }
+    try {
+      const workletUrl = new URL("./synth-worklet.js", import.meta.url);
+      workletUrl.searchParams.set("v", GENERATOR_VERSION);
+      await context.audioWorklet.addModule(workletUrl.href);
+      if (this.ctx !== context || context.state === "closed") return;
+      const node = new AudioWorkletNodeClass(context, "quantum-synth-bank", {
+        numberOfInputs: 0,
+        numberOfOutputs: 3,
+        outputChannelCount: [2, 2, 2],
+        processorOptions: { maxVoices: SYNTH_VOICE_LIMIT },
+      });
+      this.synthDry = context.createGain();
+      this.synthDelaySend = context.createGain();
+      this.synthReverbSend = context.createGain();
+      this.synthDry.gain.value = 0.92;
+      this.synthDelaySend.gain.value = 0.86;
+      this.synthReverbSend.gain.value = 0.84;
+      node.connect(this.synthDry, 0, 0);
+      node.connect(this.synthDelaySend, 1, 0);
+      node.connect(this.synthReverbSend, 2, 0);
+      this.synthDry.connect(this.musicBus);
+      this.synthDelaySend.connect(this.delayIn);
+      this.synthReverbSend.connect(this.reverbIn);
+      node.port.onmessage = (event) => {
+        if (event.data?.type !== "stats") return;
+        this.synthStats = {
+          voices: clamp(Number(event.data.voices) || 0, 0, SYNTH_VOICE_LIMIT),
+          queued: clamp(Number(event.data.queued) || 0, 0, 256),
+          lateEvents: Math.max(0, Number(event.data.lateEvents) || 0),
+          droppedEvents: Math.max(0, Number(event.data.droppedEvents) || 0),
+          startedEvents: Math.max(0, Number(event.data.startedEvents) || 0),
+        };
+        this.onEvent({ type: "synth-stats", ...this.synthStats });
+      };
+      node.onprocessorerror = () => {
+        if (this.ctx !== context || this.synthBank !== node) return;
+        this.synthBank = null;
+        this.synthWorkletReady = false;
+        this.synthStats = {
+          voices: 0,
+          queued: 0,
+          lateEvents: this.synthStats.lateEvents,
+          droppedEvents: this.synthStats.droppedEvents,
+          startedEvents: this.synthStats.startedEvents,
+        };
+        safeDisconnect(node);
+        this.onEvent({
+          type: "synth-state",
+          available: false,
+          message: "Advanced synthesis stopped; the core engine is continuing.",
+        });
+      };
+      this.synthBank = node;
+      this.synthWorkletReady = true;
+      this.onEvent({
+        type: "synth-state",
+        available: true,
+        voiceLimit: SYNTH_VOICE_LIMIT,
+      });
+    } catch (error) {
+      if (this.ctx !== context || context.state === "closed") return;
+      this.synthBank = null;
+      this.synthWorkletReady = false;
+      this.onEvent({
+        type: "synth-state",
+        available: false,
+        message:
+          error?.message || "The advanced synthesis bank could not be loaded.",
+      });
+    }
+  }
+
   makeNoise(seconds, seed) {
     const context = this.ctx;
     const length = Math.floor(context.sampleRate * seconds);
@@ -583,17 +740,150 @@ export class InfiniteTechnoEngine {
     }
     this.settleTransitions(bar);
     const settledState = this.resolveMusicalState(bar);
-    this.plan = buildBarPlan({
+    const phraseIndex = Math.floor(Math.max(0, bar) / 8);
+    if (
+      !this.instrumentProfile ||
+      this.instrumentProfilePhraseIndex !== phraseIndex
+    ) {
+      this.instrumentProfile = Object.freeze({
+        ...settledState.profile,
+        bpm: Object.freeze([...settledState.profile.bpm]),
+      });
+      this.instrumentProfilePhraseIndex = phraseIndex;
+    }
+    const candidatePlan = buildBarPlan({
       seed: this.seed,
       bar,
       vibeId: settledState.dominantVibe,
       tonality: settledState.dominantTonality,
       profile: settledState.profile,
+      instrumentProfile: this.instrumentProfile,
     });
+    this.plan = this.adoptRuntimeSynthPalette(candidatePlan);
+    this.refreshPhraseInstrumentation(bar);
+    this.syncSynthGenomes(this.plan);
     this.planState = settledState;
     this.planBar = bar;
     this.syncEffects(settledState.profile, this.plan);
     return this.plan;
+  }
+
+  adoptRuntimeSynthPalette(plan) {
+    if (
+      !this.runtimeSynthPalette ||
+      this.runtimeSynthPhraseIndex !== plan.phraseIndex
+    ) {
+      this.runtimeSynthPalette = stageSynthPalette(
+        this.runtimeSynthPalette,
+        plan.synthPalette,
+        plan.phraseIndex,
+      );
+      this.runtimeSynthPhraseIndex = plan.phraseIndex;
+    }
+    return this.decoratePlanWithRuntimeSynthPalette(plan);
+  }
+
+  decoratePlanWithRuntimeSynthPalette(plan) {
+    const palette = this.runtimeSynthPalette || plan.synthPalette;
+    const instrumentation = Object.freeze(
+      plan.instrumentation.map((item) => {
+        if (item.role !== "synth" || !item.engine || !palette?.[item.engine]) {
+          return item;
+        }
+        const genome = palette[item.engine];
+        return Object.freeze({
+          ...item,
+          id: genome.id,
+          label: genome.label,
+          detail: genome.detail,
+        });
+      }),
+    );
+    return {
+      ...plan,
+      synthPalette: palette,
+      instrumentation,
+    };
+  }
+
+  refreshPhraseInstrumentation(bar) {
+    const phraseStart = Math.floor(Math.max(0, bar) / 8) * 8;
+    const paletteKey = ["fm", "modal", "string"]
+      .map((engine) => this.runtimeSynthPalette?.[engine]?.id || "")
+      .join(":");
+    const key = `${this.seed}:${phraseStart}:${paletteKey}`;
+    if (key === this.phraseInstrumentationKey) return;
+
+    const items = [];
+    const seen = new Set();
+    for (let targetBar = phraseStart; targetBar < phraseStart + 8; targetBar += 1) {
+      const targetState = this.resolveMusicalState(targetBar);
+      const plan =
+        targetBar === bar
+          ? this.plan
+          : this.decoratePlanWithRuntimeSynthPalette(
+              buildBarPlan({
+                seed: this.seed,
+                bar: targetBar,
+                vibeId: targetState.dominantVibe,
+                tonality: targetState.dominantTonality,
+                profile: targetState.profile,
+                instrumentProfile: this.instrumentProfile,
+              }),
+            );
+      for (const item of plan.instrumentation) {
+        if (seen.has(item.id)) continue;
+        seen.add(item.id);
+        items.push(item);
+      }
+    }
+    this.phraseInstrumentation = Object.freeze(items);
+    this.phraseInstrumentationKey = key;
+  }
+
+  syncSynthGenomes(plan) {
+    if (!this.synthBank || !this.synthWorkletReady) return;
+    if (this.sentSynthGenomeIds.size > 96) this.sentSynthGenomeIds.clear();
+    for (const engine of plan.activeSynthEngines || []) {
+      const genome = plan.synthPalette?.[engine];
+      if (!genome || this.sentSynthGenomeIds.has(genome.id)) continue;
+      this.synthBank.port.postMessage({ type: "define-genome", genome });
+      this.sentSynthGenomeIds.add(genome.id);
+    }
+  }
+
+  scheduleSynthNote(engine, time, note, stepDuration, genome, profile) {
+    if (!this.synthBank || !this.synthWorkletReady || !this.ctx || !genome) return;
+    const durationScale = engine === "fm" ? genome.durationScale : 1;
+    const durationFrames = Math.round(
+      stepDuration *
+        clamp(note.length, 1, 6) *
+        durationScale *
+        this.ctx.sampleRate,
+    );
+    this.synthBank.port.postMessage({
+      type: "note",
+      engine,
+      genomeId: genome.id,
+      midi: note.midi,
+      velocity: note.velocity,
+      startFrame: Math.round(time * this.ctx.sampleRate),
+      durationFrames,
+      noteSeed: hash32(this.seed, this.bar, this.step, genome.id),
+      priority: engine === "modal" ? 0 : 1,
+      delaySend: clamp(
+        0.035 + profile.space * 0.22 + (engine === "fm" ? 0.035 : 0),
+        0,
+        0.42,
+      ),
+      reverbSend: clamp(
+        0.06 +
+          profile.space * 0.3 +
+          (engine === "modal" ? 0.08 : engine === "string" ? 0.04 : 0),
+        0,
+        0.55,
+      ),
+    });
   }
 
   scheduleStep(bar, step, time, stepDuration, state) {
@@ -608,6 +898,7 @@ export class InfiniteTechnoEngine {
     let bassPulse = 0;
     let hatPulse = 0;
     let chordPulse = 0;
+    let synthPulse = 0;
 
     if (plan.kick[step]) {
       this.kick(eventTime, plan.kick[step], plan.energy, plan.movement.timbre);
@@ -644,6 +935,19 @@ export class InfiniteTechnoEngine {
       );
       bassPulse = plan.bass[step].accent ? 1 : 0.62;
     }
+    for (const engine of plan.activeSynthEngines || []) {
+      const note = plan.synth?.[engine]?.[step];
+      if (!note) continue;
+      this.scheduleSynthNote(
+        engine,
+        eventTime,
+        note,
+        stepDuration,
+        plan.synthPalette?.[engine],
+        plan.profile,
+      );
+      synthPulse = Math.max(synthPulse, note.velocity);
+    }
     if (plan.chord[step]) {
       this.chord(eventTime, plan.chord[step], plan.profile);
       chordPulse = plan.chord[step].velocity;
@@ -671,6 +975,7 @@ export class InfiniteTechnoEngine {
       bass: bassPulse,
       hat: hatPulse,
       chord: chordPulse,
+      synth: synthPulse,
       section: plan.section.kind,
       sectionProgress: plan.sectionProgress,
       movement: plan.movement.index,
@@ -692,6 +997,13 @@ export class InfiniteTechnoEngine {
             }
           : null,
       sectionStart: step === 0 && plan.sectionStart,
+      instrumentation:
+        step === 0
+          ? this.phraseInstrumentation.filter(
+              (item) => item.role !== "synth" || this.synthWorkletReady,
+            )
+          : null,
+      synthEngines: step === 0 ? [...plan.activeSynthEngines] : null,
     });
   }
 
@@ -706,20 +1018,32 @@ export class InfiniteTechnoEngine {
   }
 
   registerVoice(sources, nodes) {
-    if (this.activeVoices.size >= 96) {
+    const registry = this.activeVoices;
+    const sourceCost = sources.length;
+    if (
+      registry.size >= NATIVE_VOICE_LIMIT ||
+      this.activeSourceCount + sourceCost > NATIVE_SOURCE_LIMIT
+    ) {
       sources.forEach(safeDisconnect);
       nodes.forEach(safeDisconnect);
       return false;
     }
     const token = { sources, nodes };
-    this.activeVoices.add(token);
+    registry.add(token);
+    this.activeSourceCount += sourceCost;
     let remaining = sources.length;
     const cleanup = () => {
       remaining -= 1;
       if (remaining > 0) return;
       nodes.forEach(safeDisconnect);
       sources.forEach(safeDisconnect);
-      this.activeVoices.delete(token);
+      registry.delete(token);
+      if (this.activeVoices === registry) {
+        this.activeSourceCount = Math.max(
+          0,
+          this.activeSourceCount - sourceCost,
+        );
+      }
     };
     sources.forEach((source) => {
       source.onended = cleanup;
