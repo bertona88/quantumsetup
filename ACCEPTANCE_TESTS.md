@@ -219,10 +219,10 @@ separate boundaries.
   emergent-form readback, low-end playback, responsive layout, and console smoke
   pass.
 - [ ] `1.4.0` long listening review is attached.
-- [ ] `1.4.0` production workflow succeeds.
-- [ ] all `1.4.0` public application assets match the tested candidate
+- [x] `1.4.0` production workflow succeeds.
+- [x] all `1.4.0` public application assets match the tested candidate
   byte-for-byte.
-- [ ] public `1.4.0` emergent-form, low-end, advanced-synth, council, and Signal Deck
+- [x] public `1.4.0` emergent-form, low-end, advanced-synth, council, and Signal Deck
   smoke passes.
 
 Prior local `1.3.0` evidence remains valid only for that candidate: all 55
@@ -270,3 +270,17 @@ final patched run and live resizes reported zero late or dropped worklet events.
 The 390×844 and 320×568 layouts had zero horizontal overflow, and browser console
 warning/error logs were empty. This is deterministic and interaction evidence, not
 a long listening result or public-release result.
+
+Production `1.4.0` evidence: commit
+[`624a431`](https://github.com/bertona88/quantumsetup/commit/624a4319b94a2fff8bf03b3fbd45ad4466e2b767)
+deployed successfully in GitHub Pages run
+[`30563730157`](https://github.com/bertona88/quantumsetup/actions/runs/30563730157)
+on 2026-07-30. Cache-busted SHA-256 comparisons matched the tested candidate
+byte-for-byte for `index.html`, `styles.css`, `main.js`, `audio-engine.js`,
+`techno-model.js`, `emergent-form.js`, `generative-utils.js`, `synth-genomes.js`,
+`synth-dsp.js`, `synth-worklet.js`, `taste-model.js`, `instrument-preview.js`,
+`signal-deck.js`, and `robots.txt` at `https://quantumsetup.ai/`. Public foreground
+smoke exercised Start, the generated kick/bass/ensemble readout, Peak trajectory
+queueing, Stop, Signal Deck Hear, preview → Start handoff, scheduler settlement,
+and clean final Stop. This is deployment and interaction evidence, not a long
+listening result.
