@@ -246,7 +246,7 @@ separate boundaries.
   smoke is attached.
 - [ ] `1.5.0` rendered or sequential audible comparison smoke is attached.
 - [ ] `1.5.0` long listening review is attached.
-- [ ] `1.5.0` production workflow succeeds and public assets match the tested
+- [x] `1.5.0` production workflow succeeds and public assets match the tested
   candidate.
 
 The `1.4.0` results below are historical release evidence and do not establish
@@ -261,6 +261,20 @@ and renderer-unit evidence. Local accelerated browser probes for adjacent seeds
 different tempos, ensemble casts, bass families, tonal fields, and form states at
 bars 6–17. Browser state divergence is not a full-mix comparison, listening result,
 deployment, or public acceptance.
+
+Production `1.5.0` evidence: commit
+[`0950e4e`](https://github.com/bertona88/quantumsetup/commit/0950e4e66a3b2e80f47bc1833fc242623b7c5fdb)
+deployed successfully in GitHub Pages run
+[`30578274990`](https://github.com/bertona88/quantumsetup/actions/runs/30578274990)
+and deployment `5681618042` on 2026-07-30. Raw-path SHA-256 comparisons matched the
+committed bytes for `index.html`, `styles.css`, `main.js`, `audio-engine.js`,
+`techno-model.js`, `emergent-form.js`, `generative-utils.js`,
+`trajectory-identity.js`, `track-dna.js`, `synth-genomes.js`, `synth-dsp.js`,
+`synth-worklet.js`, `taste-model.js`, `instrument-preview.js`, `signal-deck.js`,
+and `robots.txt` at `https://quantumsetup.ai/`. A fresh public foreground smoke
+retained fixed seed `01`, started the audio engine, advanced to bar 6, exposed the
+planned ensemble, and stopped cleanly with empty warning/error logs. This is
+deployment and interaction evidence, not rendered comparison or long listening.
 
 - [x] the complete `1.4.0` deterministic model, emergent-form, low-end, council,
   lifecycle, taste/deck/preview, DSP, and syntax check result is recorded.
