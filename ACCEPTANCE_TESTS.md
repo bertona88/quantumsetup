@@ -154,11 +154,14 @@ least one of orchestration, timbre, or harmony for every pair.
   named-artist participation, endorsement, literal opinions, and imitation.
 - [ ] a final local `2.0.0` candidate report links every deterministic, render,
   listening, browser, and soak artifact.
-- [ ] commit and push are separately authorized and completed.
-- [ ] deployment is separately authorized and completed from the exact tested
-  source state.
-- [ ] public file hashes, browser behavior, and material snapshot are verified
-  against the named deployment.
+- [x] commit and push were separately authorized and completed as `96b6c24`.
+- [x] deployment completed from the exact tested source state in GitHub Pages run
+  `30627589662` on 2026-07-31.
+- [x] public `index.html`, `main.js`, `audio-engine.js`, `techno-model.js`, and
+  `material-planner.js` hashes matched local release bytes. A public browser smoke
+  entered `RUNNING — CONTINUOUS SET`, exposed a live material/ensemble snapshot,
+  stopped cleanly at `READY — TAP START`, and produced no browser warnings or
+  errors.
 - [ ] public acceptance is explicitly recorded.
 
 ## Historical release evidence
