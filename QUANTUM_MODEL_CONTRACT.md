@@ -2,7 +2,8 @@
 
 Applies to: Infinite Techno `2.1.0`
 Scientific status: artistic audio visualization, not a quantum model
-Release boundary: local performance-control release candidate; no deployment claim
+Release boundary: deployed `2.1.0` performance release; no scientific claim follows
+from deployment
 
 ## Boundary
 

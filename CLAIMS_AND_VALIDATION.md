@@ -1,10 +1,11 @@
 # Claims and Validation
 
-Status: claim register for local Infinite Techno `2.1.0` performance-control release candidate
+Status: claim register for deployed Infinite Techno `2.1.0` performance controls
 
-The `2.1.0` claim boundary is local until its named deployment is verified. The
-deployed `2.0.0` deterministic, browser, and deployment evidence does not validate
-the new performance console.
+The named `2.1.0` deployment is verified at `b16c5dc`, Pages run `30631366177`, and
+deployment `5691599940`. All 18 published files byte-match and a focused public
+performance smoke passes; listening, render, full browser, soak, and public
+acceptance remain separate boundaries.
 
 ## Allowed claims
 
@@ -129,8 +130,7 @@ The application does not claim:
 - that twelve symbolic phrase candidates guarantee a good groove, a perceptually
   distinct record, or a listener-preferred choice;
 - that `2.1.0` has passed its fixed 96-bar renders, blinded listening comparison,
-  complete browser-acceptance gate, 30–60-minute soak, verified deployment, or
-  public-acceptance gate;
+  complete browser-acceptance gate, 30–60-minute soak, or public-acceptance gate;
 - subjective equivalence to a named artist, professional producer, or top DJ;
 - machine learning, training on a music catalog, or artist imitation;
 - participation, endorsement, approval, or literal opinions from the named artistic
@@ -170,7 +170,7 @@ The application does not claim:
 | final-candidate local `2.1.0` performance browser smoke | user-gesture Start, smoothed Low EQ, reversible next-beat Bassline and Kick cuts, queued Energy and Rolling bass-character targets, durable-control reload, nonpersistent cuts, warning/error-free console, and zero horizontal overflow at 1280, 390, and 320 pixels | full browser matrix, reduced-motion or screen-reader behavior, listening quality, soak reliability, deployment, or public behavior |
 | implementation-stage `2.0.0` browser smoke | user-gesture Start, populated running ensemble, future-boundary Vibe and Tonality requests, clean Stop, and a warning/error-free console on the then-current candidate | exact final-source browser behavior, material API inspection, New Trajectory, preview/restart, reduced-motion, long-duration reliability, or listening quality |
 | responsive visual review | zero horizontal overflow at `1280×720`, `390×844`, and `320×568` on the tested browser | screen-reader quality or every browser/device |
-| deployment hash comparison | named public files match tested local files | future cache or service availability; `2.1.0` evidence remains pending until its authorized release completes |
+| `2.1.0` deployment hash comparison | all 18 published files match `b16c5dc` local bytes through cache-busted SHA-256 comparison | future cache or service availability, subjective audio quality, full browser coverage, or public acceptance |
 | long listening panel | perceived variation, flow, and musical quality | mathematical nonrepetition |
 | named-device soak | bounded runtime behavior on that device | 24/7 operation everywhere |
 
@@ -194,12 +194,13 @@ Before stronger claims:
 - add a bounded multi-day recurrence ledger and validate long-horizon recall;
 - profile recurrent random access and scheduler behavior over multi-day phrase
   indices;
-- complete the already-authorized `2.1.0` commit, push, deployment, and public byte
-  verification while keeping public acceptance separate.
+- keep deployment monitoring and public acceptance separate from the completed
+  `2.1.0` release verification.
 
 ## Historical evidence boundary
 
 The deployed `2.0.0` release recorded deterministic material checks, foreground
 browser interaction, and byte-matched deployment evidence. That remains valid
-history for `2.0.0` only. It does not validate the `2.1.0` performance console,
-listening quality, browser runtime, soak behavior, deployment, or public acceptance.
+history for `2.0.0` only; the separate evidence above establishes the bounded
+deployment and focused-browser claims for `2.1.0`, not listening quality, the full
+browser matrix, soak behavior, or public acceptance.

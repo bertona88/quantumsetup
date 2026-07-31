@@ -1,10 +1,10 @@
 # Interface Contract
 
-Candidate browser API contract: `window.QuantumTechno/2.1.0`
+Browser API contract: `window.QuantumTechno/2.1.0`
 Scope: one audio-first generative techno instrument
-Release boundary: local generative-material candidate; final-candidate focused
-performance browser smoke recorded; full browser, soak, listening, render,
-deployment, and public-acceptance gates remain open
+Release boundary: deployed production interface from `b16c5dc`; local and public
+focused performance smoke recorded; full browser, soak, listening, render, and
+public-acceptance gates remain open
 
 ## One-surface rule
 

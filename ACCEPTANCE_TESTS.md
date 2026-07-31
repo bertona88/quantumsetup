@@ -1,6 +1,7 @@
 # Acceptance Tests
 
-Current gate: local Infinite Techno `2.1.0` performance-control release candidate
+Current gate: deployed Infinite Techno `2.1.0` performance-control release;
+public acceptance remains open
 
 Passing one gate does not imply another. Deterministic structure, rendered audio,
 listening quality, active-browser behavior, long-run reliability, deployment, and
@@ -165,11 +166,13 @@ least one of orchestration, timbre, or harmony for every pair.
   listening, browser, and soak artifact.
 - [x] the prior `2.0.0` commit, push, GitHub Pages run `30627589662`, public byte
   comparison, and browser smoke remain historical release evidence.
-- [ ] the authorized `2.1.0` commit and push complete.
-- [ ] the exact tested `2.1.0` source deploys successfully through GitHub Pages.
-- [ ] every published `2.1.0` asset byte-matches local release bytes and a fresh
-  public browser smoke exercises the performance console without warnings or
-  errors.
+- [x] the authorized `2.1.0` commit and push completed as `b16c5dc`.
+- [x] the exact tested `2.1.0` source deployed successfully through GitHub Pages
+  run `30631366177` and deployment `5691599940` on 2026-07-31.
+- [x] all 18 published `2.1.0` files byte-match local `b16c5dc` release bytes. A
+  fresh public browser started audio, moved Low EQ, landed a Bassline cut, queued
+  Energy and Rolling bass-character direction, and stopped cleanly without browser
+  warnings or errors.
 - [ ] public acceptance is explicitly recorded.
 
 ## Historical release evidence

@@ -1,8 +1,8 @@
 # Infinite Techno Musical System
 
-Status: local `2.1.0` performance-control release candidate; 130-test deterministic
-suite and focused performance browser smoke passed; render, listening, full browser,
-soak, deployment, and public-acceptance gates remain separate
+Status: deployed `2.1.0` performance-control release; 130-test deterministic suite,
+focused performance browser smoke, and 18-file public byte comparison passed;
+render, listening, full browser, soak, and public-acceptance gates remain separate
 Generator version: `2.1.0` (`2.0.0` material-state schema)
 Primary product: music  
 Quantum role: visual and poetic contour only
@@ -372,7 +372,7 @@ techniques. They are not copies of, preset-compatible with, or claimed equivalen
 commercial instruments. The modal and string voices are creative synthesis models,
 not calibrated simulations of physical objects.
 
-The current local candidate samples a 128-bit trajectory ID on each clean page load
+The current release samples a 128-bit trajectory ID on each clean page load
 and is deterministic and coordinate-addressed by that ID, absolute step, phrase,
 lineage, candidate, and lane. The initial Vibe and harmonic field are also derived
 from the ID, so a fresh session does not always enter through the same musical
@@ -381,13 +381,14 @@ path. It has recurrent form state, persistent material state, bounded climax and
 kick behavior, phrase memory, symbolic candidate selection, and a separate scored
 timbre-candidate pool.
 
-That local implementation does not establish persuasive long-form musical quality,
-audible trajectory separation, long-duration foreground-browser reliability,
-multi-day performance, or deployment. All 130 deterministic tests pass. A focused
-final-candidate performance smoke covers Start, EQ, both quantized cuts, a direction
-target, bass character, persistence, responsive widths, and console cleanliness.
-Eight fixed 96-bar renders and stems, blinded listening, the full browser matrix, a
-30–60-minute soak, deployment, and public acceptance remain separate gates.
+The deterministic and focused-browser evidence does not establish persuasive
+long-form musical quality, audible trajectory separation, long-duration
+foreground-browser reliability, or multi-day performance. All 130 deterministic
+tests pass. Focused local and public performance smokes cover Start/Stop, EQ,
+quantized cuts, direction targeting, bass character, persistence, responsive
+widths, and console cleanliness. The exact 18-file Pages bundle byte-matches
+`b16c5dc`. Eight fixed 96-bar renders and stems, blinded listening, the full browser
+matrix, a 30–60-minute soak, and public acceptance remain separate gates.
 
 ## Vibe vocabularies
 

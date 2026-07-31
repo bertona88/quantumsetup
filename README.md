@@ -2,8 +2,8 @@
 
 **An audio-first, endlessly evolving procedural techno set.**
 
-- Live: https://quantumsetup.ai/ (`2.0.0` production while the authorized `2.1.0`
-  performance-control release candidate is validated)
+- Live: https://quantumsetup.ai/ (`2.1.0` performance controls deployed from
+  `b16c5dc`)
 - Audio: synthesized locally with the Web Audio API; no samples or network calls
 - Interaction: one music surface with Vibe, Harmonic Gravity, live performance
   controls, and a local timbre preference deck
@@ -125,9 +125,10 @@ beat-quantized Kick/Bassline cuts, nine phrase-safe macro directions, and five
 bassline-character targets. It does not expose note masks or individual synthesis
 parameters.
 
-`2.1.0` remains a release candidate until its final browser matrix, deployment, and
-public byte verification complete. Fixed renders, blinded listening, a 30–60-minute
-soak, and public acceptance remain separate gates.
+`2.1.0` deployed through GitHub Pages run `30631366177`; every one of the 18
+published files byte-matched the tested release and a focused public performance
+smoke was clean. The full browser matrix, fixed renders, blinded listening, a
+30–60-minute soak, and public acceptance remain separate gates.
 
 Read [MUSICAL_SYSTEM.md](./MUSICAL_SYSTEM.md) for the composition grammar and
 research basis, and [ARTISTIC_COUNCIL.md](./ARTISTIC_COUNCIL.md) for the editorial

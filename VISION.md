@@ -47,7 +47,7 @@ direction enters on the next eight-bar phrase and glides for eight bars.
 
 ## Current architecture
 
-The `2.1.0` performance-control candidate retains the `2.0.0` material planner's
+The deployed `2.1.0` performance-control release retains the `2.0.0` material planner's
 two cooperating recurrent layers. Emergent form
 continues to advance energy, tension, floor trust, fatigue, motif salience, causal
 debts, climax state, and cooldowns every eight bars. A separate phrase-sequential
@@ -98,10 +98,10 @@ replace that DNA, but it now has structural consequences within its bounds.
 Deterministic candidate tests can establish state bounds, causality, reachability,
 replay, and symbolic separation. They do not prove arbitrary pairwise audible
 uniqueness, groove quality, multi-day performance, deployed-browser behavior, or
-professional-DJ subjective quality. The `2.1.0` candidate remains local until its
-authorized release is verified. Its deterministic suite passes; render, listening,
-final browser, 30–60-minute soak, deployment, and public-acceptance gates remain
-separate.
+professional-DJ subjective quality. `2.1.0` is deployed from `b16c5dc`; all 18
+published assets byte-match and the focused public performance smoke passes. Its
+130-test deterministic suite also passes; render, listening, the full browser
+matrix, a 30–60-minute soak, and public-acceptance gates remain separate.
 
 ## Next quality frontier
 
