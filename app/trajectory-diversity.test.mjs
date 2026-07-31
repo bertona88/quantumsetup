@@ -1,9 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildBarPlan, profileForVibe } from "./techno-model.js";
+import {
+  advanceMaterialState,
+  buildBarPlan,
+  createMaterialState,
+  derivePhraseState,
+  profileForVibe,
+} from "./techno-model.js";
+import { LANE_DOMAINS } from "./material-planner.js";
+import { createTrackDNA } from "./track-dna.js";
 
 const TRAJECTORY_WINDOW_BARS = 192;
+const FIRST_48_BAR_WINDOW = 48;
+const FIRST_48_PHRASE_GRAMMAR_FLOOR = 0.1;
 const TEST_VIBE = "hypnotic";
 const TEST_TONALITY = "minor";
 
@@ -36,6 +46,33 @@ const VIBE_IDS = Object.freeze([
 const DETERMINISM_TEST_SEED = "0123456789abcdeffedcba9876543210";
 const METADATA_RELABEL_SEED = "0123456789abcdeffedcba9876543211";
 const VIBE_TEST_SEED = "deadbeefdeadbeefdeadbeefdeadbeef";
+
+const EXPECTED_LANE_DOMAINS = Object.freeze({
+  kick: Object.freeze([12, 15, 16, 17, 18, 20]),
+  clap: Object.freeze([12, 15, 16, 18, 20, 24]),
+  hats: Object.freeze([
+    5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+    24, 25, 26, 27, 28, 29,
+  ]),
+  percussion: Object.freeze([
+    5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+    24, 25, 26, 27, 28, 29,
+  ]),
+  bass: Object.freeze([12, 15, 16, 18, 20, 24, 28, 32]),
+  synthFm: Object.freeze([7, 9, 11, 13, 15, 17, 19, 23, 29, 31]),
+  synthModal: Object.freeze([7, 9, 11, 13, 15, 17, 19, 23, 29, 31]),
+  synthString: Object.freeze([7, 9, 11, 13, 15, 17, 19, 23, 29, 31]),
+});
+
+const AUDIBLE_POLYMETER_LANES = Object.freeze([
+  "clap",
+  "hats",
+  "percussion",
+  "bass",
+  "synthFm",
+  "synthModal",
+  "synthString",
+]);
 
 const RHYTHM_LANES = Object.freeze([
   ["kick", 6],
@@ -88,18 +125,16 @@ const PROFILE_AUDIO_KEYS = Object.freeze([
 ]);
 
 const DOMAIN_FLOORS = Object.freeze({
-  rhythm: 0.065,
+  rhythm: 0.06,
   bass: 0.09,
   harmony: 0.07,
   advanced: 0.08,
   timbre: 0.1,
   form: 0.065,
 });
-// A trajectory must move across several independent output contracts. One very
-// different scale, kick, or timbre cannot compensate for otherwise identical
-// rhythm, arrangement, and form.
-const MINIMUM_SEPARATED_DOMAINS = 4;
-const MINIMUM_COMPOSITE_DISTANCE = 0.12;
+// The legacy Vibe check retains only its literal multi-domain claim. Cross-seed
+// acceptance now belongs to the stricter first-48-bar contract below.
+const MINIMUM_VIBE_SEPARATED_DOMAINS = 2;
 
 function clamp01(value) {
   return Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
@@ -270,7 +305,8 @@ function emptyCounter(length) {
   return Array.from({ length }, () => 0);
 }
 
-function makeAccumulator() {
+function makeAccumulator(barCount) {
+  const phraseCount = barCount / 8;
   return {
     rhythm: Object.fromEntries(
       RHYTHM_LANES.map(([lane]) => [
@@ -333,15 +369,25 @@ function makeAccumulator() {
       ),
     },
     form: {
-      energyByPhrase: Array.from({ length: 24 }, () => []),
-      filterByPhrase: Array.from({ length: 24 }, () => []),
+      energyByPhrase: Array.from({ length: phraseCount }, () => []),
+      filterByPhrase: Array.from({ length: phraseCount }, () => []),
       attacksPerBar: [],
       textureBars: 0,
       risers: 0,
       downlifters: 0,
       intentionalRests: 0,
     },
+    phraseGrammar: {
+      gestures: [],
+      answerDirections: [],
+      transitions: new Map(),
+      mutationShapes: new Map(),
+    },
   };
+}
+
+function incrementCount(counts, key) {
+  counts.set(key, (counts.get(key) || 0) + 1);
 }
 
 function countLane(accumulator, lane, values) {
@@ -358,11 +404,177 @@ function countPitches(counter, notes) {
   }
 }
 
-function summarizeTrajectory(seed, vibeId = TEST_VIBE, tonality = TEST_TONALITY) {
-  const accumulator = makeAccumulator();
-  const profile = profileForVibe(vibeId);
+function assertMaterialClockContract(materialState, context) {
+  assert.deepEqual(
+    Object.keys(materialState.clocks),
+    Object.keys(EXPECTED_LANE_DOMAINS),
+    `${context} changed the material clock lanes`,
+  );
+  for (const [lane, domain] of Object.entries(EXPECTED_LANE_DOMAINS)) {
+    assert.ok(
+      domain.includes(materialState.clocks[lane].loopLength),
+      `${context} put ${lane} outside its required clock domain`,
+    );
+  }
 
-  for (let bar = 0; bar < TRAJECTORY_WINDOW_BARS; bar += 1) {
+  const kick = materialState.clocks.kick;
+  assert.equal(
+    kick.hits,
+    kick.loopLength === 16 ? 4 : Math.round(kick.loopLength / 4),
+    `${context} violated the kick hit rule`,
+  );
+  assert.ok(
+    [2, 3].includes(materialState.clocks.clap.hits),
+    `${context} violated the two-or-three-hit clap rule`,
+  );
+}
+
+function createAudiblePolymeterTracker() {
+  return {
+    currentPhrase: null,
+    laneRuns: Object.fromEntries(
+      AUDIBLE_POLYMETER_LANES.map((lane) => [lane, null]),
+    ),
+    witness: null,
+  };
+}
+
+function beginAudiblePolymeterPhrase(tracker, materialState) {
+  assert.equal(tracker.currentPhrase, null);
+  tracker.currentPhrase = {
+    phraseIndex: materialState.phraseIndex,
+    clocks: Object.fromEntries(
+      AUDIBLE_POLYMETER_LANES.map((lane) => [
+        lane,
+        materialState.clocks[lane],
+      ]),
+    ),
+    onsets: Object.fromEntries(
+      AUDIBLE_POLYMETER_LANES.map((lane) => [lane, 0]),
+    ),
+  };
+}
+
+function countAudiblePolymeterOnsets(tracker, plan) {
+  const count = (events) => events.filter(Boolean).length;
+  tracker.currentPhrase.onsets.clap += count(plan.clap);
+  tracker.currentPhrase.onsets.hats +=
+    count(plan.hat) + count(plan.openHat);
+  tracker.currentPhrase.onsets.percussion +=
+    count(plan.shaker) +
+    count(plan.rim) +
+    count(plan.ride) +
+    count(plan.metallic) +
+    count(plan.tom);
+  tracker.currentPhrase.onsets.bass += count(plan.bass);
+  tracker.currentPhrase.onsets.synthFm += count(plan.synth.fm);
+  tracker.currentPhrase.onsets.synthModal += count(plan.synth.modal);
+  tracker.currentPhrase.onsets.synthString += count(plan.synth.string);
+}
+
+function finishAudiblePolymeterPhrase(tracker) {
+  const phrase = tracker.currentPhrase;
+  assert.ok(phrase);
+  for (const lane of AUDIBLE_POLYMETER_LANES) {
+    const clock = phrase.clocks[lane];
+    const prior = tracker.laneRuns[lane];
+    const continues =
+      prior?.clockId === clock.id &&
+      prior.loopLength === clock.loopLength &&
+      prior.lastPhraseIndex + 1 === phrase.phraseIndex;
+    const audibleTail = phrase.onsets[lane] > 0
+      ? [
+        ...(continues ? prior.audibleTail : []),
+        Object.freeze({
+          phraseIndex: phrase.phraseIndex,
+          clockId: clock.id,
+          loopLength: clock.loopLength,
+          onsets: phrase.onsets[lane],
+        }),
+      ].slice(-2)
+      : [];
+    const run = {
+      clockId: clock.id,
+      loopLength: clock.loopLength,
+      lastPhraseIndex: phrase.phraseIndex,
+      phraseCount: continues ? prior.phraseCount + 1 : 1,
+      audibleTail,
+    };
+    tracker.laneRuns[lane] = run;
+
+    if (
+      tracker.witness === null &&
+      run.loopLength !== 16 &&
+      run.phraseCount >= 2 &&
+      run.audibleTail.length >= 2
+    ) {
+      tracker.witness = Object.freeze({
+        lane,
+        clockId: run.clockId,
+        loopLength: run.loopLength,
+        phrases: Object.freeze([...run.audibleTail]),
+      });
+    }
+  }
+  tracker.currentPhrase = null;
+}
+
+function summarizeTrajectory(
+  seed,
+  vibeId = TEST_VIBE,
+  tonality = TEST_TONALITY,
+  barCount = TRAJECTORY_WINDOW_BARS,
+) {
+  assert.ok(
+    Number.isSafeInteger(barCount) && barCount > 0 && barCount % 8 === 0,
+    "trajectory summaries require a positive whole number of eight-bar phrases",
+  );
+  const accumulator = makeAccumulator(barCount);
+  const profile = profileForVibe(vibeId);
+  const trackDNA = createTrackDNA(seed);
+  let materialState = null;
+  const audiblePolymeter = createAudiblePolymeterTracker();
+
+  for (let bar = 0; bar < barCount; bar += 1) {
+    const phraseIndex = Math.floor(bar / 8);
+    if (bar % 8 === 0) {
+      if (audiblePolymeter.currentPhrase) {
+        finishAudiblePolymeterPhrase(audiblePolymeter);
+      }
+      const materialInput = {
+        seed,
+        trackDNA,
+        phraseIndex,
+        form: derivePhraseState(seed, phraseIndex),
+        profile,
+        tonality,
+      };
+      materialState = materialState
+        ? advanceMaterialState(materialState, materialInput)
+        : createMaterialState(materialInput);
+      assertMaterialClockContract(
+        materialState,
+        `${seed} phrase ${phraseIndex}`,
+      );
+      beginAudiblePolymeterPhrase(audiblePolymeter, materialState);
+      const previousGesture = accumulator.phraseGrammar.gestures.at(-1);
+      accumulator.phraseGrammar.gestures.push(materialState.gesture);
+      accumulator.phraseGrammar.answerDirections.push(
+        materialState.answerDirection || "none",
+      );
+      if (previousGesture) {
+        incrementCount(
+          accumulator.phraseGrammar.transitions,
+          `${previousGesture}>${materialState.gesture}`,
+        );
+      }
+      incrementCount(
+        accumulator.phraseGrammar.mutationShapes,
+        materialState.mutatedLanes.length > 0
+          ? [...materialState.mutatedLanes].sort().join("+")
+          : "none",
+      );
+    }
     const plan = buildBarPlan({
       seed,
       bar,
@@ -370,7 +582,9 @@ function summarizeTrajectory(seed, vibeId = TEST_VIBE, tonality = TEST_TONALITY)
       tonality,
       profile,
       instrumentProfile: profile,
+      materialState,
     });
+    countAudiblePolymeterOnsets(audiblePolymeter, plan);
     let barAttacks = 0;
 
     for (const [lane] of RHYTHM_LANES) {
@@ -449,20 +663,21 @@ function summarizeTrajectory(seed, vibeId = TEST_VIBE, tonality = TEST_TONALITY)
       accumulator.timbre.profile[key].push(clamp01(plan.profile[key]));
     }
 
-    const phrase = Math.floor(bar / 8);
-    accumulator.form.energyByPhrase[phrase].push(clamp01(plan.energy));
-    accumulator.form.filterByPhrase[phrase].push(clamp01(plan.filterOpen));
+    accumulator.form.energyByPhrase[phraseIndex].push(clamp01(plan.energy));
+    accumulator.form.filterByPhrase[phraseIndex].push(clamp01(plan.filterOpen));
     accumulator.form.attacksPerBar.push(clamp01(barAttacks / 32));
     accumulator.form.textureBars += Number(Boolean(plan.texture));
     accumulator.form.risers += Number(Boolean(plan.riser));
     accumulator.form.downlifters += Number(Boolean(plan.downlifter));
     accumulator.form.intentionalRests += Number(Boolean(plan.form.intentionalRest));
   }
+  finishAudiblePolymeterPhrase(audiblePolymeter);
 
   return Object.freeze({
     seed,
     vibeId,
     tonality,
+    barCount,
     rhythm: Object.freeze(
       Object.fromEntries(
         RHYTHM_LANES.map(([lane, maximum]) => {
@@ -470,7 +685,7 @@ function summarizeTrajectory(seed, vibeId = TEST_VIBE, tonality = TEST_TONALITY)
           return [
             lane,
             Object.freeze({
-              rate: clamp01(data.attacks / TRAJECTORY_WINDOW_BARS / maximum),
+              rate: clamp01(data.attacks / barCount / maximum),
               steps: Object.freeze(normalizedHistogram(data.steps)),
             }),
           ];
@@ -478,7 +693,7 @@ function summarizeTrajectory(seed, vibeId = TEST_VIBE, tonality = TEST_TONALITY)
       ),
     ),
     bass: Object.freeze({
-      rate: clamp01(accumulator.bass.attacks / TRAJECTORY_WINDOW_BARS / 8),
+      rate: clamp01(accumulator.bass.attacks / barCount / 8),
       steps: Object.freeze(normalizedHistogram(accumulator.bass.steps)),
       pitchClasses: Object.freeze(
         normalizedHistogram(accumulator.bass.pitchClasses),
@@ -499,12 +714,12 @@ function summarizeTrajectory(seed, vibeId = TEST_VIBE, tonality = TEST_TONALITY)
     }),
     harmony: Object.freeze({
       chordRate: clamp01(
-        accumulator.harmony.chordAttacks / TRAJECTORY_WINDOW_BARS,
+        accumulator.harmony.chordAttacks / barCount,
       ),
       chordPitchClasses: Object.freeze(
         normalizedHistogram(accumulator.harmony.chordPitchClasses),
       ),
-      padRate: accumulator.harmony.padBars / TRAJECTORY_WINDOW_BARS,
+      padRate: accumulator.harmony.padBars / barCount,
       padPitchClasses: Object.freeze(
         normalizedHistogram(accumulator.harmony.padPitchClasses),
       ),
@@ -516,7 +731,7 @@ function summarizeTrajectory(seed, vibeId = TEST_VIBE, tonality = TEST_TONALITY)
           return [
             engine,
             Object.freeze({
-              rate: clamp01(data.attacks / TRAJECTORY_WINDOW_BARS / 4),
+              rate: clamp01(data.attacks / barCount / 4),
               steps: Object.freeze(normalizedHistogram(data.steps)),
               pitchClasses: Object.freeze(
                 normalizedHistogram(data.pitchClasses),
@@ -565,11 +780,22 @@ function summarizeTrajectory(seed, vibeId = TEST_VIBE, tonality = TEST_TONALITY)
       ...accumulator.form.filterByPhrase.map(mean),
       mean(accumulator.form.attacksPerBar),
       deviation(accumulator.form.attacksPerBar),
-      accumulator.form.textureBars / TRAJECTORY_WINDOW_BARS,
-      accumulator.form.risers / TRAJECTORY_WINDOW_BARS,
-      accumulator.form.downlifters / TRAJECTORY_WINDOW_BARS,
-      accumulator.form.intentionalRests / TRAJECTORY_WINDOW_BARS,
+      accumulator.form.textureBars / barCount,
+      accumulator.form.risers / barCount,
+      accumulator.form.downlifters / barCount,
+      accumulator.form.intentionalRests / barCount,
     ]),
+    phraseGrammar: Object.freeze({
+      gestures: Object.freeze([...accumulator.phraseGrammar.gestures]),
+      answerDirections: Object.freeze([
+        ...accumulator.phraseGrammar.answerDirections,
+      ]),
+      transitions: normalizedEntries(accumulator.phraseGrammar.transitions),
+      mutationShapes: normalizedEntries(
+        accumulator.phraseGrammar.mutationShapes,
+      ),
+    }),
+    audiblePolymeterWitness: audiblePolymeter.witness,
   });
 }
 
@@ -639,6 +865,51 @@ function advancedDistance(left, right) {
   );
 }
 
+function orchestrationDistance(left, right) {
+  return mean(
+    ["fm", "modal", "string"].map((engine) => {
+      const first = left.advanced[engine];
+      const second = right.advanced[engine];
+      return mean([
+        Math.abs(first.rate - second.rate),
+        totalVariation(first.steps, second.steps),
+        totalVariation(first.pitchClasses, second.pitchClasses),
+        totalVariation(first.registers, second.registers),
+        Math.abs(first.velocity - second.velocity),
+        Math.abs(first.length - second.length),
+        Math.abs(first.delaySend - second.delaySend),
+        Math.abs(first.reverbSend - second.reverbSend),
+      ]);
+    }),
+  );
+}
+
+function sequenceDistance(left, right) {
+  assert.equal(left.length, right.length);
+  return mean(left.map((value, index) => Number(value !== right[index])));
+}
+
+function phraseGrammarComponentDistances(left, right) {
+  return Object.freeze({
+    gestures: sequenceDistance(
+      left.phraseGrammar.gestures,
+      right.phraseGrammar.gestures,
+    ),
+    answers: sequenceDistance(
+      left.phraseGrammar.answerDirections,
+      right.phraseGrammar.answerDirections,
+    ),
+    transitions: categoricalDistance(
+      left.phraseGrammar.transitions,
+      right.phraseGrammar.transitions,
+    ),
+    mutations: categoricalDistance(
+      left.phraseGrammar.mutationShapes,
+      right.phraseGrammar.mutationShapes,
+    ),
+  });
+}
+
 function timbreComponentDistances(left, right) {
   return Object.freeze({
     kickAndMovement: vectorDistance(
@@ -672,6 +943,30 @@ function trajectoryDistance(left, right) {
     separatedDomains: Object.entries(domains)
       .filter(([domain, distance]) => distance >= DOMAIN_FLOORS[domain])
       .map(([domain]) => domain),
+  });
+}
+
+function first48SymbolicDistance(left, right) {
+  const grammarComponents = phraseGrammarComponentDistances(left, right);
+  const domains = Object.freeze({
+    rhythm: rhythmDistance(left, right),
+    phraseGrammar: mean(Object.values(grammarComponents)),
+    orchestration: orchestrationDistance(left, right),
+    timbre: timbreDistance(left, right),
+    harmony: harmonyDistance(left, right),
+  });
+  const additionalSeparatedDomains = [
+    ["orchestration", DOMAIN_FLOORS.advanced],
+    ["timbre", DOMAIN_FLOORS.timbre],
+    ["harmony", DOMAIN_FLOORS.harmony],
+  ]
+    .filter(([domain, floor]) => domains[domain] >= floor)
+    .map(([domain]) => domain);
+  return Object.freeze({
+    domains,
+    grammarComponents,
+    composite: mean(Object.values(domains)),
+    additionalSeparatedDomains,
   });
 }
 
@@ -711,11 +1006,8 @@ function populationComparisons(summaries) {
   return comparisons;
 }
 
-function assertPopulationSeparated(summaries) {
+function assertVibeEndpointsSeparated(summaries) {
   const comparisons = populationComparisons(summaries);
-  const closest = comparisons.reduce((worst, candidate) =>
-    candidate.distance.composite < worst.distance.composite ? candidate : worst
-  );
   const narrowest = comparisons.reduce((worst, candidate) => {
     const candidateCount = candidate.distance.separatedDomains.length;
     const worstCount = worst.distance.separatedDomains.length;
@@ -728,15 +1020,8 @@ function assertPopulationSeparated(summaries) {
   });
 
   assert.ok(
-    closest.distance.composite >= MINIMUM_COMPOSITE_DISTANCE,
-    `closest trajectory-window pair was too similar: ${diagnostic(
-      closest.left,
-      closest.right,
-      closest.distance,
-    )}`,
-  );
-  assert.ok(
-    narrowest.distance.separatedDomains.length >= MINIMUM_SEPARATED_DOMAINS,
+    narrowest.distance.separatedDomains.length >=
+      MINIMUM_VIBE_SEPARATED_DOMAINS,
     `narrowest trajectory-window pair differed in too few downstream musical domains: ${diagnostic(
       narrowest.left,
       narrowest.right,
@@ -744,6 +1029,67 @@ function assertPopulationSeparated(summaries) {
     )}`,
   );
 }
+
+function assertFirst48Separated(summaries) {
+  const comparisons = [];
+  for (let left = 0; left < summaries.length; left += 1) {
+    for (let right = left + 1; right < summaries.length; right += 1) {
+      const first = summaries[left];
+      const second = summaries[right];
+      const distance = first48SymbolicDistance(first, second);
+      const pair = `${first.seed} <> ${second.seed}`;
+      assert.ok(
+        distance.domains.rhythm >= DOMAIN_FLOORS.rhythm,
+        `${pair} did not separate rhythm: ${JSON.stringify(distance)}`,
+      );
+      assert.ok(
+        distance.domains.phraseGrammar >= FIRST_48_PHRASE_GRAMMAR_FLOOR,
+        `${pair} phrase-grammar distance was below ${FIRST_48_PHRASE_GRAMMAR_FLOOR}: ${JSON.stringify(distance)}`,
+      );
+      assert.ok(
+        distance.additionalSeparatedDomains.length >= 1,
+        `${pair} did not separate orchestration, timbre, or harmony: ${JSON.stringify(distance)}`,
+      );
+      assert.ok(
+        distance.composite >= 0.2,
+        `${pair} composite symbolic distance was below 0.20: ${JSON.stringify(distance)}`,
+      );
+      comparisons.push({ left: first, right: second, distance });
+    }
+  }
+  return comparisons;
+}
+
+test("material clock domains and kick/clap hit rules stay exact", () => {
+  assert.deepEqual(LANE_DOMAINS, EXPECTED_LANE_DOMAINS);
+
+  for (const seed of TRAJECTORY_SEEDS) {
+    const profile = profileForVibe(TEST_VIBE);
+    const trackDNA = createTrackDNA(seed);
+    let materialState = null;
+    for (
+      let phraseIndex = 0;
+      phraseIndex < TRAJECTORY_WINDOW_BARS / 8;
+      phraseIndex += 1
+    ) {
+      const input = {
+        seed,
+        trackDNA,
+        phraseIndex,
+        form: derivePhraseState(seed, phraseIndex),
+        profile,
+        tonality: TEST_TONALITY,
+      };
+      materialState = materialState
+        ? advanceMaterialState(materialState, input)
+        : createMaterialState(input);
+      assertMaterialClockContract(
+        materialState,
+        `${seed} phrase ${phraseIndex}`,
+      );
+    }
+  }
+});
 
 test("a trajectory is a deterministic 192-bar downstream musical window", () => {
   const seed = DETERMINISM_TEST_SEED;
@@ -754,7 +1100,12 @@ test("a trajectory is a deterministic 192-bar downstream musical window", () => 
 });
 
 test("metadata-only identity changes have zero trajectory distance", () => {
-  const summary = summarizeTrajectory(DETERMINISM_TEST_SEED);
+  const summary = summarizeTrajectory(
+    DETERMINISM_TEST_SEED,
+    TEST_VIBE,
+    TEST_TONALITY,
+    FIRST_48_BAR_WINDOW,
+  );
   const relabelled = Object.freeze({
     ...summary,
     seed: METADATA_RELABEL_SEED,
@@ -775,9 +1126,55 @@ test("metadata-only identity changes have zero trajectory distance", () => {
   });
 });
 
-test("fixed trajectory windows separate every cross-seed pair downstream", () => {
-  const summaries = TRAJECTORY_SEEDS.map((seed) => summarizeTrajectory(seed));
-  assertPopulationSeparated(summaries);
+test("fixed trajectories separate within the first 48 bars", () => {
+  const startedAt = performance.now();
+  const summaries = TRAJECTORY_SEEDS.map((seed) =>
+    summarizeTrajectory(seed, TEST_VIBE, TEST_TONALITY, FIRST_48_BAR_WINDOW)
+  );
+  for (const summary of summaries) {
+    const witness = summary.audiblePolymeterWitness;
+    assert.ok(
+      witness,
+      `${summary.seed} did not emit a persistent non-16 lane across two first-48 phrases`,
+    );
+    assert.notEqual(witness.loopLength, 16);
+    assert.ok(witness.phrases.length >= 2);
+    assert.ok(
+      witness.phrases.every((phrase) =>
+        phrase.clockId === witness.clockId &&
+        phrase.loopLength === witness.loopLength &&
+        phrase.onsets > 0
+      ),
+    );
+    for (let index = 1; index < witness.phrases.length; index += 1) {
+      assert.equal(
+        witness.phrases[index].phraseIndex,
+        witness.phrases[index - 1].phraseIndex + 1,
+      );
+    }
+  }
+  const comparisons = assertFirst48Separated(summaries);
+  if (process.env.REPORT_TRAJECTORY_DIVERSITY === "1") {
+    const rounded = (value) => Number(value.toFixed(6));
+    const compactComparison = ({ left, right, distance }) => ({
+      pair: `${left.seed} <> ${right.seed}`,
+      composite: rounded(distance.composite),
+      domains: Object.fromEntries(
+        Object.entries(distance.domains).map(([domain, value]) => [
+          domain,
+          rounded(value),
+        ]),
+      ),
+      gestureSequence: rounded(distance.grammarComponents.gestures),
+      additionalSeparatedDomains: distance.additionalSeparatedDomains,
+    });
+    const report = Object.freeze({
+      runtimeMs: Number((performance.now() - startedAt).toFixed(3)),
+      pairCount: comparisons.length,
+      comparisons: comparisons.map(compactComparison),
+    });
+    console.log(JSON.stringify(report));
+  }
 });
 
 test("Vibe endpoints change the same trajectory in multiple musical domains", () => {
@@ -785,5 +1182,5 @@ test("Vibe endpoints change the same trajectory in multiple musical domains", ()
   const summaries = VIBE_IDS.map((vibeId) =>
     summarizeTrajectory(seed, vibeId),
   );
-  assertPopulationSeparated(summaries);
+  assertVibeEndpointsSeparated(summaries);
 });

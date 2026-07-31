@@ -1,7 +1,8 @@
 # Quantum Contour Contract
 
-Applies to: Infinite Techno `1.5.0`
+Applies to: Infinite Techno `2.0.0`
 Scientific status: artistic audio visualization, not a quantum model
+Release boundary: local generative-material candidate; no deployment claim
 
 ## Boundary
 
@@ -31,9 +32,11 @@ The audio clock and musical planner drive visual pulse state. The visual render 
 never schedules or controls notes. If Canvas 2D is unavailable, audio can continue
 with a readable status.
 
-Derived form labels, section run lengths, and the 192-bar observation index may
-inform display or diagnostics only. They do not cause tonal, arrangement, bass, or
-synthesis changes.
+Derived form labels, section run lengths, the 192-bar observation index, material
+gesture, candidate score, and lane-clock summaries may inform display or diagnostics
+only. The visual layer cannot select a material candidate, mutate or reset a clock,
+fulfil a call/answer obligation, or cause tonal, arrangement, bass, or synthesis
+changes.
 
 This boundary lets the product have fun with real physics vocabulary without
 confusing atmosphere with evidence.

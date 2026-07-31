@@ -1,7 +1,10 @@
 # Infinite Techno Musical System
 
-Status: local trajectory-diversity candidate; rendered listening validation open
-Generator version: `1.5.0`
+Status: local generative-material candidate; deterministic suite passed;
+implementation-stage narrow browser smoke recorded but not byte-matched to the
+current candidate; render, listening, final browser, soak, deployment, and
+public-acceptance gates open
+Generator version: `2.0.0`
 Primary product: music  
 Quantum role: visual and poetic contour only
 
@@ -39,12 +42,13 @@ realize downstream:
 | Mix contour | spectral and spatial profiles |
 | Long-form tendency | form phenotype |
 
-All 11 fields use curated categorical vocabularies. They shape actual rhythm masks,
-kick parameters, hat and clap envelopes, clap-burst topology, percussion effect
-sends, bass cells and voice residence, harmonic activity, note-bearing synthesis
-roles and genomes, audio-engine profile controls, and recurrent-form tendencies.
-The field names, seed, scene label, material IDs, and fingerprints do not count as
-musical difference in the 192-bar structural-distance gate.
+All 11 fields use curated categorical vocabularies. They bias persistent clock
+domains, material holding time, kick parameters, hat and clap envelopes,
+clap-burst topology, percussion effect sends, bass and voice residence, harmonic
+activity, note-bearing synthesis roles and genomes, audio-engine profile controls,
+and recurrent-form tendencies. Track DNA never supplies an onset mask. Field names,
+seed, scene label, material IDs, and fingerprints do not count as musical difference
+in a structural-distance gate.
 
 `New Trajectory` samples 16 browser-random candidates and, when the pool contains
 an eligible candidate, selects the most distant one by a weighted DNA comparison.
@@ -57,9 +61,10 @@ reconstructs seed-bound synthesis and ensemble identity.
 
 Vibe remains an independent user direction layered onto this trajectory identity.
 It affects realized rhythm, low end, harmony, synthesis, audio profile, and form;
-it is not merely a visible preset label. A fixed planner test compares every pair
-of the five settled Vibe endpoints on the same trajectory. In-flight Vibe requests
-still morph over 64–128 bars rather than replacing Track DNA.
+it is not merely a visible preset label. Historical `1.5.0` planner evidence compared
+every pair of the five settled Vibe endpoints on one trajectory; that result does not
+validate the rewritten material planner. In-flight Vibe requests still morph over
+64–128 bars rather than replacing Track DNA.
 
 ## Historical and practical basis
 
@@ -105,6 +110,95 @@ formula defines techno.
 At 128 BPM, 8 bars are about 15 seconds, 32 bars about one minute, and a 192-bar
 observation window about six minutes.
 
+## Phrase-sequential generative material
+
+The `2.0.0` material planner is a second recurrent layer downstream of emergent
+form. At every eight-bar boundary it accepts the trajectory seed, Track DNA, current
+form snapshot, Vibe profile settled for that phrase boundary, tonality, and previous
+material state. It plans and freezes the complete eight-bar symbolic phrase once.
+The audio scheduler materializes those eight bars without recomputing musical
+decisions.
+
+Each rhythmic lane carries a persistent clock with:
+
+- loop length and Euclidean hit count;
+- rotation and absolute phase origin;
+- residence age;
+- bounded mutation history.
+
+`euclidean(hits, steps, rotation)` uses canonical Bjorklund distribution and returns
+immutable output. Clock phase follows the absolute sixteenth-note position and never
+restarts at a bar, phrase, derived section, or 192-bar observation boundary. Clock
+identities normally remain resident for two to eight phrases. An ordinary phrase may
+mutate at most one structural lane; an earned climax, release, or recall may mutate
+at most two. Velocity, articulation, and a permitted one-shot fill do not count as
+structural clock mutations.
+
+The bounded loop domains are:
+
+| Lane | Loop domain |
+| --- | --- |
+| Kick | anchored `E(4,16)`; earned excursions at 12, 15, 17, 18, or 20 steps with about one hit per four steps |
+| Clap | 12, 15, 16, 18, 20, or 24 steps with two or three hits |
+| Hats and secondary percussion | 5–29 steps, biased by Track DNA groove family |
+| Bass | 12, 15, 16, 18, 20, 24, 28, or 32 steps |
+| Advanced-synth gestures | 7, 9, 11, 13, 15, 17, 19, 23, 29, or 31 steps |
+
+Straight Track DNA prefers near-16 clocks; triplet families prefer 6/9/12/18
+relationships; broken families prefer prime lengths; swung families prefer odd
+lengths; patient phenotypes hold material longer. These are weighted dialects, not
+fixed patterns.
+
+The phrase memory contains a resident motif, previous gesture, unresolved call,
+recent phrase fingerprints, and archived motifs. Its ordered gesture states are
+`repeat`, `subtract`, `add`, `displace`, `call`, `answer`, `rest`, and `recall`.
+Their checked-in baseline transition matrix is:
+
+| From \ To | Repeat | Subtract | Add | Displace | Call | Answer | Rest | Recall |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Repeat | .24 | .14 | .12 | .14 | .14 | .06 | .10 | .06 |
+| Subtract | .22 | .08 | .14 | .16 | .16 | .08 | .10 | .06 |
+| Add | .18 | .18 | .08 | .16 | .16 | .10 | .08 | .06 |
+| Displace | .20 | .14 | .12 | .10 | .18 | .10 | .10 | .06 |
+| Call | .05 | .05 | .05 | .05 | .05 | .60 | .10 | .05 |
+| Answer | .24 | .14 | .14 | .14 | .12 | .06 | .10 | .06 |
+| Rest | .32 | .08 | .12 | .10 | .18 | .08 | .06 | .06 |
+| Recall | .34 | .14 | .10 | .12 | .12 | .06 | .06 | .06 |
+
+Before normalization, novelty debt boosts `add`, `displace`, and `call`; fatigue
+boosts `subtract` and `rest`; motif salience boosts `repeat`, `answer`, and `recall`;
+release boosts `rest` and `recall`; climax boosts `add`, `displace`, and `answer`.
+A call creates an answer obligation that must be fulfilled within the same or next
+phrase. Answer direction is deterministically upward, downward, rhythmic, or
+registral. Ordinary transformations edit no more than 25% of resident motif onsets
+or degrees. Emitted notes remain modal, register-bounded, and lineage-traceable.
+
+For every boundary, the planner constructs twelve complete candidates. It rejects
+violations of density, voice, pitch, collision, kick-excursion, silence, or DSP
+safety bounds. Eligible candidates receive normalized scores:
+
+| Measure | Weight |
+| --- | ---: |
+| Groove continuity | 22% |
+| Macro-state and profile fit | 18% |
+| Kick/bass separation | 16% |
+| Motif and call/response continuity | 14% |
+| Novelty against recent phrases | 12% |
+| Orchestration and spectral budget | 10% |
+| Polymetric phase interest | 8% |
+
+Only candidates scoring at least `0.55` and within `0.20` of the best remain in the
+selection pool. A named seed coordinate samples a softmax over that pool instead of
+always taking the maximum. Temperature stays between `0.35` and `0.85` according to
+novelty debt and trajectory phenotype. Candidate construction and selection are
+coordinate-addressed and replayable: the same seed plus the same intent history
+produces the same material trace.
+
+The kick normally holds four-floor `E(4,16)`. A polymetric excursion lasts one to
+four phrases, follows at least four anchored phrases, and forces re-anchoring when it
+ends. At least 75% of phrases must remain anchored across the long validation scan.
+This material excursion is distinct from a rare form-level intentional withdrawal.
+
 ## Emergent form
 
 There is no movement template, section energy table, or section-to-chair map. At
@@ -143,43 +237,42 @@ instead of restarting with the cache window.
 ## Variation rules
 
 - Bar: velocity changes, one ghost hit, articulation, or a short fill.
-- Phrase: one recurrent-state decision, bounded layer change, bass-lineage
-  transformation, or timbral development.
+- Phrase: one recurrent-state decision plus one selected, frozen material candidate.
 - Section readout: no authority of its own; it groups adjacent phrases with the
   same derived label.
 - Observation/cache window: no musical authority; it packages 192 bars for
   inspection, section-RLE materialization, and bounded caching.
-- Material domains: motif/bass-cell lineage, tonal identity, harmony position,
-  ensemble scene, and bass voice have separate resident IDs. A motif replacement
-  cannot regenerate them together.
+- Material domains: motif lineage, lane clocks, tonal identity, harmony position,
+  ensemble role vocabulary, synthesis genomes, and bass voice remain separately
+  resident. A motif gesture cannot regenerate them together.
 - Harmony: progression position changes only on a state-earned harmonic turn with
   cooldown, not from lineage age or an elapsed-bar clock.
-- Advanced synthesis: `mutate`, `replace`, or `recall` is the sole running-state
-  authorization for one Matrix, Resonator, or String handoff at a stable phrase
-  boundary. `hold` authorizes none. The other two engines retain their resident
-  genomes and ensemble roles; there is no 16-bar synth clock or round-robin.
+- Advanced synthesis: a separate causal lineage authorization may hand off one
+  Matrix, Resonator, or String genome at a stable phrase boundary. Material gestures
+  do not automatically change timbre. The other two engines retain their resident
+  genomes and roles; there is no 16-bar synth clock or round-robin.
 
-The kick policy normally protects all four quarter-note anchors. Low-energy or
-negative-space state may thin them to one to three; rare earned withdrawal can
-remove them for at most two phrases and then enters a long cooldown. Odd-group
-relationships remain reserved for bass, shaker, tops, metallic percussion, and
-modulation. No phrase regenerates every lane at once.
+No phrase regenerates every lane at once. Persistent clocks continue through display
+labels and observation windows; only an accepted New Trajectory resets material
+memory. Runtime Vibe or Tonality requests affect future phrase selections only.
 
 ## Low-end organism
 
 The kick and bass are planned as a relationship rather than independent lanes.
 
-- A deterministic two-bar bass cell is scored from three- and five-pulse motion,
-  offbeat weight, syncopation, current density, and open space around kick attacks.
-- A persistent lineage ID carries the cell across phrases. Novelty debt and motif
-  salience may mutate it, replace it while archiving the predecessor, or recall an
-  archived lineage.
+- The bass onset clock uses a resident 12–32-step Euclidean/polymetric identity
+  rather than a fixed two-bar cell.
+- A persistent motif lineage supplies modal degrees and bounded transformations
+  while the bass clock supplies onset phase.
 - Pitch degrees remain inside the active modal field; accent, velocity, length,
   octave, and slides are bounded and coordinate-addressed.
 - Bass voice identity has its own resident material ID. It does not rotate on a
-  32-bar clock or reset when a motif lineage is replaced.
-- The planner emits a dedicated low-end contract containing lineage operation,
-  kick policy, bass density and voice, rumble send, and separate duck depths.
+  32-bar clock or reset when a motif gesture changes.
+- Candidate validation scores kick/bass separation and rejects unsafe overlap before
+  the phrase is frozen.
+- The planner emits a dedicated low-end contract containing motif lineage, clock
+  summary, kick-excursion state, bass density and voice, rumble send, and separate
+  duck depths.
 
 Kick identity is stable but not frozen. An independent family lineage may change
 only after a state-earned release or floor recommit and then enters a 24-phrase
@@ -203,11 +296,12 @@ atmosphere voices:
 
 The total is 208 discrete base architectures before continuous parameters such as
 FM index, oscillator level, brightness, stiffness, damping, strike or pick position,
-decay, spread, and drive. A fixed synthetic two-seed, five-Vibe motif-event scan
-constructs all 208 structures, selects at least 200 through the causally authorized
-handoff-candidate path, and reaches more than 170 candidate parameter genomes. This
-is inventory and candidate-reachability evidence. It does not establish that every
-architecture becomes note-bearing or audible inside a real trajectory window.
+decay, spread, and drive. Historical `1.5.0` inventory evidence used a fixed
+synthetic two-seed, five-Vibe motif-event scan that constructed all 208 structures,
+selected at least 200 through the causally authorized handoff-candidate path, and
+reached more than 170 candidate parameter genomes. It does not establish that every
+architecture becomes note-bearing or audible inside a real trajectory window, and
+it does not validate the `2.0.0` material planner.
 
 ### Council-edited conversation grammar
 
@@ -222,17 +316,20 @@ The synthesis bank is integrated through six curated scenes:
 | Peak Interlock | Matrix motor, String weave, Resonator crown | dense but interleaved peak pressure |
 | Negative Space | String tone, Resonator tail, Matrix pickup | void, release, and sparse ignition |
 
-A scene is a phrase vocabulary that remains resident through its own material ID
-and changes only through a later causal one-engine handoff, not because a motif
-replacement, display label, or run-length section commands it. It is not an
-instruction to play all three parts.
-Its roles specify curated eight-bar masks, modal degree behavior, non-overlapping
-registers, note length, velocity bias, priority, and bounded delay/reverb sends.
-The masks never add advanced attacks to the four quarter-note kick anchors. At
-materialization time, same-step advanced collisions are resolved deterministically;
-low-register parts yield to bass onsets, harmonic parts yield around chord attacks,
-and Resonator parts yield around metallic or ride attacks. Scene vocabulary provides
-the alternate cells, so collision resolution does not invent a fresh random rhythm.
+A scene is a semantic role vocabulary, not an onset sequence. It can remain resident
+through its own material ID and changes only through a later causal one-engine
+handoff, not because a material gesture, display label, or run-length section
+commands it. It is not an instruction to play all three parts. Its roles specify
+motor, call, answer, counterline, punctuation, or tail purpose; modal degree
+behavior; non-overlapping registers; note length; velocity bias; priority; and
+bounded delay/reverb sends. Persistent synth clocks and the selected phrase gesture
+decide onsets.
+
+Candidate validation prevents same-step advanced collisions, protects current kick
+attacks, makes low-register parts yield to bass onsets, makes harmonic parts yield
+around chord attacks, and makes Resonator parts yield around metallic or ride
+attacks. Collision handling uses candidate-local clock alternatives; scene metadata
+contains no fallback mask.
 
 The artistic council then edits that vocabulary. The chair emerges phrase by
 phrase from the four competing lens scores, with short residency protected and
@@ -252,40 +349,46 @@ scene grooves, balances, or develops convincingly still requires listening evide
 
 Every parameter uses a named hash coordinate. Adding a future parameter therefore
 does not consume a shared random stream and rewrite unrelated timbres. Topology and
-genome changes occur only when a motif `mutate`, `replace`, or `recall` event
-authorizes one engine at a stable phrase boundary. The authorized engine is chosen
-deterministically from the event coordinates, not phrase modulo or elapsed time.
-A `hold` event changes no engine. Initial construction seeds all three engines;
-after that, high-level Vibe and trajectory state may supply candidates but cannot
-authorize an extra handoff. Note-level variation is limited to pitch, velocity,
-duration, and tiny seeded excitation differences. During a Vibe morph, dynamics
-and global effects may continue moving bar by bar, while bass lineage, synthesis
-genomes, scene roles, and the curated phrase vocabulary are sampled at phrase
-entry.
+genome changes occur only when a separate causal lineage event authorizes one engine
+at a stable phrase boundary. The authorized engine is chosen deterministically from
+event coordinates, not phrase modulo or elapsed time. Material gestures do not
+authorize extra handoffs. Initial construction seeds all three engines; after that,
+high-level Vibe and trajectory state may shade candidates but cannot create an extra
+timbre handoff. During a Vibe morph, dynamics and global effects may continue moving
+bar by bar, while synthesis genomes, semantic scene roles, and the complete symbolic
+phrase are frozen at phrase entry.
 
 The Signal Deck presents deterministic stopped-transport previews. Explicit
 Pass/Keep decisions update a bounded local preference profile. At a future causal
-motif handoff, that profile ranks up to eight deterministic candidates for the one
-engine the event already authorized. A hold cannot consume taste or change a
-genome. Taste cannot alter rhythm, arrangement, harmony, energy, timing, scene
-choice, lineage operation, or the musical seed. With no taste signal, candidate
-zero preserves the unpersonalized deterministic result. This is explicit local
-preference learning, not catalog training or artist imitation.
+timbre handoff, that profile ranks up to eight deterministic candidates for the one
+engine the event already authorized. Taste cannot consume or rank the twelve musical
+material candidates and cannot alter rhythm, arrangement, harmony, energy, timing,
+scene choice, material gesture, lane clocks, or the musical seed. With no taste
+signal, candidate zero preserves the unpersonalized deterministic timbre result.
+This is explicit local preference learning, not catalog training or artist
+imitation.
 
 The engines are informed by standard FM, modal-resonator, and digital-waveguide
 techniques. They are not copies of, preset-compatible with, or claimed equivalent to
 commercial instruments. The modal and string voices are creative synthesis models,
 not calibrated simulations of physical objects.
 
-The current implementation samples a 128-bit trajectory ID on each clean page load
-and is deterministic and coordinate-addressed by that ID, bar, phrase, lineage, and
-step. The initial Vibe and harmonic field are also derived from the ID, so a fresh
-session does not always enter through the same musical posture. A seed-bearing URL
-is an intentional replay path. It has recurrent form state, bounded climax and kick
-withdrawal, lineage recall, and a small scored timbre-candidate pool. It does not
-yet establish persuasive long-form musical quality, multi-day runtime performance,
-or a complete long-horizon recurrence ledger. Those remain separate quality
-frontiers.
+The current local candidate samples a 128-bit trajectory ID on each clean page load
+and is deterministic and coordinate-addressed by that ID, absolute step, phrase,
+lineage, candidate, and lane. The initial Vibe and harmonic field are also derived
+from the ID, so a fresh session does not always enter through the same musical
+posture. A seed-bearing URL plus the same intent history is an intentional replay
+path. It has recurrent form state, persistent material state, bounded climax and
+kick behavior, phrase memory, symbolic candidate selection, and a separate scored
+timbre-candidate pool.
+
+That local implementation does not establish persuasive long-form musical quality,
+audible trajectory separation, long-duration foreground-browser reliability,
+multi-day performance, or deployment. The deterministic suite passes. A narrow
+Start/Stop, intent, console, and responsive browser smoke was recorded before final
+planner-invariant hardening and is not byte-matched to the current candidate. Eight
+fixed 96-bar renders and stems, blinded listening, the final browser matrix, a
+30–60-minute soak, deployment, and public acceptance remain separate gates.
 
 ## Vibe vocabularies
 
@@ -297,8 +400,9 @@ Vibes are vectors, not sample banks:
 - **Acid** — resonant bass articulation, slides, brighter percussion.
 - **Peak** — higher density, rides, stronger drive, decisive returns.
 
-Numeric traits interpolate continuously. Discrete musical vocabulary changes only on
-bar or phrase boundaries.
+Numeric traits interpolate continuously. Material selection samples the profile only
+at a future phrase boundary; an already frozen phrase is never regenerated by an
+in-flight Vibe morph.
 
 ## User-directed transitions
 
@@ -338,7 +442,10 @@ Allowed:
 - three deterministic advanced synthesis engines with 208 base architectures;
 - a local explicit-feedback profile that influences bounded timbre candidates only;
 - deterministic recurrent phrase-state arrangement with derived section readouts;
-- rule-earned, bounded climax, kick-policy, and bass-lineage behavior;
+- persistent Euclidean/polymetric lane clocks with absolute phase;
+- authored probabilistic material gestures and deterministic seeded candidate
+  sampling;
+- rule-earned, bounded climax, kick-excursion, and motif-lineage behavior;
 - lineage-authored tonal material and one-engine causal synthesis handoffs;
 - separate kick, bass, rumble, and music buses with bounded low-end routing;
 - gradual, phrase-quantized high-level direction changes;
@@ -350,6 +457,9 @@ Not claimed:
 - participation, approval, endorsement, or literal opinions from the named artistic
   council references;
 - guaranteed subjective equivalence to a professional DJ;
+- proven audible separation or groove quality from symbolic tests alone;
+- completion of the fixed renders, blinded listening, foreground browser, soak,
+  deployment, or public-acceptance gates for `2.0.0`;
 - continuous playback through sleep, browser suspension, or device eviction;
 - quantum computation, quantum randomness, or physical sonification;
 - a complete solution to multi-day musical recurrence.

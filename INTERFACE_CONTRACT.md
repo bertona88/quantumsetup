@@ -1,7 +1,10 @@
 # Interface Contract
 
-Implemented browser API: `window.QuantumTechno/1.5.0`
+Candidate browser API contract: `window.QuantumTechno/2.0.0`
 Scope: one audio-first generative techno instrument
+Release boundary: local generative-material candidate; implementation-stage narrow
+browser smoke recorded but not byte-matched to the current candidate; final browser,
+soak, listening, render, deployment, and public-acceptance gates remain open
 
 ## One-surface rule
 
@@ -43,6 +46,9 @@ While running:
 - its profile morph lasts 64, 96, or 128 bars;
 - a Major ↔ Minor request lasts 96 bars and passes through Neutral;
 - Neutral transitions last 64 bars;
+- Vibe and Harmonic Gravity influence only material phrases selected at future
+  eight-bar boundaries. The profile sampled at a boundary is settled for that
+  phrase, and the current eight-bar phrase remains frozen once selected;
 - New Trajectory evaluates a bounded pool of sixteen deterministic Track-DNA
   candidates and enters an eligible macro-distinct seed at the next 16-bar
   seed-change boundary; if no candidate qualifies, the request is rejected and the
@@ -69,22 +75,24 @@ The page reports:
 
 The ensemble rail reads as `ENSEMBLE | [phrase cast] | [SCENE] · [NN] PARTS`.
 `PARTS` counts the eight-bar instrumentation union, not simultaneous DSP voices.
-Scene identity is planned by the music model; the interface does not invent names
+Scene identity is planned by the music model as a semantic role vocabulary; scene
+names do not contain or select onset masks, and the interface does not invent names
 from runtime activity. The displayed form label is a run-length readout of recurrent
 phrase state, not a scheduled section or promise of what comes next. Neither the
 label nor its run-length section has musical authority. The displayed root and
-modal field follow resident tonal material and Harmonic Gravity, not motif
-replacement or the 192-bar observation index. Public label-residency progress
-continues across that observation boundary. Council chairing emerges from
-competing state-dependent lens scores. It
-normally exposes one advanced voice, may expose none for intentional rest, and
-admits a second only when the current phenotype and recurrent phrase state justify
-dialogue. It never exposes all three together.
+modal field follow resident tonal material and Harmonic Gravity, not a material
+gesture or the 192-bar observation index. Public label-residency progress continues
+across that observation boundary. Council chairing emerges from competing
+state-dependent lens scores. It normally exposes one advanced voice, may expose none
+for intentional rest, and admits a second only when the current phenotype and
+recurrent phrase state justify dialogue. It never exposes all three together.
 
-Kick policy, independent kick-family lineage and phrase morph, bass lineage,
+Persistent Euclidean lane clocks, polymetric phase, material gestures, candidate
+selection, kick-excursion state, bass lineage, independent kick-family timbre,
 physical kick parameters, bus gains, duck depths, and rumble settings remain
-generator-owned. Kick-family changes require earned release or floor recommit and
-a 24-phrase cooldown. They are not new controls.
+generator-owned. The ordinary kick clock is four-on-the-floor; any polymetric kick
+excursion is earned, finite, followed by forced re-anchoring, and never exposed as a
+new control.
 
 ## Signal Deck
 
@@ -93,12 +101,13 @@ Hear it, Pass it, Keep it, drag left/right, or use Left/Right Arrow while the ca
 focused. A decision advances to the next specimen and updates a bounded preference
 profile in local storage when available, with session fallback.
 
-Taste feedback influences only future advanced-synth genome ranking when a motif
-`mutate`, `replace`, or `recall` event has already authorized one engine handoff at
-a stable phrase boundary. A `hold` authorizes none, so taste cannot cause a change
-by itself. It cannot change the musical seed, current playback, rhythm,
-arrangement, harmony, energy, lineage event, or scene selection. The interface
-makes no account, cloud-sync, machine-learning, or artist-imitation claim.
+Taste feedback influences only future advanced-synth genome ranking after the
+planner has independently authorized one engine handoff at a stable phrase
+boundary. It is not an input to the twelve-candidate musical-material selection and
+cannot cause a handoff by itself. It cannot change the musical seed, current
+playback, rhythm, arrangement, harmony, energy, material gesture, lane clocks, or
+scene selection. The interface makes no account, cloud-sync, machine-learning, or
+artist-imitation claim.
 
 ## Global object
 
@@ -106,7 +115,7 @@ After startup:
 
 ```js
 window.QuantumTechno = Object.freeze({
-  version: "1.5.0",
+  version: "2.0.0",
   getSnapshot,
   requestVibe,
   requestTonality,
@@ -115,13 +124,17 @@ window.QuantumTechno = Object.freeze({
 
 `getSnapshot()` returns version, seed, transport state, bar, step, BPM, current vibe,
 tonality, derived form label, 192-bar observation-window index, active transition
-summary, current ensemble scene,
-current instrumentation, council verdict, bounded taste summary, and advanced-synth
-availability/voice statistics. The object is a local application API, not a
-versioned Setup Universe interface.
+summary, current ensemble scene, current instrumentation, council verdict, bounded
+taste summary, advanced-synth availability/voice statistics, and a frozen
+`material` summary. The material summary contains the current gesture, motif
+lineage, bounded lane-clock summaries, selected-candidate score, candidate count,
+sampling temperature, and kick-excursion status. It is diagnostic telemetry, not a
+control surface. The object is a local application API, not a versioned Setup
+Universe interface.
 
-The observation-window index, form label, and section readout are diagnostics. They
-describe or cache planner output and never schedule musical state.
+The observation-window index, form label, section readout, candidate score, and
+lane-clock summaries are diagnostics. They describe or cache planner output and
+never schedule musical state or reset material phase.
 
 The ensemble scene and instrumentation roster are read-only. They introduce no
 individual instrument, synthesis, mixer, or parameter controls and are not announced

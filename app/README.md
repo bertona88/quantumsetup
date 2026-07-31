@@ -65,6 +65,14 @@ bounded phrase deltas. There is no movement template, fixed section energy curve
 or section-to-chair lookup. Climax entry requires accumulated threshold state and
 a seed-specific appetite; it can remain absent or sustain for a bounded 16–64 bars.
 
+`material-planner.js` owns phrase-sequential rhythmic and motif material. Persistent
+Euclidean clocks follow the absolute sixteenth-note stream, an authored gesture
+grammar transforms resident motif lineage, and each eight-bar boundary evaluates
+twelve complete candidates through bounded rejection, weighted scoring, and seeded
+softmax selection. The chosen phrase is frozen before the scheduler consumes its
+bars. Observation windows and derived form labels do not reset its clocks or
+memory; only an accepted New Trajectory does.
+
 `audio-engine.js` owns the audio clock and synthesis. Its voices include synthesized
 kick, clap, closed/open hat, ride, shaker, rim, tom, metallic FM percussion,
 acid/pulse/sub bass, chord stabs, pads, noise textures, risers, and downlifters.
@@ -80,28 +88,27 @@ boundary: it clears resident seed-bound palettes, roles, profiles, and genomes s
 the prior track cannot leak into the new one.
 
 Six curated ensemble scenes coordinate those engines as calls, replies, motors,
-weaves, marks, tails, and pickups. They use scored phrase masks and separated
-registers rather than free random masks. The highest-scoring council lens chairs the
+weaves, marks, tails, and pickups. They retain semantic roles, separated registers,
+priorities, and effect space but contain no onset masks; the selected material
+phrase supplies all synth attacks. The highest-scoring council lens chairs the
 phrase and edits the scene down to one foreground advanced engine in ordinary
-phrases, zero for intentional rests, or two for a developed climax or recalled
-lineage. Arrangement-aware placement keeps
-advanced attacks off the four kick anchors, resolves synth-on-synth collisions,
-protects low-end space around the bass, and thins modal events around metallic
+phrases, zero for intentional rests, or two for developed dialogue.
+Arrangement-aware placement resolves synth-on-synth collisions, protects low-end
+space around the bass and kick floor, and thins modal events around metallic
 percussion.
 
-Kick behavior follows the form state: `anchor` preserves all four quarter-note
-anchors, `thin` keeps one to three, and rare `withdraw` removes them for at most two
-phrases before cooldown. The planner also emits bounded kick body, pitch-drop,
-decay, click, drive, and rumble parameters. A separate kick-family lineage may
-morph only after an earned release or floor recommit, has a 24-phrase cooldown, and
-interpolates those physical fields across its event phrase. Bass is a generated
-two-bar cell carried by a persistent lineage that can mutate, be replaced with
-archival history, or be recalled. Bass onsets yield to the current kick plan. Its
-voice identity has independent residency rather than changing every 32 bars.
-Motif/bass-cell, tonal, harmony-position, scene, and bass-voice material are
-separate domains: motif replacement cannot reset them together. Harmony position
-changes only through a state-earned cooled-down turn, and a 192-bar cache boundary
-cannot restart the public form residency.
+Kick behavior combines persistent material with form intent. The normal material
+clock is `E(4,16)`; earned one-to-four-phrase excursions may drift to 12, 15, 17,
+18, or 20 steps before forced re-anchoring. Form may still thin or briefly withdraw
+the selected kick. The planner also emits bounded kick body, pitch-drop, decay,
+click, drive, and rumble parameters. A separate kick-family lineage may morph only
+after an earned release or floor recommit, has a 24-phrase cooldown, and
+interpolates those physical fields across its event phrase. Bass follows a
+persistent 12–32-step Euclidean clock and resident modal motif lineage rather than
+a fixed two-bar cell; its onsets yield to the selected kick. Bass voice identity,
+material motif and clocks, tonal state, harmony position, and semantic scene remain
+separate domains. A motif operation cannot reset them together, and a 192-bar
+observation boundary cannot restart form or material residency.
 
 `taste-model.js`, `signal-deck.js`, and `instrument-preview.js` implement the local
 explicit-feedback loop. Pass/Keep decisions rank up to eight deterministic genomes

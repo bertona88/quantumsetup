@@ -22,9 +22,11 @@
   "claimGate": "Do not claim uninterrupted playback through suspension, proven professional-DJ equivalence, multi-day nonrepetition, quantum computation, quantum randomness, or physical sonification without separate evidence.",
   "currentApp": {
     "path": "app/",
-    "role": "production-audio-instrument",
+    "role": "local-candidate-audio-instrument",
     "musicSystem": "MUSICAL_SYSTEM.md",
-    "generatorVersion": "1.5.0",
+    "generatorVersion": "2.0.0",
+    "releaseBoundary": "local-candidate-not-deployed",
+    "publicGeneratorVersion": "1.5.0",
     "audioFirst": true,
     "quantumRole": "artistic-contour",
     "formAuthority": "recurrent-state-and-motif-lineage",
@@ -32,10 +34,10 @@
     "observationWindowRole": "readout-rle-cache-only"
   },
   "currentPrototype": {
-    "status": "temporary-live-demo",
+    "status": "immutable-historical-reference",
     "role": "reference-snapshot",
     "immutable": true,
-    "sharedRuntime": true,
+    "sharedRuntime": false,
     "path": "prototype/",
     "productionRelease": "20260726T002235Z-478235af2650",
     "verifiedAt": "2026-07-26",
@@ -49,8 +51,7 @@
         "Displayed energies use reduced units; they are not calibrated to a laboratory particle."
       ]
     },
-    "productionManagedSeparately": true,
-    "keepLiveUntilReplacementAuthorized": true
+    "productionManagedSeparately": false
   },
   "repository": "https://github.com/bertona88/quantumsetup",
   "siblings": [

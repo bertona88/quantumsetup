@@ -14,19 +14,27 @@ import {
   derivePhraseState,
   traceEmergentForm,
 } from "./emergent-form.js";
+import {
+  advanceMaterialState,
+  createMaterialState,
+  summarizeMaterialState,
+} from "./material-planner.js";
 import { createTrackDNA } from "./track-dna.js";
 
 export {
   FORM_RULES,
+  advanceMaterialState,
   clamp,
+  createMaterialState,
   derivePhraseState,
   hash32,
   lerp,
   makeRng,
   midiToHz,
+  summarizeMaterialState,
 };
 
-export const GENERATOR_VERSION = "1.5.0";
+export const GENERATOR_VERSION = "2.0.0";
 export const STEPS_PER_BAR = 16;
 export const PHRASE_BARS = 8;
 export const MOVEMENT_BARS = 192;
@@ -34,6 +42,8 @@ const MOVEMENT_CACHE_LIMIT = 64;
 const movementCache = new Map();
 const MATERIAL_CACHE_LIMIT = 256;
 const materialCache = new Map();
+const PHRASE_MATERIAL_CACHE_LIMIT = 8;
+const phraseMaterialCache = new Map();
 
 const PROFILE_KEYS = [
   "density",
@@ -149,74 +159,21 @@ const PROFILE_DEFINITIONS = {
   },
 };
 
-const GROOVE_VOCABULARIES = Object.freeze({
-  "straight-pressure": Object.freeze({
-    hats: Object.freeze([2, 6, 10, 14]),
-    secondaryHats: Object.freeze([1, 3, 5, 7, 9, 11, 13, 15]),
-    claps: Object.freeze([4, 12]),
-    ghostClaps: Object.freeze([11]),
-    bassDensityBias: 0.1,
-  }),
-  "rolling-syncopation": Object.freeze({
-    hats: Object.freeze([2, 5, 6, 10, 13, 14]),
-    secondaryHats: Object.freeze([1, 4, 7, 9, 12, 15]),
-    claps: Object.freeze([4, 12]),
-    ghostClaps: Object.freeze([10, 15]),
-    bassDensityBias: 0.4,
-  }),
-  "triplet-weave": Object.freeze({
-    hats: Object.freeze([2, 5, 8, 10, 13]),
-    secondaryHats: Object.freeze([1, 4, 7, 11, 14]),
-    claps: Object.freeze([4, 13]),
-    ghostClaps: Object.freeze([9]),
-    bassDensityBias: 0.15,
-  }),
-  "broken-machine": Object.freeze({
-    hats: Object.freeze([1, 6, 9, 14]),
-    secondaryHats: Object.freeze([3, 5, 7, 11, 13, 15]),
-    claps: Object.freeze([4, 11]),
-    ghostClaps: Object.freeze([14]),
-    bassDensityBias: -0.15,
-  }),
-  "swung-motor": Object.freeze({
-    hats: Object.freeze([3, 6, 11, 14]),
-    secondaryHats: Object.freeze([1, 5, 7, 9, 13, 15]),
-    claps: Object.freeze([4, 12]),
-    ghostClaps: Object.freeze([7, 15]),
-    bassDensityBias: 0.25,
-  }),
-});
-
 const VIBE_ARRANGEMENT = Object.freeze({
   hypnotic: Object.freeze({
-    hatRotation: 0,
-    bassRotation: 0,
     preferredEngine: null,
-    clapGhostBias: 0.08,
   }),
   dub: Object.freeze({
-    hatRotation: 2,
-    bassRotation: 3,
     preferredEngine: "string",
-    clapGhostBias: -0.08,
   }),
   acid: Object.freeze({
-    hatRotation: 1,
-    bassRotation: 1,
     preferredEngine: "fm",
-    clapGhostBias: 0.16,
   }),
   detroit: Object.freeze({
-    hatRotation: 3,
-    bassRotation: 2,
     preferredEngine: "modal",
-    clapGhostBias: 0.22,
   }),
   peak: Object.freeze({
-    hatRotation: 5,
-    bassRotation: 5,
     preferredEngine: "fm",
-    clapGhostBias: 0.3,
   }),
 });
 
@@ -475,14 +432,6 @@ const FORM_PHENOTYPE_OFFSETS = Object.freeze({
   }),
 });
 
-const FORM_RHYTHM_BIAS = Object.freeze({
-  "patient-hypnosis": Object.freeze({ primary: -0.08, secondary: -0.06 }),
-  "pressure-ratchet": Object.freeze({ primary: 0.08, secondary: 0.1 }),
-  "peak-and-release": Object.freeze({ primary: 0.14, secondary: 0.12 }),
-  "negative-space": Object.freeze({ primary: -0.2, secondary: -0.18 }),
-  "machine-funk": Object.freeze({ primary: -0.12, secondary: 0.22 }),
-});
-
 function shapeProfileForTrack(profile, trackDNA) {
   const shaped = {
     ...profile,
@@ -567,6 +516,64 @@ export function transitionProgress(bar, startBar, duration = 32) {
 
 export function nextPhraseBoundary(bar, size = PHRASE_BARS) {
   return Math.ceil((Math.max(0, bar) + 1) / size) * size;
+}
+
+function cachedMaterialStateForPhrase({
+  seed,
+  phraseIndex,
+  vibeId,
+  tonality,
+  trackDNA,
+}) {
+  const safeVibe = profileForVibe(vibeId).id;
+  const safeTonality = ["major", "neutral"].includes(tonality)
+    ? tonality
+    : "minor";
+  const cacheKey = `${seed}:${safeVibe}:${safeTonality}`;
+  let entry = phraseMaterialCache.get(cacheKey);
+  if (!entry) {
+    entry = { states: [] };
+    phraseMaterialCache.set(cacheKey, entry);
+  } else {
+    phraseMaterialCache.delete(cacheKey);
+    phraseMaterialCache.set(cacheKey, entry);
+  }
+  const materialProfile = shapeProfileForTrack(
+    profileForVibe(safeVibe),
+    trackDNA,
+  );
+  if (entry.states.length === 0) {
+    entry.states.push(
+      createMaterialState({
+        seed,
+        phraseIndex: 0,
+        trackDNA,
+        form: derivePhraseState(seed, 0),
+        profile: materialProfile,
+        tonality: safeTonality,
+      }),
+    );
+  }
+  while (entry.states.length <= phraseIndex) {
+    const nextPhraseIndex = entry.states.length;
+    entry.states.push(
+      advanceMaterialState(entry.states.at(-1), {
+        phraseIndex: nextPhraseIndex,
+        form: derivePhraseState(seed, nextPhraseIndex),
+        profile: materialProfile,
+        tonality: safeTonality,
+      }),
+    );
+  }
+  if (phraseMaterialCache.size > PHRASE_MATERIAL_CACHE_LIMIT) {
+    phraseMaterialCache.delete(phraseMaterialCache.keys().next().value);
+  }
+  return entry.states[phraseIndex];
+}
+
+function materialBarSlice(lane, barInPhrase) {
+  const start = barInPhrase * STEPS_PER_BAR;
+  return lane.slice(start, start + STEPS_PER_BAR);
 }
 
 const MODES = {
@@ -679,25 +686,12 @@ const COUNCIL_LAYER_PRIORITY = Object.freeze({
   ]),
 });
 
-function alternatingPattern(first, second) {
-  return Array.from({ length: PHRASE_BARS }, (_, index) =>
-    index % 2 === 0 ? first : second,
-  );
-}
-
-function sparsePattern(entries) {
-  return Array.from({ length: PHRASE_BARS }, (_, index) => entries[index] || []);
-}
-
 function freezeEnsembleRole(sceneId, role) {
   return Object.freeze({
     ...role,
     sourceSceneId: sceneId,
     range: Object.freeze([...role.range]),
     length: Object.freeze([...role.length]),
-    pattern: Object.freeze(
-      role.pattern.map((steps) => Object.freeze([...steps])),
-    ),
   });
 }
 
@@ -730,7 +724,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "MOTOR",
         register: "mid",
         range: [65, 76],
-        pattern: alternatingPattern([1, 6, 9, 14], [3, 7, 10, 15]),
         length: [1, 3],
         degreeOffset: 0,
         motifDirection: 1,
@@ -746,7 +739,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "COUNTER",
         register: "low",
         range: [53, 64],
-        pattern: alternatingPattern([3, 11], [1, 9]),
         length: [1, 2],
         degreeOffset: 2,
         motifDirection: -1,
@@ -762,7 +754,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "MARK",
         register: "high",
         range: [77, 88],
-        pattern: sparsePattern({ 3: [5], 7: [13] }),
         length: [1, 2],
         degreeOffset: 4,
         motifDirection: 1,
@@ -785,7 +776,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "CALL",
         register: "low",
         range: [53, 64],
-        pattern: alternatingPattern([1, 9, 14], [3, 11]),
         length: [1, 2],
         degreeOffset: 0,
         motifDirection: 1,
@@ -801,7 +791,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "REPLY",
         register: "mid",
         range: [65, 76],
-        pattern: alternatingPattern([3, 11], [5, 13]),
         length: [1, 2],
         degreeOffset: 2,
         motifDirection: -1,
@@ -817,7 +806,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "PICKUP",
         register: "high",
         range: [77, 88],
-        pattern: sparsePattern({ 3: [7], 7: [15] }),
         length: [1, 1],
         degreeOffset: 4,
         motifDirection: 1,
@@ -840,7 +828,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "SIGNAL",
         register: "high",
         range: [77, 88],
-        pattern: alternatingPattern([3, 11], [5, 13]),
         length: [1, 2],
         degreeOffset: 4,
         motifDirection: 1,
@@ -856,7 +843,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "REPLY",
         register: "mid",
         range: [65, 76],
-        pattern: alternatingPattern([7, 15], [1, 9]),
         length: [2, 3],
         degreeOffset: 0,
         motifDirection: -1,
@@ -872,7 +858,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "PICKUP",
         register: "low",
         range: [53, 64],
-        pattern: sparsePattern({ 3: [6], 7: [14] }),
         length: [1, 2],
         degreeOffset: 2,
         motifDirection: 1,
@@ -895,12 +880,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "CALL",
         register: "mid",
         range: [65, 76],
-        pattern: sparsePattern({
-          0: [3],
-          2: [3],
-          4: [3],
-          6: [3],
-        }),
         length: [2, 4],
         degreeOffset: 0,
         motifDirection: 1,
@@ -916,12 +895,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "AFTERIMAGE",
         register: "low",
         range: [53, 64],
-        pattern: sparsePattern({
-          1: [11],
-          3: [15],
-          5: [11],
-          7: [15],
-        }),
         length: [1, 2],
         degreeOffset: 2,
         motifDirection: -1,
@@ -937,7 +910,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "TAIL",
         register: "high",
         range: [77, 88],
-        pattern: sparsePattern({ 3: [13], 7: [15] }),
         length: [1, 2],
         degreeOffset: 4,
         motifDirection: 1,
@@ -960,7 +932,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "MOTOR",
         register: "low",
         range: [53, 64],
-        pattern: alternatingPattern([1, 5, 9, 13], [1, 5, 9, 13]),
         length: [1, 2],
         degreeOffset: 0,
         motifDirection: 1,
@@ -976,16 +947,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "WEAVE",
         register: "mid",
         range: [65, 76],
-        pattern: sparsePattern({
-          0: [3, 11],
-          1: [3, 11],
-          2: [3, 11],
-          3: [3, 11],
-          4: [7, 15],
-          5: [7, 15],
-          6: [7, 15],
-          7: [7, 15],
-        }),
         length: [1, 2],
         degreeOffset: 2,
         motifDirection: -1,
@@ -1001,7 +962,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "CROWN",
         register: "high",
         range: [77, 88],
-        pattern: sparsePattern({ 6: [6, 14], 7: [6, 14] }),
         length: [1, 2],
         degreeOffset: 4,
         motifDirection: 1,
@@ -1024,7 +984,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "TONE",
         register: "mid",
         range: [65, 76],
-        pattern: sparsePattern({ 0: [1], 4: [9] }),
         length: [4, 4],
         degreeOffset: 0,
         motifDirection: 1,
@@ -1040,7 +999,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "TAIL",
         register: "high",
         range: [77, 88],
-        pattern: sparsePattern({ 3: [5], 7: [13] }),
         length: [1, 2],
         degreeOffset: 4,
         motifDirection: 1,
@@ -1056,7 +1014,6 @@ const ENSEMBLE_SCENE_DEFINITIONS = Object.freeze([
         label: "PICKUP",
         register: "low",
         range: [53, 64],
-        pattern: sparsePattern({ 3: [7], 7: [15] }),
         length: [1, 1],
         degreeOffset: 2,
         motifDirection: -1,
@@ -1606,15 +1563,6 @@ function formDynamicsAtBar(movement, bar) {
   };
 }
 
-function shuffled(values, rng) {
-  const result = [...values];
-  for (let index = result.length - 1; index > 0; index -= 1) {
-    const target = Math.floor(rng() * (index + 1));
-    [result[index], result[target]] = [result[target], result[index]];
-  }
-  return result;
-}
-
 function degreeToMidi(root, intervals, degree, octave = 0) {
   const wrapped = ((degree % intervals.length) + intervals.length) % intervals.length;
   const octaves = Math.floor(degree / intervals.length);
@@ -1648,23 +1596,6 @@ function advancedStartsPerBar(councilVerdict = null) {
     return clamp(Math.floor(councilVerdict.maxAdvancedStarts), 0, 4);
   }
   return 3;
-}
-
-function roleNoteCount(role, steps, profile, energy) {
-  if (steps.length <= 1) return steps.length;
-  const fullness = clamp(
-    0.42 +
-      profile.density * 0.3 +
-      profile.syncopation * 0.1 +
-      energy * 0.18,
-    0.48,
-    1,
-  );
-  return clamp(
-    Math.round(steps.length * fullness * role.densityScale),
-    0,
-    steps.length,
-  );
 }
 
 function resolveEnsembleOnsets(lanes, seed, phraseIndex, barOffset) {
@@ -1753,7 +1684,17 @@ export function buildEnsemblePhrase({
   roles,
   activeEngines = SYNTH_ENGINE_IDS,
   councilVerdict = null,
+  materialState = null,
 }) {
+  const phraseMaterial =
+    materialState ||
+    cachedMaterialStateForPhrase({
+      seed,
+      phraseIndex,
+      vibeId: profile.id,
+      tonality: movement.mode.tonality,
+      trackDNA: movement.trackDNA || createTrackDNA(seed),
+    });
   const lanes = {
     fm: Array.from({ length: PHRASE_BARS }, () =>
       Array(STEPS_PER_BAR).fill(null),
@@ -1766,7 +1707,6 @@ export function buildEnsemblePhrase({
     ),
   };
   const phraseStartBar = phraseIndex * PHRASE_BARS;
-  const phraseForm = formAtBar(movement, phraseStartBar);
   for (let barOffset = 0; barOffset < PHRASE_BARS; barOffset += 1) {
     const targetBar = phraseStartBar + barOffset;
     const {
@@ -1785,48 +1725,31 @@ export function buildEnsemblePhrase({
       if (!activeEngines.includes(engine)) continue;
       const role = roles[engine];
       if (!role) continue;
-      const rng = makeRng(
-        hash32(
-          seed,
-          phraseIndex,
-          barOffset,
-          phraseForm.motifLineageId,
-          phraseForm.motifMutationCount,
-          phraseForm.chair,
-          role.sourceSceneId,
-          role.id,
-          engine,
-        ),
+      const onsetSlice = materialBarSlice(
+        phraseMaterial.phrase.patterns.synth[engine],
+        barOffset,
       );
-      const candidates = role.pattern[barOffset] || [];
-      const count = roleNoteCount(role, candidates, profile, energy);
-      const selected = shuffled(candidates, rng)
-        .slice(0, count)
-        .sort((left, right) => left - right);
-      selected.forEach((step, index) => {
-        const shiftedStep =
-          (step +
-            {
-              hypnotic: 0,
-              dub: 2,
-              acid: 1,
-              detroit: 3,
-              peak: 0,
-            }[profile.id]) %
-          STEPS_PER_BAR;
-        const renderStep = [0, 4, 8, 12].includes(shiftedStep)
-          ? (shiftedStep + 1) % STEPS_PER_BAR
-          : shiftedStep;
-        const forwardIndex =
-          (index + barOffset + phraseIndex) % movement.motif.length;
-        const motifIndex =
-          role.motifDirection < 0
-            ? movement.motif.length - 1 - forwardIndex
-            : forwardIndex;
-        let degree = movement.motif[motifIndex] + role.degreeOffset;
-        if (rng() < profile.syncopation * 0.12) {
-          degree += rng() < 0.5 ? -1 : 1;
-        }
+      const degreeSlice = materialBarSlice(
+        phraseMaterial.phrase.degrees.synth[engine],
+        barOffset,
+      );
+      onsetSlice.forEach((active, step) => {
+        if (!active) return;
+        const absoluteStep = barOffset * STEPS_PER_BAR + step;
+        const coordinate = (...labels) =>
+          unitHash(
+            seed,
+            phraseIndex,
+            phraseMaterial.motif.lineageId,
+            role.sourceSceneId,
+            role.id,
+            engine,
+            absoluteStep,
+            ...labels,
+          );
+        const degree =
+          (degreeSlice[step] ?? movement.motif[absoluteStep % movement.motif.length]) +
+          role.degreeOffset;
         const midi = fitMidiToRange(
           degreeToMidi(
             movement.root,
@@ -1839,20 +1762,23 @@ export function buildEnsemblePhrase({
         );
         const length =
           role.length[0] +
-          Math.floor(rng() * (role.length[1] - role.length[0] + 1));
-        lanes[engine][barOffset][renderStep] = {
+          Math.floor(
+            coordinate("length") *
+              (role.length[1] - role.length[0] + 1),
+          );
+        lanes[engine][barOffset][step] = {
           midi,
           degree,
           velocity: clamp(
             0.24 +
               energy * 0.34 +
               role.velocityBias +
-              rng() * 0.12,
+              coordinate("velocity") * 0.12,
             0.16,
             0.82,
           ),
           length: clamp(length, 1, 4),
-          accent: rng() < 0.14 + profile.drive * 0.26,
+          accent: coordinate("accent") < 0.14 + profile.drive * 0.26,
           ensembleRole: role.id,
           register: role.register,
           sourceSceneId: role.sourceSceneId,
@@ -1908,6 +1834,7 @@ function fitEnsembleToArrangement({
   roles,
   seed,
   phraseIndex,
+  kick,
   bass,
   chord,
   metallic,
@@ -1966,12 +1893,16 @@ function fitEnsembleToArrangement({
   for (const event of deferred) {
     if (relocatedLead || event.note.priority < 3) continue;
     const vocabulary = [
-      ...new Set(event.role.pattern.flat()),
+      ...new Set(
+        phrase[event.engine].flatMap((barLane) =>
+          barLane.flatMap((note, step) => (note ? [step] : [])),
+        ),
+      ),
     ]
       .filter(
         (step) =>
           Math.abs(step - event.step) <= 2 &&
-          ![0, 4, 8, 12].includes(step) &&
+          !kick[step] &&
           !occupied.has(step) &&
           !arrangementBlocksEnsembleNote({
             engine: event.engine,
@@ -2384,194 +2315,50 @@ function buildBassLine({
   profile,
   energy,
   kick,
+  materialState,
 }) {
   const bass = Array(STEPS_PER_BAR).fill(null);
   const trackDNA = movement.trackDNA || createTrackDNA(seed);
   const bassBehavior = trackDNA.bassBehavior;
-  const groove =
-    GROOVE_VOCABULARIES[trackDNA.grooveFamily] ||
-    GROOVE_VOCABULARIES["straight-pressure"];
-  const vibeDirection =
-    VIBE_ARRANGEMENT[profile.id] || VIBE_ARRANGEMENT.hypnotic;
-  const barInCell = ((bar % 2) + 2) % 2;
-  const cellRotation =
-    hash32(
-      form.motifLineageId,
-      bassBehavior,
-      trackDNA.grooveFamily,
-      "bass-cell",
-    ) % 32;
-  const baseEventsPerHalf = {
-    "offbeat-pulse": 4,
-    "rolling-cell": 6,
-    "acid-serpent": 6,
-    "sub-sustain": 3,
-    "syncopated-stabs": 5,
-  }[bassBehavior];
-  const renderedEventsPerHalf = clamp(
-    Math.round(
-      1 +
-        form.density * 2.2 +
-        profile.density * 1.5 +
-        groove.bassDensityBias -
-        (form.kickPolicy === "thin" ? 0.6 : 0) -
-        (form.kickPolicy === "withdraw" ? 1.2 : 0),
-    ),
-    1,
-    baseEventsPerHalf,
+  const barInPhrase = ((bar % PHRASE_BARS) + PHRASE_BARS) % PHRASE_BARS;
+  const onsetSlice = materialBarSlice(
+    materialState.phrase.patterns.bass,
+    barInPhrase,
   );
-  const lineageSyncopation = unitHash(
-    form.motifLineageId,
-    "bass-syncopation",
+  const degreeSlice = materialBarSlice(
+    materialState.phrase.degrees.bass,
+    barInPhrase,
   );
-  const motifRotation =
-    hash32(form.motifLineageId, "bass-motif-rotation") %
-    movement.motif.length;
-  const degreeForCellStep = (cellStep) =>
-    movement.motif[
-      (motifRotation +
-        Math.floor(cellStep / 4) +
-        (cellStep % 3 === 0 ? 1 : 0)) %
-        movement.motif.length
+  const phraseOffset = barInPhrase * STEPS_PER_BAR;
+  const candidates = onsetSlice.flatMap((active, step) => {
+    if (!active || kick[step] || form.intentionalRest) return [];
+    return [
+      {
+        step,
+        cellStep: phraseOffset + step,
+        degree: degreeSlice[step] ?? 0,
+      },
     ];
-  const scoreCellStep = (cellStep) => {
-    const step = cellStep % STEPS_PER_BAR;
-    const rotated = (cellStep + cellRotation) % 32;
-    const threePulse =
-      0.5 + Math.cos((rotated / 32) * Math.PI * 2 * 3) * 0.5;
-    const fivePulse =
-      0.5 + Math.sin((rotated / 32) * Math.PI * 2 * 5) * 0.5;
-    const behaviorPulse = {
-      "offbeat-pulse":
-        step % 4 === 2 ? 1 : step % 4 === 3 ? 0.55 : 0,
-      "rolling-cell": threePulse * 0.62 + fivePulse * 0.38,
-      "acid-serpent": step % 2 ? 0.78 : fivePulse * 0.46,
-      "sub-sustain":
-        [2, 6, 10, 14].includes(step) ? 1 : step % 4 === 0 ? 0.18 : 0,
-      "syncopated-stabs":
-        [3, 7, 11, 15].includes(step) ? 1 : fivePulse * 0.35,
-    }[bassBehavior];
-    const groovePulse =
-      groove.secondaryHats.includes(step) ? 0.22 : 0;
-    const offbeat =
-      step % 4 === 0 ? 0 : 0.2 + lineageSyncopation * 0.12;
-    return (
-      unitHash(
-        seed,
-        form.motifLineageId,
-        cellStep,
-        "bass-onset",
-      ) *
-        0.44 +
-      threePulse * 0.1 +
-      fivePulse * 0.08 +
-      behaviorPulse * 0.34 +
-      groovePulse +
-      offbeat +
-      (step % 2 ? 0.045 : 0)
-    );
-  };
-  const baseCell = [0, 1].flatMap((cellBar) =>
-    Array.from({ length: STEPS_PER_BAR }, (_, step) => {
-      const cellStep = cellBar * STEPS_PER_BAR + step;
-      return { cellStep, score: scoreCellStep(cellStep) };
-    })
-      .sort((left, right) => right.score - left.score)
-      .slice(0, baseEventsPerHalf)
-      .sort((left, right) => left.cellStep - right.cellStep)
-      .map((candidate) => ({
-        step: candidate.cellStep,
-        degree: degreeForCellStep(candidate.cellStep),
-      })),
-  );
-  const mutatedCell = baseCell.map((event) => ({ ...event }));
-  const firstMutationTarget =
-    hash32(form.motifLineageId, "bass-mutation-target") %
-    mutatedCell.length;
-  for (
-    let mutation = 0;
-    mutation < form.motifMutationCount;
-    mutation += 1
-  ) {
-    const targetIndex =
-      (firstMutationTarget + mutation * 3) % mutatedCell.length;
-    const target = mutatedCell[targetIndex];
-    const preferOnset =
-      hash32(form.motifLineageId, mutation, "bass-mutation-kind") % 2 ===
-      0;
-    const direction =
-      hash32(form.motifLineageId, mutation, "bass-mutation-direction") %
-        2 ===
-      0
-        ? -1
-        : 1;
-    const halfStart = Math.floor(target.step / STEPS_PER_BAR) * STEPS_PER_BAR;
-    const candidateStep = clamp(
-      target.step + direction,
-      halfStart,
-      halfStart + STEPS_PER_BAR - 1,
-    );
-    const onsetAvailable = !mutatedCell.some(
-      (event, index) =>
-        index !== targetIndex && event.step === candidateStep,
-    );
-    if (preferOnset && candidateStep !== target.step && onsetAvailable) {
-      target.step = candidateStep;
-    } else {
-      target.degree += direction;
-    }
-  }
+  });
+  const clockLength = materialState.clocks.bass.loopLength;
   const canonicalCell = Object.freeze(
-    mutatedCell
-      .sort((left, right) => left.step - right.step)
-      .map((event) => Object.freeze(event)),
+    materialState.phrase.patterns.bass
+      .slice(0, clockLength)
+      .flatMap((active, step) =>
+        active
+          ? [
+              Object.freeze({
+                step,
+                degree:
+                  materialState.phrase.degrees.bass[step] ??
+                  materialState.motif.events[
+                    step % materialState.motif.events.length
+                  ].degree,
+              }),
+            ]
+          : [],
+      ),
   );
-  const candidates = form.intentionalRest
-    ? []
-    : canonicalCell
-        .map((event) => ({
-          ...event,
-          cellStep: event.step,
-          renderedStep:
-            (event.step + vibeDirection.bassRotation) % 32,
-        }))
-        .filter(
-          (event) =>
-            Math.floor(event.renderedStep / STEPS_PER_BAR) === barInCell,
-        )
-        .sort(
-          (left, right) =>
-            (unitHash(
-              form.motifLineageId,
-              right.cellStep,
-              profile.id,
-              "bass-render-vibe-priority",
-            ) *
-              0.34 +
-              (right.renderedStep % 2 ? profile.syncopation * 0.2 : 0) +
-              (right.renderedStep % 4 === 2 ? profile.acid * 0.18 : 0) +
-              (right.renderedStep % 4 === 0 ? profile.rumble * 0.12 : 0)) -
-            (unitHash(
-              form.motifLineageId,
-              left.cellStep,
-              profile.id,
-              "bass-render-vibe-priority",
-            ) *
-              0.34 +
-              (left.renderedStep % 2 ? profile.syncopation * 0.2 : 0) +
-              (left.renderedStep % 4 === 2 ? profile.acid * 0.18 : 0) +
-              (left.renderedStep % 4 === 0 ? profile.rumble * 0.12 : 0)),
-        )
-        .slice(0, renderedEventsPerHalf)
-        .filter(
-          (event) => !kick[event.renderedStep % STEPS_PER_BAR],
-        )
-        .sort((left, right) => left.renderedStep - right.renderedStep)
-        .map((event) => ({
-          step: event.renderedStep % STEPS_PER_BAR,
-          cellStep: event.cellStep,
-          degree: event.degree,
-        }));
 
   candidates.forEach(({ step, cellStep, degree }) => {
     let midi = degreeToMidi(
@@ -2580,7 +2367,7 @@ function buildBassLine({
       degree,
     );
     if (
-      unitHash(form.motifLineageId, cellStep, "bass-octave") <
+      unitHash(materialState.motif.lineageId, cellStep, "bass-octave") <
       0.04 + profile.acid * 0.1
     ) {
       midi += 12;
@@ -2590,23 +2377,24 @@ function buildBassLine({
       midi,
       degree,
       accent:
-        unitHash(form.motifLineageId, cellStep, "bass-accent") <
+        unitHash(materialState.motif.lineageId, cellStep, "bass-accent") <
         0.16 + profile.acid * 0.3 + energy * 0.08,
       velocity: clamp(
         0.48 +
           energy * 0.26 +
-          unitHash(form.motifLineageId, cellStep, "bass-velocity") * 0.12,
+          unitHash(materialState.motif.lineageId, cellStep, "bass-velocity") *
+            0.12,
         0.42,
         0.9,
       ),
       length:
-        unitHash(form.motifLineageId, cellStep, "bass-length") <
+        unitHash(materialState.motif.lineageId, cellStep, "bass-length") <
         0.22 + form.space * 0.22
           ? 2
           : 1,
       slideTo: null,
       slideSteps: 0,
-      lineageId: form.motifLineageId,
+      lineageId: materialState.motif.lineageId,
     };
   });
   candidates.forEach(({ step }, index) => {
@@ -2619,7 +2407,7 @@ function buildBassLine({
       nextStep !== undefined &&
       gap <= 3 &&
       unitHash(
-        form.motifLineageId,
+        materialState.motif.lineageId,
         bar,
         step,
         "bass-slide",
@@ -2635,9 +2423,9 @@ function buildBassLine({
     bass,
     count: candidates.length,
     cell: canonicalCell,
-    cellSignature: canonicalCell
+    cellSignature: `${materialState.clocks.bass.id}:${canonicalCell
       .map((event) => `${event.step}:${event.degree}`)
-      .join("|"),
+      .join("|")}`,
   };
 }
 
@@ -2650,6 +2438,7 @@ export function buildBarPlan({
   instrumentProfile = profile,
   ensembleRoles = null,
   tasteProfile = null,
+  materialState = null,
 }) {
   if (!Number.isSafeInteger(bar) || bar < 0) {
     throw new RangeError("bar must be a non-negative safe integer");
@@ -2662,19 +2451,8 @@ export function buildBarPlan({
     instrumentProfile,
     trackDNA,
   );
-  const groove =
-    GROOVE_VOCABULARIES[trackDNA.grooveFamily] ||
-    GROOVE_VOCABULARIES["straight-pressure"];
-  const formRhythmBias =
-    FORM_RHYTHM_BIAS[trackDNA.formPhenotype] ||
-    FORM_RHYTHM_BIAS["patient-hypnosis"];
-  const vibeArrangement =
-    VIBE_ARRANGEMENT[vibeId] || VIBE_ARRANGEMENT.hypnotic;
   const percussionTimbre = percussionTimbreFor(trackDNA, profile);
   const section = sectionAtBar(movementWindow, bar);
-  const localBar =
-    ((bar - movementWindow.startBar) % MOVEMENT_BARS + MOVEMENT_BARS) %
-    MOVEMENT_BARS;
   const { form, energy: formLevel, progress: phraseProgress } =
     formDynamicsAtBar(movementWindow, bar);
   const movement = decorateMovementWithIdentity(
@@ -2683,6 +2461,18 @@ export function buildBarPlan({
   );
   const phraseIndex = Math.floor(bar / PHRASE_BARS);
   const barInPhrase = bar % PHRASE_BARS;
+  materialState =
+    materialState ||
+    cachedMaterialStateForPhrase({
+      seed,
+      phraseIndex,
+      vibeId,
+      tonality,
+      trackDNA,
+    });
+  if (materialState.phraseIndex !== phraseIndex) {
+    throw new RangeError("materialState must describe the requested bar's phrase");
+  }
   const barInSection =
     Math.max(0, form.labelResidency - 1) * PHRASE_BARS +
     barInPhrase;
@@ -2692,9 +2482,6 @@ export function buildBarPlan({
       0,
       1,
     ),
-  );
-  const phraseRng = makeRng(
-    hash32(seed, phraseIndex, form.motifLineageId, 0x50485241),
   );
   const barRng = makeRng(
     hash32(seed, bar, form.motifLineageId, 0x42415221),
@@ -2715,7 +2502,6 @@ export function buildBarPlan({
     form.intentionalRest ||
     effectiveDensity < 0.48 ||
     effectiveSpace > 0.68;
-  const peak = form.climax;
   const phraseEnd = barInPhrase === PHRASE_BARS - 1;
   const sectionStart =
     barInPhrase === 0 && form.labelResidency === 1;
@@ -2741,12 +2527,13 @@ export function buildBarPlan({
   });
   const activeSynthEngines = councilVerdict.activeSynthEngines;
 
+  const phrasePatterns = materialState.phrase.patterns;
   const kick = emptyPattern();
-  const kickCandidates = Array.from(
-    { length: STEPS_PER_BAR / 4 },
-    (_, index) => index * 4,
-  );
-  const kickCount =
+  const kickOnsets = materialBarSlice(
+    phrasePatterns.kick,
+    barInPhrase,
+  ).flatMap((active, step) => (active ? [step] : []));
+  const kickLimit =
     form.kickPolicy === "withdraw"
       ? 0
       : form.kickPolicy === "thin"
@@ -2759,18 +2546,21 @@ export function buildBarPlan({
             1,
             3,
           )
-        : kickCandidates.length;
-  kickCandidates
+        : kickOnsets.length;
+  kickOnsets
     .map((step) => ({
       step,
-      score:
-        (hash32(seed, phraseIndex, step, form.motifLineageId, "kick") >>> 0) /
-          0xffffffff +
-        (step === 0 ? 0.42 : 0) +
-        form.floorTrust * 0.18,
+      priority:
+        unitHash(
+          seed,
+          materialState.motif.lineageId,
+          phraseIndex,
+          step,
+          "material-kick-priority",
+        ) + (step === 0 ? 0.3 : 0),
     }))
-    .sort((left, right) => right.score - left.score)
-    .slice(0, kickCount)
+    .sort((left, right) => right.priority - left.priority)
+    .slice(0, kickLimit)
     .sort((left, right) => left.step - right.step)
     .forEach(({ step }, index) => {
       kick[step] =
@@ -2779,121 +2569,92 @@ export function buildBarPlan({
         (step === 0 ? 0.055 : 0) +
         (index % 2) * 0.012;
     });
-  if (councilVerdict.allowFill && phraseEnd && energy > 0.62) {
-    kick[14] = 0.52 + profile.drive * 0.2;
-    if (profile.syncopation > 0.58) kick[15] = 0.44 + profile.drive * 0.22;
-  }
 
   const clap = emptyPattern();
-  if (energy > 0.46 && !form.intentionalRest) {
-    const clapSteps =
-      vibeId === "dub" && profile.space > 0.72
-        ? [groove.claps[(phraseIndex + barInPhrase) % groove.claps.length]]
-        : groove.claps;
-    clapSteps.forEach((step, index) => {
-      clap[step] =
-        0.46 + energy * 0.28 + (index === clapSteps.length - 1 ? 0.05 : 0);
-    });
-    const ghostChance = clamp(
-      0.08 +
-        vibeArrangement.clapGhostBias +
-        profile.syncopation * 0.18,
-      0,
-      0.55,
+  if (energy > 0.34 && !form.intentionalRest) {
+    materialBarSlice(phrasePatterns.clap, barInPhrase).forEach(
+      (active, step) => {
+        if (!active) return;
+        clap[step] =
+          0.42 +
+          energy * 0.3 +
+          unitHash(
+            seed,
+            phraseIndex,
+            barInPhrase,
+            step,
+            "material-clap-velocity",
+          ) *
+            0.08;
+      },
     );
-    if (!sparse && barRng() < ghostChance) {
-      const ghostStep =
-        groove.ghostClaps[
-          hash32(seed, phraseIndex, barInPhrase, "ghost-clap") %
-            groove.ghostClaps.length
-        ];
-      clap[ghostStep] = Math.max(clap[ghostStep], 0.16 + energy * 0.12);
-    }
-    if (councilVerdict.allowFill && phraseEnd && profile.density > 0.7) {
-      clap[11] = 0.2;
-    }
   }
 
   const hat = emptyPattern();
   const openHat = emptyPattern();
-  const primaryHatSteps = groove.hats.map(
-    (step) => (step + vibeArrangement.hatRotation) % STEPS_PER_BAR,
+  materialBarSlice(phrasePatterns.hats, barInPhrase).forEach(
+    (active, step) => {
+      if (!active) return;
+      const velocity =
+        0.22 +
+        energy * 0.34 +
+        unitHash(
+          seed,
+          phraseIndex,
+          barInPhrase,
+          step,
+          "material-hat-velocity",
+        ) *
+          0.16;
+      hat[step] = velocity;
+    },
   );
-  primaryHatSteps.forEach((step, index) => {
-    if (
-      barRng() <
-      0.48 + energy * 0.45 + formRhythmBias.primary
-    ) {
-      hat[step] = 0.34 + energy * 0.32 + (index % 2) * 0.05;
-    }
-  });
-  for (const sourceStep of groove.secondaryHats) {
-    const step =
-      (sourceStep + vibeArrangement.hatRotation) % STEPS_PER_BAR;
-    if (
-      barRng() <
-      energy * (0.2 + profile.density * 0.34) +
-        formRhythmBias.secondary
-    ) {
-      hat[step] = Math.max(hat[step], 0.16 + barRng() * 0.24);
-    }
-  }
-  if (!sparse && barRng() < 0.24 + profile.density * 0.5) {
-    const openCandidates =
-      primaryHatSteps.length > 1
-        ? primaryHatSteps.filter((_, index) => index % 2 === 1)
-        : primaryHatSteps;
-    const step =
-      openCandidates[Math.floor(barRng() * openCandidates.length)];
-    openHat[step] = 0.34 + energy * 0.25;
-    hat[step] = 0;
-  }
+  materialBarSlice(phrasePatterns.openHats, barInPhrase).forEach(
+    (active, step) => {
+      if (!active || sparse) return;
+      openHat[step] =
+        0.24 +
+        energy * 0.32 +
+        unitHash(
+          seed,
+          phraseIndex,
+          barInPhrase,
+          step,
+          "material-open-hat-velocity",
+        ) *
+          0.16;
+    },
+  );
 
   const shaker = emptyPattern();
-  if (profile.swing + profile.space > 0.42 && energy > 0.45) {
-    const rotation = Math.floor(phraseRng() * 4);
-    for (let step = 0; step < STEPS_PER_BAR; step += 1) {
-      if ((step + rotation) % 3 === 0 && barRng() < 0.48 + profile.density * 0.32) {
-        shaker[step] = 0.12 + energy * 0.18;
-      }
-    }
-  }
-
   const rim = emptyPattern();
-  [3, 7, 11, 15].forEach((step) => {
-    if (!sparse && barRng() < energy * (0.12 + profile.syncopation * 0.28)) {
-      rim[step] = 0.2 + barRng() * 0.28;
-    }
-  });
-
   const ride = emptyPattern();
-  if (
-    peak &&
-    profile.density > 0.58 &&
-    form.climaxAge >= 2 &&
-    barRng() < 0.28 + form.density * 0.5
-  ) {
-    [2, 6, 10, 14].forEach((step) => {
-      if (barRng() < 0.46 + energy * 0.36) ride[step] = 0.18 + energy * 0.24;
-    });
-  }
-
   const metallic = emptyPattern();
-  if (profile.metallic > 0.3 && !sparse) {
-    const candidates = shuffled([1, 3, 5, 7, 9, 11, 13, 15], phraseRng);
-    const count = Math.floor(profile.metallic * energy * 4);
-    candidates.slice(0, count).forEach((step) => {
-      metallic[step] = 0.16 + barRng() * 0.28;
-    });
-  }
-
   const tom = emptyPattern();
-  if (councilVerdict.allowFill && phraseEnd && energy > 0.54) {
-    const fillLength = profile.metallic > 0.6 ? 4 : 3;
-    for (let offset = 0; offset < fillLength; offset += 1) {
-      tom[STEPS_PER_BAR - fillLength + offset] = 0.28 + offset * 0.1;
-    }
-  }
+  const percussionVoiceSlice = materialBarSlice(
+    phrasePatterns.percussionVoices,
+    barInPhrase,
+  );
+  materialBarSlice(phrasePatterns.percussion, barInPhrase).forEach(
+    (active, step) => {
+      if (!active) return;
+      const voice = percussionVoiceSlice[step];
+      const lane = { shaker, rim, ride, metallic, tom }[voice];
+      if (!lane) return;
+      lane[step] =
+        0.14 +
+        energy * 0.2 +
+        unitHash(
+          seed,
+          phraseIndex,
+          barInPhrase,
+          step,
+          voice,
+          "material-percussion-velocity",
+        ) *
+          0.16;
+    },
+  );
 
   const bassLine = buildBassLine({
     seed,
@@ -2903,6 +2664,7 @@ export function buildBarPlan({
     profile,
     energy,
     kick,
+    materialState,
   });
   const bass = bassLine.bass;
   const bassCount = bassLine.count;
@@ -2993,10 +2755,30 @@ export function buildBarPlan({
     chordBars.has(barInPhrase) &&
     barRng() < chordChance
   ) {
-    const chordSteps =
-      trackDNA.harmonyBehavior === "dub-stabs"
-        ? [3, 7, 11, 15]
-        : groove.ghostClaps;
+    const generatedChordVocabulary = [
+      phrasePatterns.clap,
+      phrasePatterns.percussion,
+      phrasePatterns.hats,
+    ];
+    const chordSteps = [
+      ...new Set(
+        generatedChordVocabulary.flatMap((lane) =>
+          materialBarSlice(lane, barInPhrase).flatMap((active, step) =>
+            active && !kick[step] ? [step] : [],
+          ),
+        ),
+      ),
+    ];
+    if (chordSteps.length === 0) {
+      chordSteps.push(
+        hash32(
+          seed,
+          phraseIndex,
+          materialState.motif.lineageId,
+          "generated-chord-step",
+        ) % STEPS_PER_BAR,
+      );
+    }
     const step = chordSteps[Math.floor(barRng() * chordSteps.length)];
     chord[step] = {
       notes: makeChord(
@@ -3112,6 +2894,7 @@ export function buildBarPlan({
     roles: effectiveEnsembleRoles,
     activeEngines: activeSynthEngines,
     councilVerdict,
+    materialState,
   });
   const synth = fitEnsembleToArrangement({
     phrase: ensemblePhrase,
@@ -3119,6 +2902,7 @@ export function buildBarPlan({
     roles: effectiveEnsembleRoles,
     seed,
     phraseIndex,
+    kick,
     bass,
     chord,
     metallic,
@@ -3148,6 +2932,10 @@ export function buildBarPlan({
   );
   const lowEnd = Object.freeze({
     motifLineageId: form.motifLineageId,
+    materialMotifLineageId: materialState.motif.lineageId,
+    materialGesture: materialState.gesture,
+    bassClockId: materialState.clocks.bass.id,
+    bassClockLength: materialState.clocks.bass.loopLength,
     decision: form.motifOperation,
     motifOperation: form.motifOperation,
     motifMutationCount: form.motifMutationCount,
@@ -3223,6 +3011,8 @@ export function buildBarPlan({
     tonality,
     energy,
     profile,
+    materialState,
+    material: summarizeMaterialState(materialState),
     kick,
     kickTimbre,
     percussionTimbre,

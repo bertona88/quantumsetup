@@ -1,6 +1,6 @@
 # Artistic Council
 
-Status: implemented arrangement doctrine for Infinite Techno `1.5.0`
+Status: arrangement doctrine for the local Infinite Techno `2.0.0` material candidate
 
 ## Constitution
 
@@ -47,24 +47,31 @@ Reduction, but neither event is assigned to a section or bar in advance.
 The winning chair does not average four suggestions:
 
 1. apply one bounded phrase-state change;
-2. preserve, thin, or deliberately withdraw the floor according to earned state;
+2. supply floor, density, tension, space, and mutation budgets to the material
+   planner without choosing an onset pattern;
 3. choose the smallest advanced-synth cast that can express the phrase;
 4. remove optional layers that compete in the same spectrum;
 5. allow a second advanced voice only when the current phenotype and recurrent
    phrase state justify dialogue;
 6. allow a fill only when recurrent state grants permission;
-7. keep equal-priority foregrounds resident until a causal motif event authorizes
+7. keep equal-priority foregrounds resident until a causal lineage event authorizes
    a handoff.
 
 Section names are run-length readouts derived after the decision. They describe
 what emerged; they do not assign a chair, energy curve, climax, fill, or transition.
 They also do not select a scene, tonal identity, bass voice, or synth engine.
 
-A motif `mutate`, `replace`, or `recall` event may authorize exactly one Matrix,
-Resonator, or String handoff at its stable phrase boundary. `hold` authorizes none.
-The event coordinates score the engine directly, so there is no 16-bar clock or
-round-robin. Taste can rank candidates only inside that already-authorized handoff;
-it cannot create one.
+The six ensemble scenes remain semantic role vocabularies: motor, call, answer,
+counterline, punctuation, and tail relationships with register, priority, and
+effect-space constraints. They contain no onset masks. Persistent synth clocks and
+the selected material gesture decide when those roles speak.
+
+A causal lineage event may authorize exactly one Matrix, Resonator, or String
+handoff at its stable phrase boundary. An event that does not authorize a handoff
+leaves every resident genome in place. Event coordinates score the engine directly,
+so there is no 16-bar clock or round-robin. Taste can rank timbre candidates only
+inside that already-authorized handoff; it cannot create one and is not an input to
+the twelve-candidate musical-material selection.
 
 The output is a generic directive—`FLOOR FIRST`, `PLAY THE LONG ARC`,
 `REMOVE UNTIL IT MATTERS`, or `LET THE MACHINE SING`—plus a phrase phase:
@@ -76,12 +83,17 @@ control surface.
 - Never play all three advanced engines together.
 - Never let taste feedback rewrite rhythm, harmony, arrangement, or energy.
 - Never let taste feedback authorize its own synth change.
-- Never add an attack to a quarter-note kick anchor.
+- Never create an unscored same-step collision with the current kick; protect every
+  quarter-note anchor while the kick clock is anchored.
 - Never relocate more than one priority lead to solve a collision.
 - Never make a dramatic fill routine.
 - Never mistake more instruments for more musical information.
 - Never treat a derived section label as an arrangement schedule.
 - Never let a 192-bar observation/cache boundary change musical identity.
+- Never let a council decision reset persistent lane phase.
 
 The council supplies deterministic editorial pressure. It does not establish
-subjective musical quality; that still requires long listening.
+subjective musical quality. A narrow implementation-stage browser smoke is recorded
+but is not byte-matched to the current candidate; render, listening, the final
+browser matrix, soak, deployment, and public acceptance remain separate open gates
+for `2.0.0`.

@@ -1,12 +1,177 @@
 # Acceptance Tests
 
-Current gate: Infinite Techno `1.5.0` trajectory-diversity candidate
+Current gate: local Infinite Techno `2.0.0` generative-material candidate
 
-Passing one gate does not imply another. Deterministic structure, audible browser
-output, long-run reliability, musical quality, deployment, and public acceptance are
-separate boundaries.
+Passing one gate does not imply another. Deterministic structure, rendered audio,
+listening quality, active-browser behavior, long-run reliability, deployment, and
+public acceptance are separate boundaries. No `1.5.0` result is automatically
+carried forward across the material-planner rewrite.
 
 ## Gate 0 — Provenance and scope
+
+- [x] `prototype/` remains immutable.
+- [x] the supplied generator identity is recorded by SHA-256.
+- [x] music owns the product hierarchy and the quantum contour remains artistic.
+- [x] commit, push, and deployment were explicitly authorized on 2026-07-31;
+  public acceptance remains a separate post-deployment decision.
+
+## Gate 1 — Persistent generative material
+
+- [x] canonical immutable Bjorklund `euclidean(hits, steps, rotation)` passes known
+  patterns, hit count, evenness, rotation, and invalid-input tests.
+- [x] every structural rhythmic lane has a frozen clock summary containing loop
+  length, hit count, rotation, absolute phase origin, residence age, and mutation
+  history.
+- [x] absolute phase continues across bars, eight-bar phrases, derived sections, and
+  192-bar observation boundaries.
+- [x] Track DNA biases near-16, triplet-related, prime, odd, and patient clock
+  dialects without containing onset sequences.
+- [x] clock identities remain resident for two to eight phrases.
+- [x] ordinary phrases mutate at most one structural lane; earned climax, release,
+  or recall phrases mutate at most two.
+- [x] kick normally uses `E(4,16)`; excursions use only 12, 15, 17, 18, or 20 steps,
+  last one to four phrases, follow at least four anchored phrases, and force
+  re-anchoring.
+- [x] at least 75% of phrases retain the anchored four-floor kick across the fixed
+  long scan.
+- [x] bass uses a persistent 12–32-step clock plus resident modal motif lineage,
+  rather than a fixed two-bar cell.
+- [x] the six named ensemble scenes contain semantic roles, register constraints,
+  priority, and effect space but no onset masks.
+
+## Gate 2 — Gesture grammar and candidate selection
+
+- [x] the ordered gesture states are `repeat`, `subtract`, `add`, `displace`, `call`,
+  `answer`, `rest`, and `recall`, and every checked-in transition row normalizes.
+- [x] all gesture states are reachable across the fixed seed scan.
+- [x] every call receives a deterministic upward, downward, rhythmic, or registral
+  answer within the same or following phrase.
+- [x] rests are bounded and ordinary motif transformations alter no more than 25% of
+  resident onsets or degrees.
+- [x] all emitted bass, harmony, and advanced-synth pitches remain modal and
+  register-bounded.
+- [x] each phrase boundary constructs exactly twelve complete symbolic candidates
+  from seed, Track DNA, form snapshot, phrase-entry profile, tonality, and previous
+  material state.
+- [x] density, voice, pitch, collision, excursion, silence, and DSP-safety rejection
+  rules are deterministic and bounded.
+- [x] normalized candidate weights are 22% groove continuity, 18% macro/profile fit,
+  16% kick/bass separation, 14% motif conversation, 12% novelty, 10% orchestration,
+  and 8% polymetric phase interest.
+- [x] only candidates scoring at least `0.55` and within `0.20` of the best enter
+  seeded softmax selection.
+- [x] sampling temperature remains between `0.35` and `0.85`; the same seed and
+  intent history replay the same selected sequence while multiple eligible
+  candidates are selected across seeds.
+- [x] exact phrase repetition is attributable to `repeat` or `recall`, not planner
+  collapse.
+- [x] pure material creation, advancement, and trace functions are deterministic,
+  order-independent, bounded, and frozen.
+
+## Gate 3 — Macro state, intent, and runtime materialization
+
+- [x] recurrent form remains the macro-intent provider and contains no fixed
+  movement, energy, chair, or material-onset schedule.
+- [x] derived labels and section RLE remain diagnostic and cannot reset material
+  clocks, motif memory, or call obligations.
+- [x] only an accepted New Trajectory resets material memory; a rejected trajectory
+  request, observation boundary, ordinary gesture, Vibe request, and Tonality
+  request do not.
+- [x] Vibe and Tonality requests affect only phrases selected at future eight-bar
+  boundaries.
+- [x] the full selected eight-bar phrase is frozen once before playback; all eight
+  bars materialize without rerunning candidate generation or gesture decisions.
+- [x] Matrix, Resonator, String, bass voice, and semantic scene roles remain
+  phrase-stable; any synthesis-genome handoff stays separately causal and
+  one-engine-bounded.
+- [x] taste feedback remains isolated to an already-authorized timbre handoff and
+  cannot rank musical-material candidates.
+- [x] the hardware scheduler retains audio-clock lookahead, missed-step recovery,
+  finite source cleanup, bounded voices, and separate kick, bass, rumble, and music
+  buses.
+- [x] the complete deterministic, DSP, worklet, lifecycle, transition, trajectory,
+  taste, and syntax suite passes together on the current local `2.0.0` source
+  state.
+
+## Gate 4 — Deterministic population evidence
+
+- [x] at least 128 seeds pass a 384-bar scan covering kick-anchor share, excursion
+  duration/cooldown, persistent non-16 polymeter, no global lane reset, gesture
+  reachability, answer obligations, and attributable repetition.
+- [x] within the first 48 bars, every fixed-manifest cross-seed pair separates in
+  rhythm and phrase grammar plus at least one additional musical domain.
+- [x] every such pair reaches composite symbolic distance of at least `0.20`.
+- [x] metadata-only relabelling still contributes zero symbolic musical distance.
+- [x] settled Vibe endpoints change future phrases without rewriting an already
+  frozen phrase.
+
+Current local evidence: `npm --prefix app run check` passes 118/118 tests. The
+13-trajectory first-48-bar manifest passes all 78 pairs; the minimum observed
+composite distance is `0.252146`, with rhythm and phrase-grammar separation plus at
+least one of orchestration, timbre, or harmony for every pair.
+
+## Gate 5 — Render and listening evidence
+
+- [ ] eight fixed 96-bar trajectories plus stems are rendered in a foreground
+  browser harness from the final tested bytes.
+- [ ] render hashes, peak, RMS, DC, clipping, silence, discontinuity, kick/bass
+  overlap, and nearest-neighbour distances are recorded.
+- [ ] loudness-matched 90-second excerpts of the eight closest trajectory pairs
+  receive blinded comparison.
+- [ ] at least six of eight closest pairs are judged clearly different records.
+- [ ] groove quality is recorded separately from distinctness.
+- [ ] multi-hour Vibe/Tonality listening and multi-day recurrence review remain open
+  until separately recorded.
+
+## Gate 6 — Interface, browser, and soak
+
+- [x] `window.QuantumTechno` remains versioned `2.0.0` and preserves
+  `getSnapshot()`, `requestVibe()`, and `requestTonality()`.
+- [x] snapshots add a deeply frozen material section with gesture, motif lineage,
+  lane-clock summaries, selected-candidate score, candidate count, temperature, and
+  kick-excursion status.
+- [x] no low-level material, rhythm, synthesis, mixer, or scientific controls are
+  added.
+- [x] an implementation-stage Codex in-app-browser smoke at `1280×720` started Web
+  Audio from the transport gesture, reached a populated running ensemble, queued
+  Vibe and Tonality intents at future boundaries, and stopped cleanly with no
+  console warnings or errors; `390×844` and `320×568` both had zero horizontal
+  overflow. It preceded the final planner-invariant hardening and is not
+  byte-matched to the current candidate.
+- [ ] foreground Start/Stop, Vibe, Tonality, New Trajectory, transition, preview,
+  restart, responsive, reduced-motion, and clean-console browser smoke passes on the
+  final `2.0.0` bytes.
+- [ ] a 30–60-minute named-device foreground soak is attached.
+- [ ] suspend/resume and audio-device-change behavior is recorded without expanding
+  the runtime claim.
+- [ ] screen-reader smoke is documented.
+
+## Gate 7 — Claim and release boundary
+
+- [x] documentation states that deterministic tests do not establish audible
+  distinctness, groove quality, professional-DJ quality, or long-run reliability.
+- [x] documentation keeps the quantum contour explicitly artistic and disclaims
+  named-artist participation, endorsement, literal opinions, and imitation.
+- [ ] a final local `2.0.0` candidate report links every deterministic, render,
+  listening, browser, and soak artifact.
+- [ ] commit and push are separately authorized and completed.
+- [ ] deployment is separately authorized and completed from the exact tested
+  source state.
+- [ ] public file hashes, browser behavior, and material snapshot are verified
+  against the named deployment.
+- [ ] public acceptance is explicitly recorded.
+
+## Historical release evidence
+
+The results below remain evidence for their named versions only. They do not
+establish deterministic acceptance, render quality, listening quality, browser
+behavior, soak reliability, deployment, or public acceptance for `2.0.0`.
+
+The complete prior gate record is retained below. Its checked items describe the
+named `1.5.0` source and release only; superseded two-bar cells and onset masks are
+historical facts, not `2.0.0` authorities.
+
+### Historical `1.5.0` Gate 0 — Provenance and scope
 
 - [x] `prototype/` is unchanged.
 - [x] supplied generator identity is recorded by SHA-256.
@@ -16,7 +181,7 @@ separate boundaries.
   in Git history.
 - [x] repository documents state that music owns the product hierarchy.
 
-## Gate 1 — Deterministic musical planner
+### Historical `1.5.0` Gate 1 — Deterministic musical planner
 
 - [x] 4/4 bars contain 16 sixteenth-note steps.
 - [x] normal phrases are eight bars.
@@ -114,7 +279,7 @@ separate boundaries.
 - [x] a stopped taste update preserves the resident palette and waits for the next
   authorized one-engine handoff after restart.
 
-## Gate 2 — Direction transitions
+### Historical `1.5.0` Gate 2 — Direction transitions
 
 - [x] Vibe choices are Hypnotic, Dub, Detroit, Acid, and Peak.
 - [x] tonal choices are Minor, Neutral, and Major.
@@ -132,7 +297,7 @@ separate boundaries.
 - [x] a candidate pool with no DNA-eligible result leaves the current trajectory
   unchanged instead of entering an unqualified fallback seed.
 
-## Gate 3 — Audio graph and scheduler
+### Historical `1.5.0` Gate 3 — Audio graph and scheduler
 
 - [x] audio starts only from a user gesture.
 - [x] one engine owns one `AudioContext`.
@@ -167,7 +332,7 @@ separate boundaries.
   trajectory manifest.
 - [ ] 30–60-minute named-device foreground soak is attached.
 
-## Gate 4 — Sound palette
+### Historical `1.5.0` Gate 4 — Sound palette
 
 - [x] synthetic kick, clap, hat, open hat, shaker, ride, rim, tom, and metallic
   percussion exist.
@@ -195,7 +360,7 @@ separate boundaries.
   closest trajectory pairs after loudness matching.
 - [ ] bounded recurrence ledger prevents excessive multi-day phrase similarity.
 
-## Gate 5 — Single audio-first interface
+### Historical `1.5.0` Gate 5 — Single audio-first interface
 
 - [x] there is one page and no LAB/TRIP navigation.
 - [x] Start/Stop is the primary action.
@@ -228,7 +393,7 @@ separate boundaries.
 - [x] keyboard taste-decision smoke is documented.
 - [ ] screen-reader smoke is documented.
 
-## Gate 6 — Claim boundary
+### Historical `1.5.0` Gate 6 — Claim boundary
 
 - [x] page states that the quantum contour is an artistic metaphor.
 - [x] no UI claims quantum computation, randomness, physical simulation, or
@@ -238,7 +403,7 @@ separate boundaries.
 - [x] council documentation disclaims named-artist participation, endorsement,
   literal opinions, and imitation; artist names do not appear in the public controls.
 
-## Gate 7 — Candidate and release
+### Historical `1.5.0` Gate 7 — Candidate and release
 
 - [x] the complete `1.5.0` deterministic planner, trajectory-DNA, downstream
   diversity, runtime-boundary, DSP, worklet, and syntax check result is recorded.
@@ -248,9 +413,6 @@ separate boundaries.
 - [ ] `1.5.0` long listening review is attached.
 - [x] `1.5.0` production workflow succeeds and public assets match the tested
   candidate.
-
-The `1.4.0` results below are historical release evidence and do not establish
-acceptance or deployment of `1.5.0`.
 
 Local `1.5.0` deterministic evidence: all 99 planner, emergent-form distribution,
 Track-DNA selection and rejection, 192-bar downstream diversity, causal handoff,

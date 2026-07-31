@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { isDeepStrictEqual } from "node:util";
 
 import {
   ARTISTIC_COUNCIL,
   ENSEMBLE_SCENES,
+  GENERATOR_VERSION,
   MOVEMENT_BARS,
   VIBES,
   blendProfileObjects,
@@ -44,6 +46,23 @@ test("canonical supplied generator remains byte-identical", () => {
     createHash("sha256").update(source).digest("hex"),
     "03014fca7b13962ca166090df82c8045e2ea9758c9dfa78e5c72ca575d57ed57",
   );
+});
+
+test("the versioned high-level browser API remains source-compatible", () => {
+  assert.equal(GENERATOR_VERSION, "2.0.0");
+  const source = readFileSync(
+    new URL("./main.js", import.meta.url),
+    "utf8",
+  );
+  for (const fragment of [
+    "window.QuantumTechno = Object.freeze({",
+    "version: GENERATOR_VERSION",
+    "getSnapshot: () => engine.getSnapshot()",
+    "requestVibe: (vibe) => engine.requestVibe(vibe)",
+    "requestTonality: (tonality) => engine.requestTonality(tonality)",
+  ]) {
+    assert.ok(source.includes(fragment), `${fragment} browser contract was removed`);
+  }
 });
 
 test("hash and random stream are deterministic", () => {
@@ -106,6 +125,166 @@ test("bar plans are stable, bounded, and harmonically legal", () => {
   assert.equal(first.bass.length, 16);
   assert.ok(first.energy >= 0 && first.energy <= 1);
   assert.ok(planNotesBelongToMode(first));
+});
+
+test("rendered bar lanes preserve their selected material provenance", () => {
+  const fixtures = [
+    { seed: 0, bar: 2, vibeId: "peak" },
+    { seed: 0, bar: 0, vibeId: "detroit" },
+    { seed: 1, bar: 178, vibeId: "detroit" },
+    { seed: 0, bar: 543, vibeId: "detroit" },
+    { seed: 2, bar: 0, vibeId: "peak" },
+    { seed: 0, bar: 1, vibeId: "hypnotic" },
+    { seed: 33, bar: 55, vibeId: "hypnotic" },
+  ];
+  const directLanes = {
+    kick: "kick",
+    clap: "clap",
+    hat: "hats",
+    openHat: "openHats",
+    bass: "bass",
+  };
+  const percussionVoices = ["shaker", "rim", "ride", "metallic", "tom"];
+  const synthEngines = ["fm", "modal", "string"];
+  const renderedCounts = Object.fromEntries(
+    [
+      ...Object.keys(directLanes),
+      ...percussionVoices,
+      ...synthEngines,
+    ].map((lane) => [lane, 0]),
+  );
+  let relocatedLeadCount = 0;
+
+  for (const fixture of fixtures) {
+    const plan = buildBarPlan({
+      ...fixture,
+      tonality: "minor",
+      profile: profileForVibe(fixture.vibeId),
+    });
+    const phraseOffset = plan.barInPhrase * 16;
+    const slice = (lane) =>
+      plan.materialState.phrase.patterns[lane].slice(
+        phraseOffset,
+        phraseOffset + 16,
+      );
+    const assertMaterialOnsets = (renderedLane, materialLane, label) => {
+      renderedLane.forEach((event, step) => {
+        if (!event) return;
+        renderedCounts[label] += 1;
+        assert.equal(
+          Boolean(materialLane[step]),
+          true,
+          `${label} created an onset outside material phrase ${plan.phraseIndex}, bar ${plan.barInPhrase}, step ${step}`,
+        );
+      });
+    };
+
+    assert.equal(plan.materialState.phraseIndex, plan.phraseIndex);
+    for (const [renderedLane, materialLane] of Object.entries(directLanes)) {
+      assertMaterialOnsets(plan[renderedLane], slice(materialLane), renderedLane);
+    }
+    assert.equal(
+      plan.openHat.some((velocity, step) => velocity > 0 && plan.hat[step] > 0),
+      false,
+    );
+
+    const percussion = slice("percussion");
+    const selectedVoices = slice("percussionVoices");
+    for (const voice of percussionVoices) {
+      assertMaterialOnsets(
+        plan[voice],
+        percussion.map(
+          (active, step) => active && selectedVoices[step] === voice,
+        ),
+        voice,
+      );
+    }
+
+    const ensemblePhrase = buildEnsemblePhrase({
+      seed: fixture.seed,
+      phraseIndex: plan.phraseIndex,
+      movement: plan.movement,
+      section: plan.section,
+      profile: plan.profile,
+      roles: plan.ensembleScene.roles,
+      activeEngines: plan.activeSynthEngines,
+      councilVerdict: plan.councilVerdict,
+      materialState: plan.materialState,
+    });
+    let barRelocations = 0;
+    for (const engine of synthEngines) {
+      const sourceLane = ensemblePhrase[engine][plan.barInPhrase];
+      const materialLane =
+        plan.materialState.phrase.patterns.synth[engine].slice(
+          phraseOffset,
+          phraseOffset + 16,
+        );
+      plan.synth[engine].forEach((renderedNote, renderedStep) => {
+        if (!renderedNote) return;
+        renderedCounts[engine] += 1;
+        const sourceSteps = sourceLane.flatMap((sourceNote, sourceStep) =>
+          sourceNote && isDeepStrictEqual(sourceNote, renderedNote)
+            ? [sourceStep]
+            : [],
+        );
+        assert.equal(
+          sourceSteps.length,
+          1,
+          `${engine} note does not trace to exactly one selected phrase event`,
+        );
+        const sourceStep = sourceSteps[0];
+        assert.equal(
+          Boolean(materialLane[sourceStep]),
+          true,
+          `${engine} note source is absent from the selected material slice`,
+        );
+        if (sourceStep === renderedStep) return;
+
+        // Arrangement fitting may relocate one priority lead to a vocabulary
+        // onset no farther than two sixteenths; every other onset stays put.
+        barRelocations += 1;
+        relocatedLeadCount += 1;
+        assert.ok(renderedNote.priority >= 3);
+        assert.ok(Math.abs(renderedStep - sourceStep) <= 2);
+        assert.ok(
+          ensemblePhrase[engine].some(
+            (phraseBar) => phraseBar[renderedStep],
+          ),
+        );
+      });
+    }
+    assert.ok(barRelocations <= 1);
+  }
+
+  for (const [lane, count] of Object.entries(renderedCounts)) {
+    assert.ok(count > 0, `${lane} provenance assertion was not exercised`);
+  }
+  assert.ok(relocatedLeadCount > 0);
+});
+
+test("legacy fixed rhythm vocabularies and authored onset masks stay absent", () => {
+  const source = readFileSync(
+    new URL("./techno-model.js", import.meta.url),
+    "utf8",
+  );
+  for (const legacyFragment of [
+    "GROOVE_VOCABULARIES",
+    "alternatingPattern",
+    "sparsePattern",
+    "role.pattern",
+    "shuffled([1, 3, 5, 7, 9, 11, 13, 15]",
+  ]) {
+    assert.equal(
+      source.includes(legacyFragment),
+      false,
+      `${legacyFragment} reintroduced fixed onset authority`,
+    );
+  }
+  for (const scene of ENSEMBLE_SCENES) {
+    for (const role of Object.values(scene.roles)) {
+      assert.equal(Object.hasOwn(role, "pattern"), false);
+    }
+  }
 });
 
 test("all vibe and tonality combinations survive a long scan", () => {
@@ -303,6 +482,20 @@ test("ensemble phrases are pure scored conversations with bounded placements", (
     movement.sections[0];
   const phraseIndex = section.startBar / 8;
   const profile = profileForVibe("peak");
+  const materialState = buildBarPlan({
+    seed,
+    bar: phraseIndex * 8,
+    vibeId: "peak",
+    tonality: "minor",
+    profile,
+  }).materialState;
+  const nextMaterialState = buildBarPlan({
+    seed,
+    bar: (phraseIndex + 1) * 8,
+    vibeId: "peak",
+    tonality: "minor",
+    profile,
+  }).materialState;
 
   const reachedEngines = new Set();
   for (const scene of ENSEMBLE_SCENES) {
@@ -313,11 +506,13 @@ test("ensemble phrases are pure scored conversations with bounded placements", (
       section,
       profile,
       roles: scene.roles,
+      materialState,
     };
     const first = buildEnsemblePhrase(input);
     buildEnsemblePhrase({
       ...input,
       phraseIndex: phraseIndex + 1,
+      materialState: nextMaterialState,
     });
     const second = buildEnsemblePhrase(input);
     assert.deepEqual(first, second);
@@ -341,7 +536,10 @@ test("ensemble phrases are pure scored conversations with bounded placements", (
         assert.ok(attacks.length <= 1);
         if (attacks.length > 0) {
           starts += 1;
-          assert.equal([0, 4, 8, 12].includes(step), false);
+          assert.equal(
+            materialState.phrase.patterns.kick[bar * 16 + step],
+            false,
+          );
         }
         for (const engine of attacks) {
           const note = first[engine][bar][step];
@@ -502,7 +700,7 @@ test("arrangement-aware ensemble lanes avoid unscored collisions and stay inside
           assert.ok(attacks.length <= 1);
           if (attacks.length === 0) continue;
           starts += 1;
-          assert.equal([0, 4, 8, 12].includes(step), false);
+          assert.equal(Boolean(plan.kick[step]), false);
           const engine = attacks[0];
           const note = plan.synth[engine][step];
           const role = plan.ensembleScene.roles[engine];
@@ -594,8 +792,13 @@ test("the four-lens council enforces one idea, earned dialogue, and rare fills",
         assert.equal(plan.phraseEnd, true);
         assert.equal(verdict.allowFill, true);
       }
-      if (plan.form.kickPolicy === "anchor") {
+      if (
+        plan.form.kickPolicy === "anchor" &&
+        !plan.material.kickExcursion.active
+      ) {
         for (const step of [0, 4, 8, 12]) assert.ok(plan.kick[step] > 0);
+      } else if (plan.material.kickExcursion.active) {
+        assert.notEqual(plan.material.laneClocks.kick.loopLength, 16);
       } else if (plan.form.kickPolicy === "withdraw") {
         for (const step of [0, 4, 8, 12]) assert.equal(plan.kick[step], 0);
       }

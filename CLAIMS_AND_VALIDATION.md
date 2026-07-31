@@ -1,6 +1,9 @@
 # Claims and Validation
 
-Status: claim register for local Infinite Techno `1.5.0` diversity candidate
+Status: claim register for local Infinite Techno `2.0.0` generative-material candidate
+
+The `2.0.0` claim boundary is local. Historical `1.5.0` deterministic, browser, and
+deployment evidence does not validate the rewritten material planner.
 
 ## Allowed claims
 
@@ -22,6 +25,34 @@ The application may claim that it:
   independent uniform ID draws match with probability \(1 / 2^{128}\), or about
   \(2.9 \times 10^{-39}\);
 - advances bounded recurrent musical state at eight-bar phrase boundaries;
+- uses immutable Bjorklund Euclidean patterns read through persistent lane clocks;
+- carries each lane's loop length, hit count, rotation, absolute phase origin,
+  residence age, and bounded mutation history across bars, phrases, derived labels,
+  and 192-bar observation boundaries;
+- uses Track DNA as a weighted clock and material-holding dialect rather than an
+  onset mask;
+- normally protects the kick with four-floor `E(4,16)` and permits only earned,
+  finite one-to-four-phrase polymetric excursions followed by forced re-anchoring;
+- keeps lane identities resident for two to eight phrases and limits structural
+  mutation to one lane ordinarily or two during earned climax, release, or recall;
+- carries phrase memory containing a resident motif, previous gesture, unresolved
+  call, recent fingerprints, and archived motifs;
+- uses the authored gesture vocabulary `repeat`, `subtract`, `add`, `displace`,
+  `call`, `answer`, `rest`, and `recall`, with a checked-in transition matrix adjusted
+  by bounded macro state;
+- fulfils a call in the same or following phrase, limits ordinary motif edits to 25%
+  of onsets or degrees, and keeps emitted notes modal, register-bounded, and
+  lineage-traceable;
+- generates twelve complete symbolic candidates at each eight-bar boundary, rejects
+  density, voice, pitch, collision, excursion, silence, and DSP-safety violations,
+  and scores eligible candidates with normalized musical measures;
+- keeps candidates scoring at least `0.55` and within `0.20` of the best, then uses
+  deterministic seeded softmax sampling at temperature `0.35`–`0.85` rather than
+  always taking the maximum;
+- freezes the selected full eight-bar phrase before its first bar and lets the audio
+  scheduler materialize it without recomputing musical decisions;
+- exposes pure material-state creation, advancement, and trace functions so the same
+  seed and intent history replay the same phrase sequence;
 - derives section readouts by run-length encoding adjacent phrase labels, with no
   fixed maximum section duration or musical authority;
 - uses 192-bar observation/RLE/cache windows without treating their boundaries as
@@ -31,13 +62,15 @@ The application may claim that it:
 - admits a climax only after bounded appetite, tension, floor-trust, payoff-debt,
   readiness, and cooldown rules converge; a climax is bounded to 16–64 bars and
   some observation windows contain none;
-- derives anchor, thin, and rare bounded-withdrawal kick policies from phrase state;
+- derives bounded floor intent and rare withdrawal permission from phrase state
+  without allowing form labels to reset the material kick clock;
 - changes an independent kick-family identity only after earned release or floor
   recommit, with a 24-phrase cooldown and one-phrase bounded parameter morph;
-- generates two-bar bass cells with deterministic lineage mutation, replacement,
-  archival recall, kick-onset avoidance, and independently resident voice identity;
-- separates motif, tonal, harmonic-position, scene, and bass-voice material so one
-  motif replacement cannot reset them together;
+- generates bass from a persistent 12–32-step clock plus resident modal motif
+  lineage, kick-onset separation, and independently resident voice identity;
+- separates motif, lane-clock, tonal, harmonic-position, semantic-scene,
+  synthesis-genome, and bass-voice material so one gesture cannot reset them
+  together;
 - changes harmony position through state-earned, cooled-down turns rather than
   lineage age, elapsed bars, or the 192-bar observation clock;
 - emits bounded physical kick-timbre and low-end routing contracts;
@@ -49,13 +82,14 @@ The application may claim that it:
 - morphs Vibe over 64–128 bars and Major/Minor over 96 bars;
 - caps temporary voices at 96 and gives them finite stop times;
 - uses three advanced synthesis engines with 208 discrete base architectures;
-- lets each motif mutate, replace, or recall event authorize exactly one
-  deterministic, bounded synthesis-genome handoff at a stable phrase boundary,
-  while hold authorizes none;
+- keeps any advanced-synthesis genome handoff separately causal and bounded to one
+  authorized engine at a stable phrase boundary; a material gesture cannot create an
+  extra timbre handoff;
 - chooses the authorized engine from causal event coordinates rather than elapsed
   time, phrase modulo, or round-robin;
 - coordinates Matrix, Resonator, and String through six deterministic ensemble
-  vocabularies with curated phrase masks, register roles, and effect sends;
+  vocabularies containing semantic roles, register constraints, priorities, and
+  effect sends but no onset masks;
 - selects one deterministic council chair per phrase from competing lens scores,
   with bounded residency;
 - chooses zero or one advanced voice normally, with a maximum of two for a
@@ -63,16 +97,17 @@ The application may claim that it:
 - keeps advanced attacks off quarter-note kick anchors, resolves same-step advanced
   collisions, and bounds their starts to zero, one, two, or four per bar according
   to the council verdict;
-- recalls archived motif/bass material while ensemble-scene material remains
-  independently resident until a later causal handoff;
+- recalls archived motif material while clocks, semantic scene roles, and synthesis
+  genomes remain independently resident unless separately authorized to change;
 - learns a bounded local preference profile from explicit Pass/Keep decisions and
   uses it only to rank candidates for the engine already authorized by a causal
-  motif handoff;
+  timbre handoff, never to rank the twelve musical-material candidates;
+- preserves `window.QuantumTechno.getSnapshot()`, `requestVibe()`, and
+  `requestTonality()` while adding a frozen material snapshot with gesture, motif
+  lineage, lane-clock summaries, candidate diagnostics, temperature, and
+  kick-excursion status;
 - drives its quantum-inspired contour from audio analysis and scheduled musical
-  events;
-- separates all 78 pairs in the fixed 13-seed planner manifest, and all ten settled
-  Vibe pairs for one fixed seed, across 192-bar downstream musical summaries under
-  the recorded structural-distance thresholds.
+  events.
 
 ## Nonclaims
 
@@ -86,9 +121,15 @@ The application does not claim:
 - that every one of the \(2^{128}\) trajectory IDs has been proven perceptually
   distinct, or that planner-level structural distance by itself proves audible
   difference;
-- that a different Track DNA label proves different audio, that the fixed
-  13-seed manifest establishes separation for arbitrary IDs, or that every random
-  16-candidate draw is guaranteed to contain a threshold-eligible candidate;
+- that a different Track DNA label proves different audio, that the historical
+  `1.5.0` fixed 13-seed manifest establishes separation for arbitrary IDs, or that
+  every random 16-candidate draw is guaranteed to contain a threshold-eligible
+  candidate;
+- that twelve symbolic phrase candidates guarantee a good groove, a perceptually
+  distinct record, or a listener-preferred choice;
+- that `2.0.0` has passed its fixed 96-bar renders, blinded listening comparison,
+  complete browser-acceptance gate, 30–60-minute soak, deployment, or
+  public-acceptance gate;
 - subjective equivalence to a named artist, professional producer, or top DJ;
 - machine learning, training on a music catalog, or artist imitation;
 - participation, endorsement, approval, or literal opinions from the named artistic
@@ -106,21 +147,27 @@ The application does not claim:
 
 | Evidence | Validates | Does not validate |
 | --- | --- | --- |
-| model tests | deterministic plans, legal structure, bounded lanes and pitch families | subjective groove quality |
+| Euclidean-clock tests | hit counts, evenness, rotation, invalid-input rejection, immutability, and absolute phase continuity | audible groove or long-run musical interest |
+| material-state tests | deterministic and order-independent creation/advancement/trace, bounded residency and mutation, no observation-window reset, and replay from the same intent history | subjective phrase quality |
+| gesture-grammar tests | normalized transition rows, state reachability, bounded rests, timely answers, 25% mutation cap, legal pitch, and attributable repeat/recall | whether calls and answers feel expressive |
+| candidate-selection tests | twelve-candidate construction, rejection bounds, normalized scoring, threshold and near-best filtering, deterministic softmax, and cross-seed choice diversity | that the selected candidate is musically best |
+| model tests | frozen phrase materialization, legal structure, bounded lanes and pitch families | subjective groove quality |
 | emergent-form distribution tests | bounded recurrent state, removal of fixed schedules, varied/absent and materially long climax windows, operative gates, causal gesture cooldowns, honest recall labels, non-causal derived sections, and safe replay bounds | whether the resulting long arc feels earned to a listener |
-| low-end planner tests | kick-policy conformance, independent kick-family cooldown and phrase morph, bounded physical kick fields, two-bar bass lineage continuity, independently resident voice identity, kick/bass onset separation, and routing-contract bounds | club-system translation or perceived low-end authority |
+| 128-seed, 384-bar material scan | at least 75% anchored kick phrases, one-to-four-phrase excursion bounds, forced re-anchor/cooldown, persistent non-16 polymeter, no global lane reset, and attributable exact repetition | club-system translation or perceived low-end authority |
+| low-end planner tests | independent kick-family cooldown and phrase morph, bounded physical kick fields, persistent bass-clock and motif-lineage continuity, independently resident voice identity, kick/bass onset separation, and routing-contract bounds | club-system translation or perceived low-end authority |
 | causal handoff tests | hold isolation, mutate/replace/recall authorization, non-round-robin engine reachability, stable event selection, and one-engine staging | whether the timbral change feels musically earned |
-| council and ensemble tests | scene reachability and causal one-engine handoff, decisive cast limits, layer editing, collision rules, rare fills, and onset budgets | whether the resulting arrangement sounds musically compelling |
+| council and ensemble tests | semantic scene-role reachability without onset masks, causal one-engine handoff, decisive cast limits, layer editing, collision rules, rare fills, and onset budgets | whether the resulting arrangement sounds musically compelling |
 | Track DNA and runtime-selection tests | deterministic flat phenotype, curated-domain reachability and balance, weighted distance, bounded candidate-selection rules, and rejection of an unqualified pool without changing seed | downstream realization, audible contrast, or eligibility in every random candidate draw |
-| 192-bar trajectory-window distance tests | fixed-manifest cross-seed and cross-Vibe separation in realized rhythm, bass, harmony, note-bearing advanced voices and renderer controls, audio-profile/timbre controls, and form; metadata-only relabelling has zero distance | rendered-audio separation, masking, spectral balance, arbitrary-seed coverage, or listener discrimination |
+| first-48-bar trajectory distance tests | every fixed-manifest pair separates in rhythm and phrase grammar plus another musical domain with composite symbolic distance at least `0.20` | rendered-audio separation, masking, spectral balance, arbitrary-seed coverage, or listener discrimination |
 | taste-model and deck tests | bounded explicit-feedback updates, deterministic specimens, persistence fallback, exploration cadence, and arrangement isolation | whether the learned preference matches a listener's broader taste |
 | preview renderer tests | deterministic, finite, normalized specimen PCM and cleanup | perceived quality on every output device |
 | pure DSP tests | finite deterministic samples, hard voice endings, and renderer coverage for all 208 base forms | perceived sound quality |
 | worklet processor tests | queue and voice ceilings, bounded stealing, clean all-notes-off | long-run browser or device stability |
 | syntax checks | loadable JavaScript modules | browser audio behavior |
-| active browser smoke | user-gesture start, audible analyser activity, controls, transitions, clean stop | long-duration reliability |
-| responsive visual review | one-surface hierarchy and mobile layout | screen-reader quality |
-| deployment hash comparison | named public files match tested local files | future cache or service availability |
+| runtime phrase-materialization tests | one planner advance per phrase, deeply frozen eight-bar plans and material snapshots, future-boundary intent isolation, skipped-phrase replay, Stop preservation, and accepted-seed reset | browser audio behavior or subjective quality |
+| implementation-stage `2.0.0` browser smoke | user-gesture Start, populated running ensemble, future-boundary Vibe and Tonality requests, clean Stop, and a warning/error-free console on the then-current candidate | exact final-source browser behavior, material API inspection, New Trajectory, preview/restart, reduced-motion, long-duration reliability, or listening quality |
+| responsive visual review | zero horizontal overflow at `1280×720`, `390×844`, and `320×568` on the tested browser | screen-reader quality or every browser/device |
+| deployment hash comparison | named public files match tested local files | future cache or service availability; no `2.0.0` deployment evidence exists yet |
 | long listening panel | perceived variation, flow, and musical quality | mathematical nonrepetition |
 | named-device soak | bounded runtime behavior on that device | 24/7 operation everywhere |
 
@@ -128,17 +175,29 @@ The application does not claim:
 
 Before stronger claims:
 
-- render representative observation windows with `OfflineAudioContext` and measure
-  peak, RMS, DC, clipping, silence, and transition discontinuities;
-- render a fixed, versioned trajectory manifest as full mixes and stems, loudness
-  match comparison copies, report every pair's multi-domain distance and nearest
-  neighbour, and retain PCM plus metric hashes;
-- conduct blinded same/different or ABX review of the automatically selected closest
-  trajectory pairs; keep musical quality scoring separate from distinctness;
-- run 30–60-minute foreground browser soaks on desktop and mobile;
+- render eight fixed 96-bar trajectories plus stems in a foreground browser harness
+  and retain PCM plus hashes;
+- measure peak, RMS, DC, clipping, silence, transition discontinuities, kick/bass
+  overlap, and nearest-neighbour distances for those exact renders;
+- conduct blinded 90-second review of the eight closest trajectory pairs; require at
+  least six pairs to read as clearly different records while scoring groove quality
+  separately from distinctness;
+- complete the remaining browser matrix for New Trajectory, preview/restart,
+  reduced motion, page-level material API inspection, and screen-reader behavior;
+- run a 30–60-minute foreground browser soak on named desktop and mobile devices;
 - test suspend/resume and audio-device changes;
 - conduct multi-hour listening review across all Vibe/Tonality combinations;
 - measure kick, bass, and rumble translation on named playback systems;
 - add a bounded multi-day recurrence ledger and validate long-horizon recall;
 - profile recurrent random access and scheduler behavior over multi-day phrase
-  indices.
+  indices;
+- only after local gates close, separately authorize commit, push, deployment, public
+  byte verification, and public acceptance.
+
+## Historical evidence boundary
+
+The deployed `1.5.0` release recorded deterministic 192-bar planner separation,
+foreground browser interaction, and byte-matched deployment evidence. That remains
+valid history for `1.5.0` only. It does not validate `2.0.0` persistent clocks,
+gesture grammar, symbolic candidate selection, renders, listening quality, browser
+runtime, soak behavior, deployment, or public acceptance.

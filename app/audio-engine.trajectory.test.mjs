@@ -217,12 +217,17 @@ test("a trajectory request never enters a candidate below the DNA gate", () => {
       vibe: "hypnotic",
       tonality: "minor",
     });
+    engine.preparePlan(0);
+    const residentMaterial = engine.materialState;
+    const residentPlans = engine.phrasePlans;
     engine.running = true;
     engine.bar = 3;
 
     assert.equal(engine.requestNewTrajectory(), false);
     assert.equal(engine.seed, OLD_SEED);
     assert.equal(engine.pendingSeed, null);
+    assert.equal(engine.materialState, residentMaterial);
+    assert.equal(engine.phrasePlans, residentPlans);
     assert.deepEqual(events.at(-1), {
       type: "trajectory-rejected",
       reason: "insufficient-dna-distance",

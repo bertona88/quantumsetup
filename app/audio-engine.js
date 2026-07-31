@@ -1,16 +1,20 @@
 import {
   GENERATOR_VERSION,
   VIBES,
+  advanceMaterialState,
   blendProfileObjects,
   blendProfiles,
   buildBarPlan,
   clamp,
+  createMaterialState,
+  derivePhraseState,
   hash32,
   makeRng,
   midiToHz,
   nextPhraseBoundary,
   profileForVibe,
   stageEnsembleRoles,
+  summarizeMaterialState,
   transitionDurationFor,
   transitionProgress,
 } from "./techno-model.js";
@@ -20,7 +24,10 @@ import {
   normalizeTasteProfile,
   tasteFingerprint,
 } from "./taste-model.js";
-import { selectDistinctTrajectorySeed } from "./track-dna.js";
+import {
+  createTrackDNA,
+  selectDistinctTrajectorySeed,
+} from "./track-dna.js";
 import {
   formatTrajectoryId,
   freshTrajectoryId,
@@ -73,6 +80,13 @@ function holdParamAtTime(param, time, fallback = 0.0001) {
   const value = Number.isFinite(param.value) ? Math.max(fallback, param.value) : fallback;
   param.cancelScheduledValues(time);
   param.setValueAtTime(value, time);
+}
+
+function deepFreezeData(value, seen = new WeakSet()) {
+  if (!value || typeof value !== "object" || seen.has(value)) return value;
+  seen.add(value);
+  for (const child of Object.values(value)) deepFreezeData(child, seen);
+  return Object.isFrozen(value) ? value : Object.freeze(value);
 }
 
 function bassNoteTiming(note, stepDuration, durationScale = 0.9) {
@@ -187,6 +201,10 @@ export class InfiniteTechnoEngine {
     this.planBar = -1;
     this.plan = null;
     this.planState = null;
+    this.materialState = null;
+    this.materialPhraseIndex = -1;
+    this.phrasePlans = null;
+    this.phrasePlansPhraseIndex = -1;
     this.currentTempo = this.profileTempo(profileForVibe(this.activeVibe), 0);
     this.lastOpenHatGain = null;
     this.lastOpenHatEnd = 0;
@@ -364,6 +382,10 @@ export class InfiniteTechnoEngine {
     this.pendingSeed = null;
     this.planBar = -1;
     this.plan = null;
+    this.materialState = null;
+    this.materialPhraseIndex = -1;
+    this.phrasePlans = null;
+    this.phrasePlansPhraseIndex = -1;
     this.phraseInstrumentationKey = "";
     if (this.ctx) {
       this.noiseBuffer = this.makeNoise(2, hash32(this.seed, 0x29));
@@ -466,6 +488,7 @@ export class InfiniteTechnoEngine {
       movement: this.plan?.movement?.index || 0,
       ensembleScene: summarizeEnsembleScene(this.plan?.ensembleScene),
       council: summarizeCouncilVerdict(this.plan?.councilVerdict),
+      material: summarizeMaterialState(this.materialState),
       taste: Object.freeze({
         decisions: this.tasteProfile.decisions,
         likes: this.tasteProfile.likes,
@@ -957,13 +980,143 @@ export class InfiniteTechnoEngine {
   }
 
   preparePlan(bar, state) {
+    let materialReplayStartPhrase = null;
     if (this.pendingSeed && bar >= this.pendingSeed.startBar) {
       const pendingSeed = this.pendingSeed;
+      materialReplayStartPhrase = Math.floor(
+        Math.max(0, pendingSeed.startBar) / 8,
+      );
       this.applySeed(pendingSeed.seed, pendingSeed.selection);
     }
+    // Keep a completed transition available until catch-up has replayed the
+    // phrase-boundary profiles that led to the requested bar.
+    const planningState = this.resolveMusicalState(bar);
+    const phraseIndex = Math.floor(Math.max(0, bar) / 8);
+    if (
+      !this.phrasePlans ||
+      this.phrasePlansPhraseIndex !== phraseIndex
+    ) {
+      this.buildFrozenPhrasePlans(
+        phraseIndex,
+        planningState,
+        materialReplayStartPhrase,
+      );
+    }
+    this.plan = this.phrasePlans[bar % 8];
+    this.syncSynthGenomes(this.plan);
     this.settleTransitions(bar);
     const settledState = this.resolveMusicalState(bar);
-    const phraseIndex = Math.floor(Math.max(0, bar) / 8);
+    this.planState = settledState;
+    this.planBar = bar;
+    this.syncEffects(settledState.profile, this.plan);
+    return this.plan;
+  }
+
+  advanceMaterialToPhrase(phraseIndex, settledState) {
+    const trackDNA = createTrackDNA(this.seed);
+    const inputFor = (targetPhraseIndex) => {
+      const phraseState =
+        targetPhraseIndex === phraseIndex
+          ? settledState
+          : this.resolveMusicalState(targetPhraseIndex * 8);
+      return {
+        seed: this.seed,
+        phraseIndex: targetPhraseIndex,
+        trackDNA,
+        form: derivePhraseState(this.seed, targetPhraseIndex),
+        profile: Object.freeze({
+          ...phraseState.profile,
+          bpm: Object.freeze([...phraseState.profile.bpm]),
+        }),
+        tonality: phraseState.dominantTonality,
+      };
+    };
+    if (!this.materialState) {
+      this.materialState = createMaterialState(inputFor(phraseIndex));
+      this.materialPhraseIndex = phraseIndex;
+      return this.materialState;
+    }
+    if (phraseIndex < this.materialState.phraseIndex) {
+      throw new RangeError("runtime material cannot move backwards");
+    }
+    while (this.materialState.phraseIndex < phraseIndex) {
+      const nextPhraseIndex = this.materialState.phraseIndex + 1;
+      this.materialState = advanceMaterialState(
+        this.materialState,
+        inputFor(nextPhraseIndex),
+      );
+    }
+    this.materialPhraseIndex = this.materialState.phraseIndex;
+    return this.materialState;
+  }
+
+  stageSkippedRuntimePhrase(phraseIndex, phraseState, materialState) {
+    // Runtime roles and synth genomes are staged mutations, so advancing only
+    // MaterialPlanner state would make a scheduler jump path-dependent.
+    const instrumentProfile = Object.freeze({
+      ...phraseState.profile,
+      bpm: Object.freeze([...phraseState.profile.bpm]),
+    });
+    this.instrumentProfile = instrumentProfile;
+    this.instrumentProfilePhraseIndex = phraseIndex;
+    const planInput = {
+      seed: this.seed,
+      bar: phraseIndex * 8,
+      vibeId: phraseState.dominantVibe,
+      tonality: phraseState.dominantTonality,
+      profile: instrumentProfile,
+      instrumentProfile,
+      tasteProfile: this.tasteProfile,
+      materialState,
+    };
+    const candidatePlan = buildBarPlan(planInput);
+    this.runtimeEnsembleRoles = stageEnsembleRoles(
+      this.runtimeEnsembleRoles,
+      candidatePlan.ensembleTargetRoles,
+      candidatePlan.synthHandoff,
+    );
+    this.runtimeEnsemblePhraseIndex = phraseIndex;
+    const stagedPlan = buildBarPlan({
+      ...planInput,
+      ensembleRoles: this.runtimeEnsembleRoles,
+    });
+    this.runtimeSynthPalette = stageSynthPalette(
+      this.runtimeSynthPalette,
+      stagedPlan.synthPalette,
+      stagedPlan.synthHandoff,
+    );
+    this.runtimeSynthPhraseIndex = phraseIndex;
+  }
+
+  buildFrozenPhrasePlans(
+    phraseIndex,
+    settledState,
+    materialReplayStartPhrase = null,
+  ) {
+    const firstReplayPhrase = this.materialState
+      ? this.materialState.phraseIndex + 1
+      : Math.min(
+          phraseIndex,
+          Number.isSafeInteger(materialReplayStartPhrase)
+            ? Math.max(0, materialReplayStartPhrase)
+            : phraseIndex,
+        );
+    for (
+      let replayPhraseIndex = firstReplayPhrase;
+      replayPhraseIndex < phraseIndex;
+      replayPhraseIndex += 1
+    ) {
+      const replayState = this.resolveMusicalState(replayPhraseIndex * 8);
+      const replayMaterial = this.advanceMaterialToPhrase(
+        replayPhraseIndex,
+        replayState,
+      );
+      this.stageSkippedRuntimePhrase(
+        replayPhraseIndex,
+        replayState,
+        replayMaterial,
+      );
+    }
     if (
       !this.instrumentProfile ||
       this.instrumentProfilePhraseIndex !== phraseIndex
@@ -974,27 +1127,50 @@ export class InfiniteTechnoEngine {
       });
       this.instrumentProfilePhraseIndex = phraseIndex;
     }
+    const materialState = this.advanceMaterialToPhrase(
+      phraseIndex,
+      settledState,
+    );
+    const phraseStartBar = phraseIndex * 8;
     const planInput = {
       seed: this.seed,
-      bar,
+      bar: phraseStartBar,
       vibeId: settledState.dominantVibe,
       tonality: settledState.dominantTonality,
-      profile: settledState.profile,
+      profile: this.instrumentProfile,
       instrumentProfile: this.instrumentProfile,
       tasteProfile: this.tasteProfile,
+      materialState,
     };
     const candidatePlan = buildBarPlan(planInput);
-    const ensemblePlan = this.adoptRuntimeEnsemble(
-      candidatePlan,
-      planInput,
+    this.runtimeEnsembleRoles = stageEnsembleRoles(
+      this.runtimeEnsembleRoles,
+      candidatePlan.ensembleTargetRoles,
+      candidatePlan.synthHandoff,
     );
-    this.plan = this.adoptRuntimeSynthPalette(ensemblePlan);
-    this.refreshPhraseInstrumentation(bar);
-    this.syncSynthGenomes(this.plan);
-    this.planState = settledState;
-    this.planBar = bar;
-    this.syncEffects(settledState.profile, this.plan);
-    return this.plan;
+    this.runtimeEnsemblePhraseIndex = phraseIndex;
+    const plans = Array.from({ length: 8 }, (_, barOffset) =>
+      buildBarPlan({
+        ...planInput,
+        bar: phraseStartBar + barOffset,
+        ensembleRoles: this.runtimeEnsembleRoles,
+      }),
+    );
+    this.runtimeSynthPalette = stageSynthPalette(
+      this.runtimeSynthPalette,
+      plans[0].synthPalette,
+      plans[0].synthHandoff,
+    );
+    this.runtimeSynthPhraseIndex = phraseIndex;
+    this.phrasePlans = Object.freeze(
+      plans.map((plan) =>
+        deepFreezeData(this.decoratePlanWithRuntimeSynthPalette(plan)),
+      ),
+    );
+    this.phrasePlansPhraseIndex = phraseIndex;
+    this.plan = this.phrasePlans[0];
+    this.refreshPhraseInstrumentation(phraseStartBar);
+    return this.phrasePlans;
   }
 
   adoptRuntimeEnsemble(candidatePlan, planInput) {
@@ -1078,23 +1254,8 @@ export class InfiniteTechnoEngine {
 
     const items = [];
     const seen = new Set();
-    for (let targetBar = phraseStart; targetBar < phraseStart + 8; targetBar += 1) {
-      const targetState = this.resolveMusicalState(targetBar);
-      const plan =
-        targetBar === bar
-          ? this.plan
-          : this.decoratePlanWithRuntimeSynthPalette(
-              buildBarPlan({
-                seed: this.seed,
-                bar: targetBar,
-                vibeId: targetState.dominantVibe,
-                tonality: targetState.dominantTonality,
-                profile: targetState.profile,
-                instrumentProfile: this.instrumentProfile,
-                ensembleRoles: this.runtimeEnsembleRoles,
-                tasteProfile: this.tasteProfile,
-              }),
-            );
+    for (const plan of this.phrasePlans || [this.plan]) {
+      if (!plan) continue;
       for (const item of plan.instrumentation) {
         if (seen.has(item.id)) continue;
         seen.add(item.id);
