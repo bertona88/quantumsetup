@@ -1,10 +1,10 @@
 # Interface Contract
 
-Candidate browser API contract: `window.QuantumTechno/2.0.0`
+Candidate browser API contract: `window.QuantumTechno/2.1.0`
 Scope: one audio-first generative techno instrument
-Release boundary: local generative-material candidate; implementation-stage narrow
-browser smoke recorded but not byte-matched to the current candidate; final browser,
-soak, listening, render, deployment, and public-acceptance gates remain open
+Release boundary: local generative-material candidate; final-candidate focused
+performance browser smoke recorded; full browser, soak, listening, render,
+deployment, and public-acceptance gates remain open
 
 ## One-surface rule
 
@@ -16,11 +16,14 @@ The interface exposes only high-level musical direction:
 - New Trajectory;
 - Vibe: Hypnotic, Dub, Detroit, Acid, Peak;
 - Harmonic Gravity: Minor, Neutral, Major;
+- Live Mix: Low, Mid, and High EQ plus next-beat Kick and Bassline cuts;
+- Direction: Energy, Density, Brightness, Space, Swing, Acid, Bass Presence,
+  Change Rate, Breakdown Depth, and Bassline Character;
 - Signal Deck: Hear, Pass, or Keep one generated timbre while transport is stopped.
 
-Tempo, density, effects, filters, fades, bridges, arrangement, and individual
-instrument parameters are intentionally not user controls. Signal Deck feedback is
-an indirect timbre preference, not an instrument selector or mixer.
+Tempo, note masks, effect sends, fades, bridges, fills, detailed arrangement, and
+individual synthesis parameters remain generator-owned. Signal Deck feedback is an
+indirect timbre preference, not an instrument selector or mixer.
 
 ## Transport
 
@@ -56,6 +59,18 @@ While running:
 - UI selection identifies the destination while `NOW` continues to identify the
   currently dominant state.
 
+Live Mix EQ uses bounded Web Audio filter gains and responds with short smoothing.
+Kick and Bassline cuts latch at the next unscheduled beat; a kick cut suppresses the
+kick voice, kick-triggered ducking, new rumble excitation, and its visual pulse.
+Cuts are deliberately not persisted across page loads.
+
+Direction values wait for the next eight-bar phrase and glide for eight bars.
+Continuous controls shade the profile and future material selection without
+rewriting the already-frozen phrase. Bassline Character remains discrete and enters
+only when the glide completes. Normalized EQ and direction targets may persist in
+local storage; missing, corrupt, or blocked storage falls back to neutral controls
+without blocking audio.
+
 ## Readouts
 
 The page reports:
@@ -89,10 +104,11 @@ recurrent phrase state justify dialogue. It never exposes all three together.
 
 Persistent Euclidean lane clocks, polymetric phase, material gestures, candidate
 selection, kick-excursion state, bass lineage, independent kick-family timbre,
-physical kick parameters, bus gains, duck depths, and rumble settings remain
-generator-owned. The ordinary kick clock is four-on-the-floor; any polymetric kick
-excursion is earned, finite, followed by forced re-anchoring, and never exposed as a
-new control.
+physical kick parameters, duck depths, and rumble settings remain generator-owned.
+The performance layer can trim rendered buses or bias future phrases, but never
+edits a frozen onset mask. The ordinary kick clock is four-on-the-floor; any
+polymetric kick excursion is earned, finite, followed by forced re-anchoring, and
+never exposed as a new control.
 
 ## Signal Deck
 
@@ -115,18 +131,22 @@ After startup:
 
 ```js
 window.QuantumTechno = Object.freeze({
-  version: "2.0.0",
+  version: "2.1.0",
   getSnapshot,
   requestVibe,
   requestTonality,
+  setMixControl,
+  setDirectionControl,
+  setBassCharacter,
 });
 ```
 
 `getSnapshot()` returns version, seed, transport state, bar, step, BPM, current vibe,
 tonality, derived form label, 192-bar observation-window index, active transition
 summary, current ensemble scene, current instrumentation, council verdict, bounded
-taste summary, advanced-synth availability/voice statistics, and a frozen
-`material` summary. The material summary contains the current gesture, motif
+taste summary, advanced-synth availability/voice statistics, active/target
+performance state, and a frozen `material` summary. The material summary contains
+the current gesture, motif
 lineage, bounded lane-clock summaries, selected-candidate score, candidate count,
 sampling temperature, and kick-excursion status. It is diagnostic telemetry, not a
 control surface. The object is a local application API, not a versioned Setup
@@ -137,14 +157,15 @@ lane-clock summaries are diagnostics. They describe or cache planner output and
 never schedule musical state or reset material phase.
 
 The ensemble scene and instrumentation roster are read-only. They introduce no
-individual instrument, synthesis, mixer, or parameter controls and are not announced
-as a repeating live region.
+individual synthesis controls and are not announced as a repeating live region.
 
 ## Accessibility and failure behavior
 
 - every button has a visible label and keyboard focus state;
 - the Signal Deck card supports Left/Right Arrow equivalents for swipe decisions;
 - selected directions use `aria-pressed`;
+- every range has a visible label, output, keyboard focus state, and timing text;
+- cut buttons expose active and pending state in text as well as color;
 - engine state and queued intent use live regions;
 - Signal Deck decisions use a concise live-region confirmation;
 - audio failure produces readable status;

@@ -25,6 +25,20 @@ import {
   tasteFingerprint,
 } from "./taste-model.js";
 import {
+  DEFAULT_DIRECTION_CONTROLS,
+  DEFAULT_MIX_CONTROLS,
+  DIRECTION_KEYS,
+  MIX_CUT_KEYS,
+  MIX_EQ_KEYS,
+  applyDirectionToForm,
+  applyDirectionToProfile,
+  dbToGain,
+  directionControlsEqual,
+  interpolateDirectionControls,
+  normalizeDirectionControls,
+  normalizeMixControls,
+} from "./performance-controls.js";
+import {
   createTrackDNA,
   selectDistinctTrajectorySeed,
 } from "./track-dna.js";
@@ -45,6 +59,8 @@ const RUMBLE_BUS_LEVEL = 0.92;
 const MUSIC_BUS_LEVEL = 1;
 const SYNTH_MESSAGE_LEAD_SECONDS = 0.05;
 const TRAJECTORY_CANDIDATE_COUNT = 16;
+const DIRECTION_MORPH_BARS = 8;
+const SILENT_GAIN = 0.0001;
 
 function freshSeed() {
   return freshTrajectoryId(window.crypto);
@@ -182,6 +198,14 @@ export class InfiniteTechnoEngine {
       ? options.tonality
       : "minor";
     this.tasteProfile = normalizeTasteProfile(options.tasteProfile);
+    this.mixControls = normalizeMixControls(
+      options.mixControls || DEFAULT_MIX_CONTROLS,
+    );
+    this.directionControls = normalizeDirectionControls(
+      options.directionControls || DEFAULT_DIRECTION_CONTROLS,
+    );
+    this.directionTransition = null;
+    this.pendingMixCuts = null;
     this.vibeTransition = null;
     this.tonalityTransition = null;
     this.pendingSeed = null;
@@ -230,6 +254,129 @@ export class InfiniteTechnoEngine {
     };
   }
 
+  resolveDirectionControls(bar = this.bar) {
+    if (!this.directionTransition) return this.directionControls;
+    if (bar < this.directionTransition.startBar) {
+      return this.directionTransition.from;
+    }
+    return interpolateDirectionControls(
+      this.directionTransition.from,
+      this.directionTransition.to,
+      transitionProgress(
+        bar,
+        this.directionTransition.startBar,
+        this.directionTransition.duration,
+      ),
+    );
+  }
+
+  requestMixControl(name, value) {
+    if (MIX_EQ_KEYS.includes(name)) {
+      this.mixControls = normalizeMixControls({
+        ...this.mixControls,
+        [name]: value,
+      });
+      this.syncPerformanceMix(this.ctx?.currentTime, false);
+      this.onEvent({
+        type: "performance-mix",
+        control: name,
+        value: this.mixControls[name],
+        pending: false,
+        mix: this.mixControls,
+      });
+      return true;
+    }
+    if (!MIX_CUT_KEYS.includes(name)) return false;
+
+    const property = `${name}Cut`;
+    const target = value === true;
+    if (!this.running) {
+      this.mixControls = normalizeMixControls({
+        ...this.mixControls,
+        [property]: target,
+      });
+      this.pendingMixCuts = null;
+      this.syncPerformanceMix(this.ctx?.currentTime, false);
+      this.onEvent({
+        type: "performance-mix",
+        control: name,
+        value: target,
+        pending: false,
+        mix: this.mixControls,
+      });
+      return true;
+    }
+
+    this.pendingMixCuts = {
+      ...(this.pendingMixCuts || {}),
+      [property]: target,
+    };
+    const absoluteStep = this.bar * 16 + this.step;
+    const applyAtStep = absoluteStep + (4 - (absoluteStep % 4));
+    this.onEvent({
+      type: "performance-mix",
+      control: name,
+      value: target,
+      pending: true,
+      applyAtBar: Math.floor(applyAtStep / 16),
+      applyAtStep: applyAtStep % 16,
+      mix: this.mixControls,
+    });
+    return true;
+  }
+
+  queueDirectionControls(target, control) {
+    const normalized = normalizeDirectionControls(target);
+    if (!this.running) {
+      this.directionControls = normalized;
+      this.directionTransition = null;
+      this.planBar = -1;
+      this.onEvent({
+        type: "performance-direction",
+        control,
+        immediate: true,
+        direction: normalized,
+      });
+      return true;
+    }
+
+    const current = this.resolveDirectionControls(this.bar);
+    if (directionControlsEqual(current, normalized)) return false;
+    const startBar = nextPhraseBoundary(this.bar, 8);
+    this.directionTransition = {
+      from: current,
+      to: normalized,
+      startBar,
+      duration: DIRECTION_MORPH_BARS,
+    };
+    this.onEvent({
+      type: "performance-direction",
+      control,
+      immediate: false,
+      startBar,
+      duration: DIRECTION_MORPH_BARS,
+      direction: normalized,
+    });
+    return true;
+  }
+
+  requestDirectionControl(name, value) {
+    if (!DIRECTION_KEYS.includes(name)) return false;
+    const target = this.directionTransition?.to || this.directionControls;
+    return this.queueDirectionControls(
+      { ...target, [name]: value },
+      name,
+    );
+  }
+
+  requestBassCharacter(character) {
+    const target = this.directionTransition?.to || this.directionControls;
+    return this.queueDirectionControls(
+      { ...target, bassCharacter: character },
+      "bassCharacter",
+    );
+  }
+
   profileTempo(profile, bar) {
     const center = (profile.bpm[0] + profile.bpm[1]) / 2;
     const span = (profile.bpm[1] - profile.bpm[0]) / 2;
@@ -248,7 +395,7 @@ export class InfiniteTechnoEngine {
 
   requestVibe(vibeId) {
     if (!VIBES.some((vibe) => vibe.id === vibeId)) return;
-    const currentState = this.resolveMusicalState(this.bar);
+    const currentState = this.resolveBaseMusicalState(this.bar);
     const from = currentState.dominantVibe;
     if (vibeId === from && !this.vibeTransition) return;
     if (!this.running) {
@@ -401,7 +548,7 @@ export class InfiniteTechnoEngine {
     });
   }
 
-  resolveMusicalState(bar) {
+  resolveBaseMusicalState(bar) {
     let vibeProgress = 0;
     let dominantVibe = this.activeVibe;
     let profile = profileForVibe(this.activeVibe);
@@ -456,6 +603,16 @@ export class InfiniteTechnoEngine {
     };
   }
 
+  resolveMusicalState(bar) {
+    const state = this.resolveBaseMusicalState(bar);
+    const direction = this.resolveDirectionControls(bar);
+    return {
+      ...state,
+      profile: applyDirectionToProfile(state.profile, direction),
+      direction,
+    };
+  }
+
   settleTransitions(bar) {
     if (
       this.vibeTransition &&
@@ -470,6 +627,14 @@ export class InfiniteTechnoEngine {
     ) {
       this.activeTonality = this.tonalityTransition.to;
       this.tonalityTransition = null;
+    }
+    if (
+      this.directionTransition &&
+      bar >=
+        this.directionTransition.startBar + this.directionTransition.duration
+    ) {
+      this.directionControls = this.directionTransition.to;
+      this.directionTransition = null;
     }
   }
 
@@ -494,6 +659,28 @@ export class InfiniteTechnoEngine {
         likes: this.tasteProfile.likes,
         passes: this.tasteProfile.passes,
         fingerprint: tasteFingerprint(this.tasteProfile),
+      }),
+      performance: Object.freeze({
+        mix: this.mixControls,
+        pendingCuts: this.pendingMixCuts
+          ? Object.freeze({ ...this.pendingMixCuts })
+          : null,
+        direction: state.direction,
+        directionTarget: this.directionTransition?.to || state.direction,
+        directionTransition: this.directionTransition
+          ? Object.freeze({
+              startBar: this.directionTransition.startBar,
+              duration: this.directionTransition.duration,
+              progress:
+                this.bar < this.directionTransition.startBar
+                  ? 0
+                  : transitionProgress(
+                      this.bar,
+                      this.directionTransition.startBar,
+                      this.directionTransition.duration,
+                    ),
+            })
+          : null,
       }),
       transition: this.vibeTransition
         ? {
@@ -603,6 +790,9 @@ export class InfiniteTechnoEngine {
     this.runToken += 1;
     this.running = false;
     this.starting = false;
+    if (this.pendingMixCuts) {
+      this.applyPendingMixCuts(this.ctx?.currentTime ?? 0);
+    }
     window.clearInterval(this.timer);
     this.timer = null;
     for (const id of this.visualTimers) window.clearTimeout(id);
@@ -679,9 +869,14 @@ export class InfiniteTechnoEngine {
     this.bassBus = context.createGain();
     this.rumbleBus = context.createGain();
     this.musicBus = context.createGain();
+    this.kickPerformanceGain = context.createGain();
+    this.bassPerformanceGain = context.createGain();
     this.toneFilter = context.createBiquadFilter();
     this.preMaster = context.createGain();
     this.highpass = context.createBiquadFilter();
+    this.lowEq = context.createBiquadFilter();
+    this.midEq = context.createBiquadFilter();
+    this.highEq = context.createBiquadFilter();
     this.softClip = context.createWaveShaper();
     this.compressor = context.createDynamicsCompressor();
     this.analyser = context.createAnalyser();
@@ -691,6 +886,8 @@ export class InfiniteTechnoEngine {
     this.bassBus.gain.value = BASS_BUS_LEVEL;
     this.rumbleBus.gain.value = RUMBLE_BUS_LEVEL;
     this.musicBus.gain.value = MUSIC_BUS_LEVEL;
+    this.kickPerformanceGain.gain.value = 1;
+    this.bassPerformanceGain.gain.value = 1;
     this.toneFilter.type = "lowpass";
     this.toneFilter.frequency.value = 6500;
     this.toneFilter.Q.value = 0.7;
@@ -698,6 +895,16 @@ export class InfiniteTechnoEngine {
     this.highpass.type = "highpass";
     this.highpass.frequency.value = 26;
     this.highpass.Q.value = 0.65;
+    this.lowEq.type = "lowshelf";
+    this.lowEq.frequency.value = 180;
+    this.lowEq.gain.value = this.mixControls.low;
+    this.midEq.type = "peaking";
+    this.midEq.frequency.value = 1200;
+    this.midEq.Q.value = 0.72;
+    this.midEq.gain.value = this.mixControls.mid;
+    this.highEq.type = "highshelf";
+    this.highEq.frequency.value = 5200;
+    this.highEq.gain.value = this.mixControls.high;
     this.softClip.curve = driveCurve(2.05, 2048);
     this.softClip.oversample = "2x";
     this.compressor.threshold.value = -14;
@@ -709,13 +916,18 @@ export class InfiniteTechnoEngine {
     this.analyser.smoothingTimeConstant = 0.8;
     this.masterGain.gain.value = 0.0001;
 
-    this.kickBus.connect(this.preMaster);
-    this.bassBus.connect(this.preMaster);
+    this.kickBus.connect(this.kickPerformanceGain);
+    this.kickPerformanceGain.connect(this.preMaster);
+    this.bassBus.connect(this.bassPerformanceGain);
+    this.bassPerformanceGain.connect(this.preMaster);
     this.rumbleBus.connect(this.preMaster);
     this.musicBus.connect(this.toneFilter);
     this.toneFilter.connect(this.preMaster);
     this.preMaster.connect(this.highpass);
-    this.highpass.connect(this.softClip);
+    this.highpass.connect(this.lowEq);
+    this.lowEq.connect(this.midEq);
+    this.midEq.connect(this.highEq);
+    this.highEq.connect(this.softClip);
     this.softClip.connect(this.compressor);
     this.compressor.connect(this.analyser);
     this.analyser.connect(this.masterGain);
@@ -766,7 +978,7 @@ export class InfiniteTechnoEngine {
     this.rumbleFeedback.gain.value = 0.32;
     this.rumbleSendGain.gain.value = 0.06;
     this.rumbleWet.gain.value = 0.86;
-    this.kickBus.connect(this.rumbleSendGain);
+    this.kickPerformanceGain.connect(this.rumbleSendGain);
     this.rumbleSendGain.connect(this.rumbleDelay);
     this.rumbleDelay.connect(this.rumbleFilter);
     this.rumbleFilter.connect(this.rumbleDrive);
@@ -776,6 +988,7 @@ export class InfiniteTechnoEngine {
     this.rumbleFeedback.connect(this.rumbleDelay);
 
     this.noiseBuffer = this.makeNoise(2, hash32(this.seed, 0x29));
+    this.syncPerformanceMix(context.currentTime, true);
     this.syncEffects(profileForVibe(this.activeVibe), null, true);
   }
 
@@ -893,6 +1106,74 @@ export class InfiniteTechnoEngine {
     return buffer;
   }
 
+  syncPerformanceMix(time = this.ctx?.currentTime, immediate = false, profile = null) {
+    if (
+      !this.ctx ||
+      !this.kickPerformanceGain ||
+      !this.bassPerformanceGain ||
+      !this.lowEq ||
+      !this.midEq ||
+      !this.highEq
+    ) {
+      return;
+    }
+    const at = Number.isFinite(time) ? time : this.ctx.currentTime;
+    const bassPresence = clamp(
+      Number.isFinite(profile?.performanceBassPresence)
+        ? profile.performanceBassPresence
+        : this.resolveDirectionControls(this.bar).bassPresence,
+      -1,
+      1,
+    );
+    const bassTrimDb = bassPresence < 0
+      ? bassPresence * 6
+      : bassPresence * 3;
+    const values = [
+      [this.lowEq.gain, this.mixControls.low],
+      [this.midEq.gain, this.mixControls.mid],
+      [this.highEq.gain, this.mixControls.high],
+      [
+        this.kickPerformanceGain.gain,
+        this.mixControls.kickCut ? SILENT_GAIN : 1,
+      ],
+      [
+        this.bassPerformanceGain.gain,
+        this.mixControls.bassCut ? SILENT_GAIN : dbToGain(bassTrimDb),
+      ],
+    ];
+    for (const [param, value] of values) {
+      param.cancelScheduledValues(at);
+      if (immediate) {
+        param.setValueAtTime(value, at);
+      } else {
+        param.setTargetAtTime(value, at, 0.035);
+      }
+    }
+  }
+
+  applyPendingMixCuts(time) {
+    if (!this.pendingMixCuts) return false;
+    const updates = this.pendingMixCuts;
+    this.pendingMixCuts = null;
+    this.mixControls = normalizeMixControls({
+      ...this.mixControls,
+      ...updates,
+    });
+    this.syncPerformanceMix(time, false);
+    for (const name of MIX_CUT_KEYS) {
+      const property = `${name}Cut`;
+      if (!(property in updates)) continue;
+      this.onEvent({
+        type: "performance-mix",
+        control: name,
+        value: this.mixControls[property],
+        pending: false,
+        mix: this.mixControls,
+      });
+    }
+    return true;
+  }
+
   syncEffects(profile, plan, immediate = false) {
     if (!this.ctx || !this.delay) return;
     const now = this.ctx.currentTime;
@@ -932,6 +1213,7 @@ export class InfiniteTechnoEngine {
       now,
       constant,
     );
+    this.syncPerformanceMix(now, immediate, profile);
   }
 
   safeScheduler() {
@@ -1023,7 +1305,10 @@ export class InfiniteTechnoEngine {
         seed: this.seed,
         phraseIndex: targetPhraseIndex,
         trackDNA,
-        form: derivePhraseState(this.seed, targetPhraseIndex),
+        form: applyDirectionToForm(
+          derivePhraseState(this.seed, targetPhraseIndex),
+          phraseState.direction,
+        ),
         profile: Object.freeze({
           ...phraseState.profile,
           bpm: Object.freeze([...phraseState.profile.bpm]),
@@ -1335,13 +1620,14 @@ export class InfiniteTechnoEngine {
         ? plan.profile.swing * (0.005 + plan.movement.timbre.swingBias * 0.012)
         : 0;
     const eventTime = time + swing;
+    if (step % 4 === 0) this.applyPendingMixCuts(eventTime);
     let kickPulse = 0;
     let bassPulse = 0;
     let hatPulse = 0;
     let chordPulse = 0;
     let synthPulse = 0;
 
-    if (plan.kick[step]) {
+    if (plan.kick[step] && !this.mixControls.kickCut) {
       this.kick(eventTime, plan.kick[step], plan.kickTimbre);
       this.duck(eventTime, plan.kick[step], plan.lowEnd);
       kickPulse = plan.kick[step];
@@ -1384,7 +1670,7 @@ export class InfiniteTechnoEngine {
       this.metallic(eventTime, plan.metallic[step], plan.profile.metallic, stepDuration);
     }
     if (plan.tom[step]) this.tom(eventTime, plan.tom[step], step, plan.profile.drive);
-    if (plan.bass[step]) {
+    if (plan.bass[step] && !this.mixControls.bassCut) {
       this.bass(
         eventTime,
         plan.bass[step],
@@ -1454,6 +1740,29 @@ export class InfiniteTechnoEngine {
                 this.planState.vibeProgress,
                 this.planState.tonalityProgress,
               ),
+            }
+          : null,
+      performance:
+        step === 0
+          ? {
+              mix: this.mixControls,
+              direction: this.planState.direction,
+              directionTarget:
+                this.directionTransition?.to || this.planState.direction,
+              directionTransition: this.directionTransition
+                ? {
+                    startBar: this.directionTransition.startBar,
+                    duration: this.directionTransition.duration,
+                    progress:
+                      bar < this.directionTransition.startBar
+                        ? 0
+                        : transitionProgress(
+                            bar,
+                            this.directionTransition.startBar,
+                            this.directionTransition.duration,
+                          ),
+                  }
+                : null,
             }
           : null,
       sectionStart: step === 0 && plan.sectionStart,

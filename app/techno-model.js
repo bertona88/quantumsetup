@@ -34,7 +34,7 @@ export {
   summarizeMaterialState,
 };
 
-export const GENERATOR_VERSION = "2.0.0";
+export const GENERATOR_VERSION = "2.1.0";
 export const STEPS_PER_BAR = 16;
 export const PHRASE_BARS = 8;
 export const MOVEMENT_BARS = 192;
@@ -2086,6 +2086,11 @@ function unitHash(...values) {
 }
 
 function selectBassVoice(seed, movement, form, profile) {
+  const requestedCharacter = profile.performanceBassCharacter;
+  if (requestedCharacter === "sub") return "sub";
+  if (requestedCharacter === "rolling") return "pulse";
+  if (requestedCharacter === "acid") return "acid";
+  if (requestedCharacter === "syncopated") return "pulse";
   const materialId =
     form.bassVoiceMaterialId ?? form.motifLineageId;
   const voiceBias = movement.trackDNA?.bassVoiceBias;
@@ -2501,7 +2506,8 @@ export function buildBarPlan({
   const sparse =
     form.intentionalRest ||
     effectiveDensity < 0.48 ||
-    effectiveSpace > 0.68;
+    effectiveSpace > 0.68 ||
+    ((profile.performanceBreakdownDepth ?? 0) > 0.5 && form.release);
   const phraseEnd = barInPhrase === PHRASE_BARS - 1;
   const sectionStart =
     barInPhrase === 0 && form.labelResidency === 1;
@@ -2540,8 +2546,9 @@ export function buildBarPlan({
         ? clamp(
             Math.round(
               1 +
-                form.floorTrust * 1.5 -
-                profile.breakDepth * 0.65,
+              form.floorTrust * 1.5 -
+              profile.breakDepth * 0.65 -
+              Math.max(0, profile.performanceBreakdownDepth ?? 0) * 1.35,
             ),
             1,
             3,
@@ -2949,6 +2956,7 @@ export function buildBarPlan({
       : 1,
     bassDensity: bassCount,
     bassBehavior: trackDNA.bassBehavior,
+    bassCharacter: profile.performanceBassCharacter ?? "auto",
     bassCell: bassLine.cell,
     bassCellSignature: bassLine.cellSignature,
     canonicalBassDensity: bassLine.cell.length,
@@ -3054,6 +3062,7 @@ export function buildBarPlan({
         profile.metallic * 0.05 +
         profile.acid * 0.1 -
         profile.space * 0.06 +
+        (profile.performanceBrightness ?? 0) * 0.2 +
         {
           "sub-dark": -0.14,
           "warm-tilt": -0.07,

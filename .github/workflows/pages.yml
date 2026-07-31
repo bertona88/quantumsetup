@@ -49,6 +49,7 @@ jobs:
             app/synth-dsp.js \
             app/synth-worklet.js \
             app/taste-model.js \
+            app/performance-controls.js \
             app/instrument-preview.js \
             app/signal-deck.js \
             _site/

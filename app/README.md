@@ -29,6 +29,9 @@ quantum-random.
 - **Start / Stop** owns the one browser `AudioContext`.
 - **Vibe** sets a long-term destination: Hypnotic, Dub, Detroit, Acid, or Peak.
 - **Harmonic gravity** sets Minor, Neutral, or Major.
+- **Live Mix** supplies smoothed Low/Mid/High EQ and next-beat Kick/Bassline cuts.
+- **Direction** supplies nine bounded phrase-safe macro biases plus an Auto, Sub,
+  Rolling, Acid, or Syncopated bassline character.
 - **New trajectory** evaluates sixteen deterministic Track-DNA candidates and
   queues only one that crosses the macro-distance gate at a 16-bar seed-change
   boundary. If none qualifies, the current trajectory continues. This is not a
@@ -39,6 +42,8 @@ quantum-random.
 Vibe changes begin at a safe 8-bar phrase boundary and morph over 64, 96, or 128
 bars according to profile distance. Major/minor changes use a neutral suspended
 field between the two tonal families rather than replacing the scale immediately.
+Direction changes begin at the next phrase and glide for eight bars. EQ responds
+immediately; cuts enter at the next beat and do not rewrite planned notes.
 
 ## Musical architecture
 
@@ -118,8 +123,10 @@ isolated from the arrangement planner.
 
 The graph separates kick, bass, rumble, and remaining music before the shared
 master chain. Bass and music receive independent kick ducking; rumble has bounded
-send, cutoff, and feedback. Filtered delay, generated convolution reverb, soft
-clipping, compression, and spectrum analysis remain generator-owned.
+send, cutoff, and feedback. Separate performance gains preserve cuts and bass
+presence without being overwritten by duck recovery. A bounded Low/Mid/High EQ
+chain precedes soft clipping and compression. Filtered delay, generated convolution
+reverb, voice filters, and effect sends remain generator-owned.
 Native temporary voices are capped at 72 and the advanced bank at 24, preserving a
 combined ceiling of 96. Every voice has a finite hard end.
 

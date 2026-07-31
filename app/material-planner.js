@@ -272,8 +272,16 @@ function hitsForClock(lane, loopLength, profile, seed, phraseIndex, mutationCoun
     );
   }
   if (lane === "bass") {
+    const presence = clamp(
+      Number(profile?.performanceBassPresence) || 0,
+      -1,
+      1,
+    );
     return clamp(
-      Math.round(loopLength * (0.1 + density * 0.08 + syncopation * 0.05)),
+      Math.round(
+        loopLength *
+          (0.1 + density * 0.08 + syncopation * 0.05 + presence * 0.045),
+      ),
       2,
       10,
     );

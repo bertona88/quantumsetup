@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { normalizeMixControls } from "./performance-controls.js";
 
 class FakeAudioParam {
   constructor(value = 1) {
@@ -175,9 +176,9 @@ globalThis.window = {
 
 const { InfiniteTechnoEngine } = await import("./audio-engine.js");
 
-function makeEngine() {
+function makeEngine(onEvent = () => {}) {
   const context = new FakeAudioContext();
-  const engine = new InfiniteTechnoEngine(() => {}, { seed: 0x51eed });
+  const engine = new InfiniteTechnoEngine(onEvent, { seed: 0x51eed });
   engine.ctx = context;
   return { context, engine };
 }
@@ -213,13 +214,25 @@ test("the graph keeps kick, bass, rumble, and music on distinct bounded buses", 
   assert.notEqual(engine.rumbleBus, engine.musicBus);
 
   assert.deepEqual(connectionTargets(engine.kickBus), [
+    engine.kickPerformanceGain,
+  ]);
+  assert.deepEqual(connectionTargets(engine.kickPerformanceGain), [
     engine.preMaster,
     engine.rumbleSendGain,
   ]);
-  assert.deepEqual(connectionTargets(engine.bassBus), [engine.preMaster]);
+  assert.deepEqual(connectionTargets(engine.bassBus), [
+    engine.bassPerformanceGain,
+  ]);
+  assert.deepEqual(connectionTargets(engine.bassPerformanceGain), [
+    engine.preMaster,
+  ]);
   assert.deepEqual(connectionTargets(engine.rumbleBus), [engine.preMaster]);
   assert.deepEqual(connectionTargets(engine.musicBus), [engine.toneFilter]);
   assert.deepEqual(connectionTargets(engine.rumbleWet), [engine.rumbleBus]);
+  assert.deepEqual(connectionTargets(engine.highpass), [engine.lowEq]);
+  assert.deepEqual(connectionTargets(engine.lowEq), [engine.midEq]);
+  assert.deepEqual(connectionTargets(engine.midEq), [engine.highEq]);
+  assert.deepEqual(connectionTargets(engine.highEq), [engine.softClip]);
 
   const feedbackConnection = engine.rumbleFeedback.connections[0];
   assert.equal(feedbackConnection.node, engine.rumbleDelay);
@@ -245,6 +258,126 @@ test("the graph keeps kick, bass, rumble, and music on distinct bounded buses", 
   assert.equal(lastEvent(engine.rumbleSendGain.gain, "target").value, 0.14);
   assert.equal(lastEvent(engine.rumbleFilter.frequency, "target").value, 176);
   assert.equal(lastEvent(engine.rumbleFeedback.gain, "target").value, 0.58);
+});
+
+test("live EQ applies in dB and beat-quantized cuts preserve separate gain stages", () => {
+  const events = [];
+  const { engine } = makeEngine((event) => events.push(event));
+  engine.requestMixControl("low", -12);
+  engine.requestDirectionControl("bassPresence", 1);
+  engine.buildGraph();
+
+  assert.equal(engine.lowEq.gain.value, -12);
+  assert.equal(engine.midEq.gain.value, 0);
+  assert.equal(engine.highEq.gain.value, 0);
+  assert.ok(engine.bassPerformanceGain.gain.value > 1);
+  assert.equal(engine.bassBus.gain.value, 0.96);
+
+  engine.running = true;
+  engine.bar = 2;
+  engine.step = 5;
+  assert.equal(engine.requestMixControl("kick", true), true);
+  assert.equal(engine.mixControls.kickCut, false);
+  assert.equal(engine.pendingMixCuts.kickCut, true);
+  assert.deepEqual(
+    events.at(-1),
+    {
+      type: "performance-mix",
+      control: "kick",
+      value: true,
+      pending: true,
+      applyAtBar: 2,
+      applyAtStep: 8,
+      mix: engine.mixControls,
+    },
+  );
+
+  engine.applyPendingMixCuts(3);
+  assert.equal(engine.mixControls.kickCut, true);
+  assert.equal(engine.pendingMixCuts, null);
+  assert.equal(
+    lastEvent(engine.kickPerformanceGain.gain, "target").value,
+    0.0001,
+  );
+  assert.equal(engine.kickBus.gain.value, 0.84);
+  assert.ok(
+    [engine.lowEq, engine.midEq, engine.highEq].every((filter) =>
+      filter.gain.events.every((event) =>
+        event.value === undefined || Number.isFinite(event.value)
+      )
+    ),
+  );
+});
+
+test("active cuts suppress synthesis, kick ducking, and visual pulses", () => {
+  const { engine } = makeEngine();
+  const empty = Array(16).fill(null);
+  engine.planBar = 0;
+  engine.planState = {
+    dominantVibe: "hypnotic",
+    dominantTonality: "minor",
+    vibeProgress: 0,
+    tonalityProgress: 0,
+  };
+  engine.plan = {
+    profile: { swing: 0, warmth: 0.5, metallic: 0.5, drive: 0.5 },
+    movement: {
+      index: 0,
+      rootName: "A",
+      mode: { label: "minor" },
+      timbre: {
+        swingBias: 0,
+        clapTone: 0.5,
+        hatColor: 0.5,
+        rimTone: 0.5,
+        filterBias: 0.5,
+      },
+    },
+    kick: [1, ...empty.slice(1)],
+    kickTimbre: {},
+    lowEnd: {},
+    clap: empty,
+    hat: empty,
+    openHat: empty,
+    shaker: empty,
+    ride: empty,
+    rim: empty,
+    metallic: empty,
+    tom: empty,
+    bass: [{ midi: 36, velocity: 0.7 }, ...empty.slice(1)],
+    bassVoice: "sub",
+    activeSynthEngines: [],
+    synth: {},
+    synthPalette: {},
+    chord: empty,
+    pad: null,
+    texture: false,
+    riser: false,
+    downlifter: false,
+    section: { kind: "DRIVE" },
+    sectionProgress: 0.5,
+    sectionStart: false,
+    ensembleScene: null,
+    councilVerdict: null,
+    energy: 0.7,
+  };
+  engine.phraseInstrumentation = Object.freeze([]);
+  let kicks = 0;
+  let ducks = 0;
+  let basses = 0;
+  let visual = null;
+  engine.kick = () => { kicks += 1; };
+  engine.duck = () => { ducks += 1; };
+  engine.bass = () => { basses += 1; };
+  engine.queueVisual = (_time, event) => { visual = event; };
+  engine.mixControls = normalizeMixControls({ kickCut: true, bassCut: true });
+
+  engine.scheduleStep(0, 0, 1, 0.1, {});
+  assert.equal(kicks, 0);
+  assert.equal(ducks, 0);
+  assert.equal(basses, 0);
+  assert.equal(visual.kick, 0);
+  assert.equal(visual.bass, 0);
 });
 
 test("kick synthesis consumes physical timbre fields and always stops finitely", () => {

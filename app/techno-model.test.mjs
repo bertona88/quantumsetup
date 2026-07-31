@@ -49,7 +49,7 @@ test("canonical supplied generator remains byte-identical", () => {
 });
 
 test("the versioned high-level browser API remains source-compatible", () => {
-  assert.equal(GENERATOR_VERSION, "2.0.0");
+  assert.equal(GENERATOR_VERSION, "2.1.0");
   const source = readFileSync(
     new URL("./main.js", import.meta.url),
     "utf8",
@@ -60,6 +60,9 @@ test("the versioned high-level browser API remains source-compatible", () => {
     "getSnapshot: () => engine.getSnapshot()",
     "requestVibe: (vibe) => engine.requestVibe(vibe)",
     "requestTonality: (tonality) => engine.requestTonality(tonality)",
+    "setMixControl: (name, value) => engine.requestMixControl(name, value)",
+    "setDirectionControl: (name, value)",
+    "setBassCharacter: (character) => engine.requestBassCharacter(character)",
   ]) {
     assert.ok(source.includes(fragment), `${fragment} browser contract was removed`);
   }

@@ -1,9 +1,10 @@
 # Claims and Validation
 
-Status: claim register for local Infinite Techno `2.0.0` generative-material candidate
+Status: claim register for local Infinite Techno `2.1.0` performance-control release candidate
 
-The `2.0.0` claim boundary is local. Historical `1.5.0` deterministic, browser, and
-deployment evidence does not validate the rewritten material planner.
+The `2.1.0` claim boundary is local until its named deployment is verified. The
+deployed `2.0.0` deterministic, browser, and deployment evidence does not validate
+the new performance console.
 
 ## Allowed claims
 
@@ -127,8 +128,8 @@ The application does not claim:
   candidate;
 - that twelve symbolic phrase candidates guarantee a good groove, a perceptually
   distinct record, or a listener-preferred choice;
-- that `2.0.0` has passed its fixed 96-bar renders, blinded listening comparison,
-  complete browser-acceptance gate, 30–60-minute soak, deployment, or
+- that `2.1.0` has passed its fixed 96-bar renders, blinded listening comparison,
+  complete browser-acceptance gate, 30–60-minute soak, verified deployment, or
   public-acceptance gate;
 - subjective equivalence to a named artist, professional producer, or top DJ;
 - machine learning, training on a music catalog, or artist imitation;
@@ -155,6 +156,7 @@ The application does not claim:
 | emergent-form distribution tests | bounded recurrent state, removal of fixed schedules, varied/absent and materially long climax windows, operative gates, causal gesture cooldowns, honest recall labels, non-causal derived sections, and safe replay bounds | whether the resulting long arc feels earned to a listener |
 | 128-seed, 384-bar material scan | at least 75% anchored kick phrases, one-to-four-phrase excursion bounds, forced re-anchor/cooldown, persistent non-16 polymeter, no global lane reset, and attributable exact repetition | club-system translation or perceived low-end authority |
 | low-end planner tests | independent kick-family cooldown and phrase morph, bounded physical kick fields, persistent bass-clock and motif-lineage continuity, independently resident voice identity, kick/bass onset separation, and routing-contract bounds | club-system translation or perceived low-end authority |
+| performance-control tests | bounded normalization, dB EQ routing, separate gain stages, next-beat cut state, phantom-duck prevention, phrase-safe direction transitions, and frozen active/target telemetry | good control settings, listening quality, or club-system translation |
 | causal handoff tests | hold isolation, mutate/replace/recall authorization, non-round-robin engine reachability, stable event selection, and one-engine staging | whether the timbral change feels musically earned |
 | council and ensemble tests | semantic scene-role reachability without onset masks, causal one-engine handoff, decisive cast limits, layer editing, collision rules, rare fills, and onset budgets | whether the resulting arrangement sounds musically compelling |
 | Track DNA and runtime-selection tests | deterministic flat phenotype, curated-domain reachability and balance, weighted distance, bounded candidate-selection rules, and rejection of an unqualified pool without changing seed | downstream realization, audible contrast, or eligibility in every random candidate draw |
@@ -165,9 +167,10 @@ The application does not claim:
 | worklet processor tests | queue and voice ceilings, bounded stealing, clean all-notes-off | long-run browser or device stability |
 | syntax checks | loadable JavaScript modules | browser audio behavior |
 | runtime phrase-materialization tests | one planner advance per phrase, deeply frozen eight-bar plans and material snapshots, future-boundary intent isolation, skipped-phrase replay, Stop preservation, and accepted-seed reset | browser audio behavior or subjective quality |
+| final-candidate local `2.1.0` performance browser smoke | user-gesture Start, smoothed Low EQ, reversible next-beat Bassline and Kick cuts, queued Energy and Rolling bass-character targets, durable-control reload, nonpersistent cuts, warning/error-free console, and zero horizontal overflow at 1280, 390, and 320 pixels | full browser matrix, reduced-motion or screen-reader behavior, listening quality, soak reliability, deployment, or public behavior |
 | implementation-stage `2.0.0` browser smoke | user-gesture Start, populated running ensemble, future-boundary Vibe and Tonality requests, clean Stop, and a warning/error-free console on the then-current candidate | exact final-source browser behavior, material API inspection, New Trajectory, preview/restart, reduced-motion, long-duration reliability, or listening quality |
 | responsive visual review | zero horizontal overflow at `1280×720`, `390×844`, and `320×568` on the tested browser | screen-reader quality or every browser/device |
-| deployment hash comparison | named public files match tested local files | future cache or service availability; no `2.0.0` deployment evidence exists yet |
+| deployment hash comparison | named public files match tested local files | future cache or service availability; `2.1.0` evidence remains pending until its authorized release completes |
 | long listening panel | perceived variation, flow, and musical quality | mathematical nonrepetition |
 | named-device soak | bounded runtime behavior on that device | 24/7 operation everywhere |
 
@@ -191,13 +194,12 @@ Before stronger claims:
 - add a bounded multi-day recurrence ledger and validate long-horizon recall;
 - profile recurrent random access and scheduler behavior over multi-day phrase
   indices;
-- only after local gates close, separately authorize commit, push, deployment, public
-  byte verification, and public acceptance.
+- complete the already-authorized `2.1.0` commit, push, deployment, and public byte
+  verification while keeping public acceptance separate.
 
 ## Historical evidence boundary
 
-The deployed `1.5.0` release recorded deterministic 192-bar planner separation,
-foreground browser interaction, and byte-matched deployment evidence. That remains
-valid history for `1.5.0` only. It does not validate `2.0.0` persistent clocks,
-gesture grammar, symbolic candidate selection, renders, listening quality, browser
-runtime, soak behavior, deployment, or public acceptance.
+The deployed `2.0.0` release recorded deterministic material checks, foreground
+browser interaction, and byte-matched deployment evidence. That remains valid
+history for `2.0.0` only. It does not validate the `2.1.0` performance console,
+listening quality, browser runtime, soak behavior, deployment, or public acceptance.

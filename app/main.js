@@ -3,6 +3,12 @@ import { InstrumentAuditioner } from "./instrument-preview.js";
 import { SignalDeckModel } from "./signal-deck.js";
 import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js";
 import {
+  DEFAULT_DIRECTION_CONTROLS,
+  DEFAULT_MIX_CONTROLS,
+  normalizeDirectionControls,
+  normalizeMixControls,
+} from "./performance-controls.js";
+import {
   deriveInitialDirection,
   freshTrajectoryId,
   parseTrajectoryId,
@@ -36,6 +42,40 @@ const signalKeepButton = document.querySelector("#signal-keep");
 const signalLive = document.querySelector("#signal-live");
 const vibeButtons = [...document.querySelectorAll("[data-vibe]")];
 const tonalityButtons = [...document.querySelectorAll("[data-tonality]")];
+const mixInputs = [...document.querySelectorAll("[data-mix-param]")];
+const directionInputs = [
+  ...document.querySelectorAll("[data-direction-param]"),
+];
+const cutButtons = [...document.querySelectorAll("[data-cut-target]")];
+const bassCharacterButtons = [
+  ...document.querySelectorAll("[data-bassline-character]"),
+];
+const directionTarget = document.querySelector("#direction-target");
+
+const PERFORMANCE_STORAGE_KEY = "quantumsetup.performance.v1";
+
+function loadPerformancePreferences() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(PERFORMANCE_STORAGE_KEY));
+    return {
+      mix: normalizeMixControls({
+        ...(parsed?.mix || DEFAULT_MIX_CONTROLS),
+        kickCut: false,
+        bassCut: false,
+      }),
+      direction: normalizeDirectionControls(
+        parsed?.direction || DEFAULT_DIRECTION_CONTROLS,
+      ),
+    };
+  } catch (_) {
+    return {
+      mix: DEFAULT_MIX_CONTROLS,
+      direction: DEFAULT_DIRECTION_CONTROLS,
+    };
+  }
+}
+
+const performancePreferences = loadPerformancePreferences();
 
 const params = new URLSearchParams(window.location.search);
 const seedText = params.get("seed");
@@ -66,6 +106,8 @@ const engine = new InfiniteTechnoEngine(handleEngineEvent, {
   vibe: initialDirection.vibe,
   tonality: initialDirection.tonality,
   tasteProfile: signalDeck.tasteProfile,
+  mixControls: performancePreferences.mix,
+  directionControls: performancePreferences.direction,
 });
 
 let uiBusy = false;
@@ -80,11 +122,116 @@ let currentSignal = signalDeck.currentSpecimen;
 let signalDecisionLocked = false;
 let signalPointer = null;
 let signalAuditionTimer = null;
+let targetDirectionControls = performancePreferences.direction;
 
 function titleCase(text) {
   return String(text)
     .replaceAll("-", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function signedValue(value, suffix = "") {
+  const number = Number(value) || 0;
+  if (number === 0) return suffix ? `0${suffix}` : "CENTER";
+  return `${number > 0 ? "+" : ""}${number}${suffix}`;
+}
+
+function setRangePresentation(input) {
+  const minimum = Number(input.min);
+  const maximum = Number(input.max);
+  const value = Number(input.value);
+  const progress = ((value - minimum) / (maximum - minimum)) * 100;
+  input.closest(".performance-range")?.style.setProperty(
+    "--range-progress",
+    `${Math.max(0, Math.min(100, progress))}%`,
+  );
+  const output = document.querySelector(`#${input.id}-output`);
+  if (input.dataset.mixParam) {
+    const text = signedValue(value, " dB");
+    if (output) output.textContent = text;
+    input.setAttribute("aria-valuetext", text);
+    return;
+  }
+  const text = signedValue(value);
+  if (output) output.textContent = text;
+  input.setAttribute(
+    "aria-valuetext",
+    value === 0
+      ? "center"
+      : `${Math.abs(value)} percent ${value > 0 ? "more" : "less"}`,
+  );
+}
+
+function directionIsNeutral(direction) {
+  return (
+    direction.bassCharacter === "auto" &&
+    directionInputs.every(
+      (input) => Math.abs(direction[input.dataset.directionParam] || 0) < 0.001,
+    )
+  );
+}
+
+function renderDirectionTarget(event = null) {
+  const label = directionIsNeutral(targetDirectionControls)
+    ? "NEUTRAL"
+    : "CUSTOM";
+  directionTarget.textContent = event?.immediate === false
+    ? `TARGET · ${label} · BAR ${event.startBar + 1}`
+    : `TARGET · ${label}`;
+}
+
+function renderCutButton(button, active, pending = false, target = active) {
+  button.setAttribute("aria-pressed", String(active));
+  button.dataset.pending = String(pending);
+  button.dataset.pendingValue = String(target);
+  const status = button.querySelector("small");
+  if (status) {
+    status.textContent = pending
+      ? `NEXT ${target ? "CUT" : "ON"}`
+      : active
+        ? "MUTED"
+        : "ON";
+  }
+}
+
+function savePerformancePreferences() {
+  try {
+    window.localStorage.setItem(
+      PERFORMANCE_STORAGE_KEY,
+      JSON.stringify({
+        mix: {
+          low: Number(mixInputs.find((input) => input.dataset.mixParam === "low")?.value) || 0,
+          mid: Number(mixInputs.find((input) => input.dataset.mixParam === "mid")?.value) || 0,
+          high: Number(mixInputs.find((input) => input.dataset.mixParam === "high")?.value) || 0,
+        },
+        direction: targetDirectionControls,
+      }),
+    );
+  } catch (_) {
+    // Performance preferences are optional and never block audio.
+  }
+}
+
+function initializePerformanceControls() {
+  for (const input of mixInputs) {
+    input.value = String(performancePreferences.mix[input.dataset.mixParam]);
+    setRangePresentation(input);
+  }
+  for (const input of directionInputs) {
+    input.value = String(
+      Math.round(
+        performancePreferences.direction[input.dataset.directionParam] * 100,
+      ),
+    );
+    setRangePresentation(input);
+  }
+  for (const button of cutButtons) renderCutButton(button, false);
+  selectTarget(
+    bassCharacterButtons,
+    "basslineCharacter",
+    performancePreferences.direction.bassCharacter,
+  );
+  renderDirectionTarget();
 }
 
 function setStatus(message, state = "idle") {
@@ -411,6 +558,29 @@ function handleEngineEvent(event) {
     setStatus(event.message.toUpperCase(), "error");
   }
 
+  if (event.type === "performance-mix") {
+    const button = cutButtons.find(
+      (candidate) => candidate.dataset.cutTarget === event.control,
+    );
+    if (button) {
+      const active = event.mix?.[`${event.control}Cut`] === true;
+      renderCutButton(button, active, event.pending, event.value);
+      liveRegion.textContent = event.pending
+        ? `${titleCase(event.control)} ${event.value ? "cut" : "return"} queued for the next beat.`
+        : `${titleCase(event.control)} is ${event.value ? "cut" : "on"}.`;
+    }
+  }
+
+  if (event.type === "performance-direction") {
+    targetDirectionControls = event.direction;
+    selectTarget(
+      bassCharacterButtons,
+      "basslineCharacter",
+      targetDirectionControls.bassCharacter,
+    );
+    renderDirectionTarget(event);
+  }
+
   if (event.type === "intent") describeIntent(event);
 
   if (event.type === "seed") {
@@ -442,6 +612,17 @@ function handleEngineEvent(event) {
     visualState.transitionProgress = event.transition?.progress || 0;
 
     if (event.step === 0) {
+      if (event.performance?.directionTarget) {
+        targetDirectionControls = event.performance.directionTarget;
+        const transition = event.performance.directionTransition;
+        if (transition && event.bar < transition.startBar) {
+          directionTarget.textContent = `TARGET · ${directionIsNeutral(targetDirectionControls) ? "NEUTRAL" : "CUSTOM"} · BAR ${transition.startBar + 1}`;
+        } else if (transition) {
+          directionTarget.textContent = `MORPH · ${Math.round(transition.progress * 100)}%`;
+        } else {
+          renderDirectionTarget();
+        }
+      }
       renderEnsemble(
         event.ensembleScene || null,
         event.instrumentation || [],
@@ -506,6 +687,59 @@ for (const button of tonalityButtons) {
     targetTonality = button.dataset.tonality;
     selectTarget(tonalityButtons, "tonality", targetTonality);
     engine.requestTonality(targetTonality);
+  });
+}
+
+for (const input of mixInputs) {
+  input.addEventListener("input", () => {
+    setRangePresentation(input);
+    engine.requestMixControl(input.dataset.mixParam, Number(input.value));
+  });
+  input.addEventListener("change", () => {
+    savePerformancePreferences();
+    liveRegion.textContent = `${titleCase(input.dataset.mixParam)} EQ set to ${signedValue(input.value, " decibels")}.`;
+  });
+}
+
+for (const button of cutButtons) {
+  button.addEventListener("click", () => {
+    const pending = button.dataset.pending === "true";
+    const currentTarget = pending
+      ? button.dataset.pendingValue === "true"
+      : button.getAttribute("aria-pressed") === "true";
+    engine.requestMixControl(button.dataset.cutTarget, !currentTarget);
+  });
+}
+
+for (const input of directionInputs) {
+  input.addEventListener("input", () => {
+    setRangePresentation(input);
+    const name = input.dataset.directionParam;
+    targetDirectionControls = normalizeDirectionControls({
+      ...targetDirectionControls,
+      [name]: Number(input.value) / 100,
+    });
+    renderDirectionTarget();
+    engine.requestDirectionControl(name, Number(input.value) / 100);
+  });
+  input.addEventListener("change", () => {
+    savePerformancePreferences();
+    liveRegion.textContent = `${titleCase(input.dataset.directionParam)} direction set to ${signedValue(input.value)}.`;
+  });
+}
+
+for (const button of bassCharacterButtons) {
+  button.addEventListener("click", () => {
+    const character = button.dataset.basslineCharacter;
+    targetDirectionControls = normalizeDirectionControls({
+      ...targetDirectionControls,
+      bassCharacter: character,
+    });
+    selectTarget(bassCharacterButtons, "basslineCharacter", character);
+    renderDirectionTarget();
+    engine.requestBassCharacter(character);
+    savePerformancePreferences();
+    liveRegion.textContent = `${titleCase(character)} bassline character selected.`;
   });
 }
 
@@ -639,12 +873,17 @@ window.QuantumTechno = Object.freeze({
   getSnapshot: () => engine.getSnapshot(),
   requestVibe: (vibe) => engine.requestVibe(vibe),
   requestTonality: (tonality) => engine.requestTonality(tonality),
+  setMixControl: (name, value) => engine.requestMixControl(name, value),
+  setDirectionControl: (name, value) =>
+    engine.requestDirectionControl(name, value),
+  setBassCharacter: (character) => engine.requestBassCharacter(character),
 });
 
 updateSeed(engine.seed, { writeUrl: parsedSeed !== undefined });
 nowVibe.textContent = profileForVibe(initialDirection.vibe).label.toUpperCase();
 selectTarget(vibeButtons, "vibe", initialDirection.vibe);
 selectTarget(tonalityButtons, "tonality", initialDirection.tonality);
+initializePerformanceControls();
 bpmReadout.textContent = engine.currentTempo.toFixed(1);
 renderSignalSpecimen(currentSignal);
 

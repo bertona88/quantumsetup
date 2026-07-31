@@ -28,15 +28,18 @@ Setup Universe doctrine displace the listening experience.
 - `app/techno-model.js` owns deterministic musical planning.
 - `app/audio-engine.js` owns the Web Audio graph, hardware-clock scheduling, voices,
   effects, and cleanup.
+- `app/performance-controls.js` owns bounded live-mix and phrase-direction control
+  normalization.
 - `app/main.js` owns the single audio-first UI and reactive contour.
 - `MUSICAL_SYSTEM.md` is the musical grammar and research basis.
 - `VISION.md`, `INTERFACE_CONTRACT.md`, `CLAIMS_AND_VALIDATION.md`, and
   `ACCEPTANCE_TESTS.md` define the current product boundary.
 
 There must be one primary page, not LAB/TRIP modes or multiple product tabs.
-Controls stay high-level: transport, musical trajectory, techno vibe, and harmonic
-color. Arrangement fades, effect sends, filter sweeps, pattern density, and detailed
-synthesis remain the generator's responsibility.
+Controls stay musically legible: transport, musical trajectory, techno vibe,
+harmonic color, three-band performance EQ, beat-quantized kick/bass cuts, and a
+bounded phrase-direction deck. Detailed voice synthesis, note masks, effect sends,
+fills, and exact arrangement decisions remain the generator's responsibility.
 
 ## Musical quality directive
 

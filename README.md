@@ -2,11 +2,11 @@
 
 **An audio-first, endlessly evolving procedural techno set.**
 
-- Live: https://quantumsetup.ai/ (prior `1.5.0` production release; the local
-  `2.0.0` candidate is not deployed)
+- Live: https://quantumsetup.ai/ (`2.0.0` production while the authorized `2.1.0`
+  performance-control release candidate is validated)
 - Audio: synthesized locally with the Web Audio API; no samples or network calls
-- Interaction: one music surface with Vibe, Harmonic Gravity, and a local timbre
-  preference deck
+- Interaction: one music surface with Vibe, Harmonic Gravity, live performance
+  controls, and a local timbre preference deck
 - Visual: an analyser-driven quantum-inspired contour, explicitly artistic
 
 ## Product direction
@@ -80,8 +80,8 @@ That release used a generated two-bar bass lineage that could mutate, be replace
 and later be recalled; `2.0.0` supersedes the fixed two-bar span with a persistent
 polymetric bass clock.
 Kick, bass, rumble, and the remaining music have separate buses and independent
-ducking relationships. This is a local candidate boundary: deterministic checks do
-not establish long-listening quality, multi-day performance, or public deployment.
+ducking relationships. Deterministic checks do not establish long-listening quality
+or multi-day performance.
 
 The deployed `1.5.0` release added a frozen, seed-derived Track DNA across eleven
 macro domains: groove, kick, percussion, bass behavior and voice, harmony,
@@ -98,7 +98,7 @@ musical domains. That evidence belongs to `1.5.0`; it does not validate the rewr
 `2.0.0` material planner or prove audible uniqueness, mix quality, or professional
 listening acceptance.
 
-The local `2.0.0` candidate replaces fixed percussion candidate sets, fixed
+The `2.0.0` material release replaces fixed percussion candidate sets, fixed
 scene-onset masks, and fixed-span bass authority with a phrase-sequential generative
 material system:
 
@@ -118,17 +118,16 @@ material system:
   Web Audio scheduler without recomputing musical decisions;
 - material memory resets only when an accepted New Trajectory enters.
 
-The `2.0.0` browser API contract keeps the existing high-level methods and adds
-frozen material telemetry to `getSnapshot()`: current gesture, motif lineage,
-lane-clock summaries, candidate score/count, sampling temperature, and
-kick-excursion status. It adds no low-level controls.
+The `2.1.0` browser API preserves the `2.0.0` material telemetry and adds a frozen
+performance snapshot plus bounded methods for mix controls, phrase-direction
+controls, and bass character. The visible console exposes three-band EQ,
+beat-quantized Kick/Bassline cuts, nine phrase-safe macro directions, and five
+bassline-character targets. It does not expose note masks or individual synthesis
+parameters.
 
-`2.0.0` remains a local candidate. The 118-test deterministic suite passes. A narrow
-foreground Start/Stop, intent, console, and responsive browser smoke was recorded
-during implementation, before the final planner-invariant hardening; it is not a
-byte-matched final-browser result. Eight fixed 96-bar mix and stem renders, blinded
-closest-pair listening, the final browser matrix, a 30–60-minute soak, deployment,
-and public acceptance are separate gates and remain open.
+`2.1.0` remains a release candidate until its final browser matrix, deployment, and
+public byte verification complete. Fixed renders, blinded listening, a 30–60-minute
+soak, and public acceptance remain separate gates.
 
 Read [MUSICAL_SYSTEM.md](./MUSICAL_SYSTEM.md) for the composition grammar and
 research basis, and [ARTISTIC_COUNCIL.md](./ARTISTIC_COUNCIL.md) for the editorial

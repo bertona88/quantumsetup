@@ -1,8 +1,8 @@
 # Quantum Contour Contract
 
-Applies to: Infinite Techno `2.0.0`
+Applies to: Infinite Techno `2.1.0`
 Scientific status: artistic audio visualization, not a quantum model
-Release boundary: local generative-material candidate; no deployment claim
+Release boundary: local performance-control release candidate; no deployment claim
 
 ## Boundary
 

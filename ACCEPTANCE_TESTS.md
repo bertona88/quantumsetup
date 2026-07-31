@@ -1,6 +1,6 @@
 # Acceptance Tests
 
-Current gate: local Infinite Techno `2.0.0` generative-material candidate
+Current gate: local Infinite Techno `2.1.0` performance-control release candidate
 
 Passing one gate does not imply another. Deterministic structure, rendered audio,
 listening quality, active-browser behavior, long-run reliability, deployment, and
@@ -89,9 +89,9 @@ carried forward across the material-planner rewrite.
 - [x] the hardware scheduler retains audio-clock lookahead, missed-step recovery,
   finite source cleanup, bounded voices, and separate kick, bass, rumble, and music
   buses.
-- [x] the complete deterministic, DSP, worklet, lifecycle, transition, trajectory,
-  taste, and syntax suite passes together on the current local `2.0.0` source
-  state.
+- [x] all 130 deterministic, DSP, worklet, lifecycle, transition, trajectory,
+  performance-control, taste, and syntax tests pass together on the current local
+  `2.1.0` source state.
 
 ## Gate 4 — Deterministic population evidence
 
@@ -105,7 +105,7 @@ carried forward across the material-planner rewrite.
 - [x] settled Vibe endpoints change future phrases without rewriting an already
   frozen phrase.
 
-Current local evidence: `npm --prefix app run check` passes 118/118 tests. The
+Current local evidence: `npm --prefix app run check` passes all 130 tests. The
 13-trajectory first-48-bar manifest passes all 78 pairs; the minimum observed
 composite distance is `0.252146`, with rhythm and phrase-grammar separation plus at
 least one of orchestration, timbre, or harmony for every pair.
@@ -125,22 +125,31 @@ least one of orchestration, timbre, or harmony for every pair.
 
 ## Gate 6 — Interface, browser, and soak
 
-- [x] `window.QuantumTechno` remains versioned `2.0.0` and preserves
-  `getSnapshot()`, `requestVibe()`, and `requestTonality()`.
+- [x] `window.QuantumTechno` is versioned `2.1.0`, preserves `getSnapshot()`,
+  `requestVibe()`, and `requestTonality()`, and adds bounded mix, direction, and
+  bass-character methods.
 - [x] snapshots add a deeply frozen material section with gesture, motif lineage,
   lane-clock summaries, selected-candidate score, candidate count, temperature, and
   kick-excursion status.
-- [x] no low-level material, rhythm, synthesis, mixer, or scientific controls are
-  added.
-- [x] an implementation-stage Codex in-app-browser smoke at `1280×720` started Web
-  Audio from the transport gesture, reached a populated running ensemble, queued
-  Vibe and Tonality intents at future boundaries, and stopped cleanly with no
-  console warnings or errors; `390×844` and `320×568` both had zero horizontal
-  overflow. It preceded the final planner-invariant hardening and is not
-  byte-matched to the current candidate.
-- [ ] foreground Start/Stop, Vibe, Tonality, New Trajectory, transition, preview,
-  restart, responsive, reduced-motion, and clean-console browser smoke passes on the
-  final `2.0.0` bytes.
+- [x] the performance console exposes bounded three-band EQ, next-beat Kick and
+  Bassline cuts, nine phrase-direction controls, and five bassline characters while
+  keeping onset masks and individual synthesis parameters private.
+- [x] beat-quantized kick cut suppresses kick synthesis, ducking, new rumble
+  excitation, and its visual pulse; bass cut suppresses bass synthesis and pulse.
+- [x] performance gain stages remain independent of sidechain-bus restoration, and
+  the Low/Mid/High filters receive finite bounded dB values.
+- [x] direction targets enter on the next eight-bar phrase, glide for eight bars,
+  preserve an already-frozen phrase, and keep Bassline Character discrete until the
+  glide completes.
+- [x] a final-candidate Codex in-app-browser performance smoke at `1280×720`
+  started Web Audio from the transport gesture, exercised smoothed Low EQ,
+  next-beat Bassline and Kick cuts in both directions, queued Energy and Rolling
+  bass-character targets, and verified durable-control reload plus nonpersistent
+  cuts with no console warnings or errors; `390×844` and `320×568` both had zero
+  horizontal overflow and a visible phrase target.
+- [ ] foreground Start/Stop, every performance control, Vibe, Tonality, New
+  Trajectory, transition, preview, restart, responsive, reduced-motion, and
+  clean-console browser smoke passes on the final `2.1.0` bytes.
 - [ ] a 30–60-minute named-device foreground soak is attached.
 - [ ] suspend/resume and audio-device-change behavior is recorded without expanding
   the runtime claim.
@@ -152,15 +161,14 @@ least one of orchestration, timbre, or harmony for every pair.
   distinctness, groove quality, professional-DJ quality, or long-run reliability.
 - [x] documentation keeps the quantum contour explicitly artistic and disclaims
   named-artist participation, endorsement, literal opinions, and imitation.
-- [ ] a final local `2.0.0` candidate report links every deterministic, render,
+- [ ] a final local `2.1.0` candidate report links every deterministic, render,
   listening, browser, and soak artifact.
-- [x] commit and push were separately authorized and completed as `96b6c24`.
-- [x] deployment completed from the exact tested source state in GitHub Pages run
-  `30627589662` on 2026-07-31.
-- [x] public `index.html`, `main.js`, `audio-engine.js`, `techno-model.js`, and
-  `material-planner.js` hashes matched local release bytes. A public browser smoke
-  entered `RUNNING — CONTINUOUS SET`, exposed a live material/ensemble snapshot,
-  stopped cleanly at `READY — TAP START`, and produced no browser warnings or
+- [x] the prior `2.0.0` commit, push, GitHub Pages run `30627589662`, public byte
+  comparison, and browser smoke remain historical release evidence.
+- [ ] the authorized `2.1.0` commit and push complete.
+- [ ] the exact tested `2.1.0` source deploys successfully through GitHub Pages.
+- [ ] every published `2.1.0` asset byte-matches local release bytes and a fresh
+  public browser smoke exercises the performance console without warnings or
   errors.
 - [ ] public acceptance is explicitly recorded.
 

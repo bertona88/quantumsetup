@@ -9,7 +9,7 @@
     />
     <meta name="theme-color" content="#070609" />
     <title>Infinite Techno — QuantumSetup</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=2.1.0" />
   </head>
   <body>
     <main class="instrument" id="app" aria-labelledby="product-name">
@@ -165,6 +165,107 @@
           </div>
         </div>
 
+        <section class="performance-console" aria-labelledby="performance-title">
+          <header class="performance-heading">
+            <div>
+              <span class="label">PERFORMANCE</span>
+              <h2 id="performance-title">TOUCH THE MIX · STEER THE ARC</h2>
+            </div>
+            <p>LIVE MOVES LAND FAST. DIRECTION ENTERS ON A PHRASE.</p>
+          </header>
+
+          <section class="performance-band live-mix-band" aria-labelledby="live-mix-title">
+            <header>
+              <span class="timing-chip">LIVE</span>
+              <div>
+                <h3 id="live-mix-title">MIX</h3>
+                <p id="live-mix-timing">EQ IS SMOOTHED · CUTS LAND NEXT BEAT</p>
+              </div>
+            </header>
+            <div class="eq-controls">
+              <label class="performance-range" for="mix-low">
+                <span>LOW</span><output id="mix-low-output" for="mix-low">0 dB</output>
+                <input id="mix-low" type="range" min="-24" max="6" step="1" value="0" data-mix-param="low" aria-describedby="live-mix-timing" />
+              </label>
+              <label class="performance-range" for="mix-mid">
+                <span>MID</span><output id="mix-mid-output" for="mix-mid">0 dB</output>
+                <input id="mix-mid" type="range" min="-24" max="6" step="1" value="0" data-mix-param="mid" aria-describedby="live-mix-timing" />
+              </label>
+              <label class="performance-range" for="mix-high">
+                <span>HIGH</span><output id="mix-high-output" for="mix-high">0 dB</output>
+                <input id="mix-high" type="range" min="-24" max="6" step="1" value="0" data-mix-param="high" aria-describedby="live-mix-timing" />
+              </label>
+            </div>
+            <div class="cut-controls" role="group" aria-label="Beat-quantized channel cuts">
+              <button type="button" data-cut-target="bass" aria-pressed="false">
+                <span>BASSLINE</span><strong>CUT</strong><small>ON</small>
+              </button>
+              <button type="button" data-cut-target="kick" aria-pressed="false">
+                <span>KICK</span><strong>CUT</strong><small>ON</small>
+              </button>
+            </div>
+          </section>
+
+          <details class="trajectory-controls" open>
+            <summary>
+              <span class="timing-chip">PHRASE</span>
+              <span>
+                <strong>DIRECTION</strong>
+                <small id="direction-timing">NEXT 8-BAR PHRASE · 8-BAR GLIDE</small>
+              </span>
+              <em id="direction-target">TARGET · NEUTRAL</em>
+            </summary>
+            <div class="direction-grid">
+              <label class="performance-range" for="direction-energy">
+                <span>ENERGY</span><output id="direction-energy-output" for="direction-energy">CENTER</output>
+                <input id="direction-energy" type="range" min="-100" max="100" step="1" value="0" data-direction-param="energy" aria-describedby="direction-timing" />
+              </label>
+              <label class="performance-range" for="direction-density">
+                <span>DENSITY</span><output id="direction-density-output" for="direction-density">CENTER</output>
+                <input id="direction-density" type="range" min="-100" max="100" step="1" value="0" data-direction-param="density" aria-describedby="direction-timing" />
+              </label>
+              <label class="performance-range" for="direction-brightness">
+                <span>BRIGHTNESS</span><output id="direction-brightness-output" for="direction-brightness">CENTER</output>
+                <input id="direction-brightness" type="range" min="-100" max="100" step="1" value="0" data-direction-param="brightness" aria-describedby="direction-timing" />
+              </label>
+              <label class="performance-range" for="direction-space">
+                <span>SPACE</span><output id="direction-space-output" for="direction-space">CENTER</output>
+                <input id="direction-space" type="range" min="-100" max="100" step="1" value="0" data-direction-param="space" aria-describedby="direction-timing" />
+              </label>
+              <label class="performance-range" for="direction-swing">
+                <span>SWING</span><output id="direction-swing-output" for="direction-swing">CENTER</output>
+                <input id="direction-swing" type="range" min="-100" max="100" step="1" value="0" data-direction-param="swing" aria-describedby="direction-timing" />
+              </label>
+              <label class="performance-range" for="direction-acid">
+                <span>ACID</span><output id="direction-acid-output" for="direction-acid">CENTER</output>
+                <input id="direction-acid" type="range" min="-100" max="100" step="1" value="0" data-direction-param="acid" aria-describedby="direction-timing" />
+              </label>
+              <label class="performance-range" for="direction-bass-presence">
+                <span>BASS PRESENCE</span><output id="direction-bass-presence-output" for="direction-bass-presence">CENTER</output>
+                <input id="direction-bass-presence" type="range" min="-100" max="100" step="1" value="0" data-direction-param="bassPresence" aria-describedby="direction-timing" />
+              </label>
+              <label class="performance-range" for="direction-change-frequency">
+                <span>CHANGE RATE</span><output id="direction-change-frequency-output" for="direction-change-frequency">CENTER</output>
+                <input id="direction-change-frequency" type="range" min="-100" max="100" step="1" value="0" data-direction-param="changeFrequency" aria-describedby="direction-timing" />
+              </label>
+              <label class="performance-range" for="direction-breakdown-depth">
+                <span>BREAKDOWN DEPTH</span><output id="direction-breakdown-depth-output" for="direction-breakdown-depth">CENTER</output>
+                <input id="direction-breakdown-depth" type="range" min="-100" max="100" step="1" value="0" data-direction-param="breakdownDepth" aria-describedby="direction-timing" />
+              </label>
+            </div>
+            <fieldset class="bass-character">
+              <legend>BASSLINE CHARACTER</legend>
+              <div role="group" aria-label="Bassline character target">
+                <button type="button" data-bassline-character="auto" aria-pressed="true">AUTO</button>
+                <button type="button" data-bassline-character="sub" aria-pressed="false">SUB</button>
+                <button type="button" data-bassline-character="rolling" aria-pressed="false">ROLLING</button>
+                <button type="button" data-bassline-character="acid" aria-pressed="false">ACID</button>
+                <button type="button" data-bassline-character="syncopated" aria-pressed="false">SYNCOPATED</button>
+              </div>
+            </fieldset>
+          </details>
+        </section>
+
         <section class="signal-deck" aria-labelledby="signal-deck-title">
           <header class="signal-deck-heading">
             <div>
@@ -235,6 +336,6 @@
 
       <div class="sr-only" id="live-region" aria-live="polite"></div>
     </main>
-    <script type="module" src="./main.js"></script>
+    <script type="module" src="./main.js?v=2.1.0"></script>
   </body>
 </html>

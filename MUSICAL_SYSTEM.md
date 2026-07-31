@@ -1,10 +1,9 @@
 # Infinite Techno Musical System
 
-Status: local generative-material candidate; deterministic suite passed;
-implementation-stage narrow browser smoke recorded but not byte-matched to the
-current candidate; render, listening, final browser, soak, deployment, and
-public-acceptance gates open
-Generator version: `2.0.0`
+Status: local `2.1.0` performance-control release candidate; 130-test deterministic
+suite and focused performance browser smoke passed; render, listening, full browser,
+soak, deployment, and public-acceptance gates remain separate
+Generator version: `2.1.0` (`2.0.0` material-state schema)
 Primary product: music  
 Quantum role: visual and poetic contour only
 
@@ -384,10 +383,10 @@ timbre-candidate pool.
 
 That local implementation does not establish persuasive long-form musical quality,
 audible trajectory separation, long-duration foreground-browser reliability,
-multi-day performance, or deployment. The deterministic suite passes. A narrow
-Start/Stop, intent, console, and responsive browser smoke was recorded before final
-planner-invariant hardening and is not byte-matched to the current candidate. Eight
-fixed 96-bar renders and stems, blinded listening, the final browser matrix, a
+multi-day performance, or deployment. All 130 deterministic tests pass. A focused
+final-candidate performance smoke covers Start, EQ, both quantized cuts, a direction
+target, bass character, persistence, responsive widths, and console cleanliness.
+Eight fixed 96-bar renders and stems, blinded listening, the full browser matrix, a
 30–60-minute soak, deployment, and public acceptance remain separate gates.
 
 ## Vibe vocabularies
@@ -418,6 +417,19 @@ Major ↔ Minor changes last 96 bars. The middle third uses a neutral suspended
 pitch field without a defining third, then introduces the new tonal color. Neutral
 transitions take 64 bars.
 
+The Performance console has two explicit timing planes:
+
+- Low, Mid, and High EQ move immediately through smoothed, bounded filter gains.
+- Kick and Bassline cuts latch on the next unscheduled beat. Kick cut also suppresses
+  kick-triggered ducking and new rumble excitation.
+- Energy, Density, Brightness, Space, Swing, Acid, Bass Presence, Change Rate, and
+  Breakdown Depth wait for the next eight-bar phrase, then glide for eight bars.
+- Bassline Character is phrase-stable and becomes Auto, Sub, Rolling, Acid, or
+  Syncopated only when that glide completes.
+
+These controls shade rendering and future candidate inputs. They do not mutate the
+symbolic phrase that has already been selected and frozen.
+
 ## FX as arrangement
 
 Effects respond to musical state:
@@ -429,6 +441,9 @@ Effects respond to musical state:
 - downlifters mark an emergent release;
 - long pads and texture washes respond to space, release, and motif salience;
 - master gain remains stable; energy comes primarily from orchestration.
+
+The performance EQ is a listener-owned contour after the generator buses. It does
+not replace generator-owned voice filters, sends, or arrangement motion.
 
 Feedback is bounded below 0.72 for the main delay and below 0.58 for rumble.
 
@@ -459,7 +474,7 @@ Not claimed:
 - guaranteed subjective equivalence to a professional DJ;
 - proven audible separation or groove quality from symbolic tests alone;
 - completion of the fixed renders, blinded listening, foreground browser, soak,
-  deployment, or public-acceptance gates for `2.0.0`;
+  deployment, or public-acceptance gates for `2.1.0`;
 - continuous playback through sleep, browser suspension, or device eviction;
 - quantum computation, quantum randomness, or physical sonification;
 - a complete solution to multi-day musical recurrence.

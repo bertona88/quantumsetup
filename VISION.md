@@ -8,7 +8,7 @@ Current slice: Infinite Techno generative set
 QuantumSetup creates an endlessly evolving techno journey in the browser. It should
 feel like one continuous set: patient enough to hypnotize, structured enough to
 orient a dancer, varied enough to survive long listening, and simple enough that the
-listener directs mood rather than mixing parameters.
+listener can both direct the long arc and make a few legible DJ-style mix gestures.
 
 The user chooses:
 
@@ -16,19 +16,24 @@ The user chooses:
 - a techno destination: Hypnotic, Dub, Detroit, Acid, or Peak;
 - harmonic gravity: Minor, Neutral, or Major;
 - new musical DNA;
+- live three-band EQ and beat-quantized kick/bass cuts;
+- bounded Energy, Density, Brightness, Space, Swing, Acid, Bass Presence, Change
+  Rate, Breakdown Depth, and Bassline Character directions;
 - which isolated generated timbres to Pass or Keep while the set is stopped.
 
-The generator owns fades, filters, effect sends, arrangement, density, bridge length,
-tempo drift, fills, voice admission, and the timing of any taste-informed timbre
-choice.
+The generator still owns note masks, fades, effect sends, bridge length, tempo
+drift, fills, voice admission, and the timing of any taste-informed timbre choice.
+Performance EQ responds immediately; channel cuts land on the next beat; musical
+direction enters on the next eight-bar phrase and glides for eight bars.
 
 ## Product principles
 
 1. **Music first.** Sound generation and long-form musical structure own the page.
 2. **One continuous machine.** The stream carries recurrent phrase state rather
    than choosing songs or traversing an arrangement template.
-3. **Intent, not presets.** Direction changes wait for a phrase boundary and morph
-   over 64–128 bars.
+3. **Honest timing.** Vibe changes morph over 64–128 bars, performance direction
+   uses an eight-bar glide, and the interface distinguishes both from live EQ and
+   next-beat cuts.
 4. **Stable anchors, bounded novelty.** The floor keeps its pulse while tops,
    articulation, timbre, harmony, and emergent form role evolve.
 5. **Local synthesis.** No samples, account, backend, or network audio dependency.
@@ -42,7 +47,8 @@ choice.
 
 ## Current architecture
 
-The local `2.0.0` candidate has two cooperating recurrent layers. Emergent form
+The `2.1.0` performance-control candidate retains the `2.0.0` material planner's
+two cooperating recurrent layers. Emergent form
 continues to advance energy, tension, floor trust, fatigue, motif salience, causal
 debts, climax state, and cooldowns every eight bars. A separate phrase-sequential
 material planner carries persistent lane clocks, resident motif memory, unresolved
@@ -92,10 +98,10 @@ replace that DNA, but it now has structural consequences within its bounds.
 Deterministic candidate tests can establish state bounds, causality, reachability,
 replay, and symbolic separation. They do not prove arbitrary pairwise audible
 uniqueness, groove quality, multi-day performance, deployed-browser behavior, or
-professional-DJ subjective quality. The `2.0.0` candidate remains local. Its
-deterministic suite passes. A narrow implementation-stage browser smoke is recorded
-but is not byte-matched to the current candidate; render, listening, final browser,
-30–60-minute soak, deployment, and public-acceptance gates are open.
+professional-DJ subjective quality. The `2.1.0` candidate remains local until its
+authorized release is verified. Its deterministic suite passes; render, listening,
+final browser, 30–60-minute soak, deployment, and public-acceptance gates remain
+separate.
 
 ## Next quality frontier
 
