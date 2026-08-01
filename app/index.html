@@ -9,18 +9,30 @@
     />
     <meta name="theme-color" content="#070609" />
     <title>Infinite Techno — QuantumSetup</title>
-    <link rel="stylesheet" href="./styles.css?v=2.1.0" />
+    <link rel="stylesheet" href="./styles.css?v=2.1.0-causal-world" />
   </head>
   <body>
     <main class="instrument" id="app" aria-labelledby="product-name">
       <canvas
         id="quantum-contour"
-        aria-label="Audio-reactive quantum-inspired spectral contour"
+        aria-label="A persistent causal field shaped by past and upcoming music"
       >
-        An audio-reactive spectral visualization.
+        A generative visual field coupled to the musical planner.
       </canvas>
       <div class="grain" aria-hidden="true"></div>
       <div class="vignette" aria-hidden="true"></div>
+
+      <section class="visual-portal" aria-label="Generative visual field">
+        <button
+          class="portal-transport"
+          id="portal-transport-button"
+          type="button"
+          aria-label="Start the set"
+        >
+          <span aria-hidden="true">▶</span>
+        </button>
+        <span class="scroll-cue" aria-hidden="true"><i></i></span>
+      </section>
 
       <header class="topbar">
         <a class="brand" href="#" aria-label="Infinite Techno home">
@@ -43,15 +55,6 @@
       </header>
 
       <section class="sound-stage" aria-label="Infinite generative techno set">
-        <div class="set-copy">
-          <p class="eyebrow">ONE CONTINUOUS SET · 128-BIT TRAJECTORY SPACE · NO FIXED ENDING</p>
-          <h1>THE GROOVE<br />OBSERVES <em>YOU</em></h1>
-          <p class="dek">
-            Phrase-aware techno that mutates across minutes, not seconds. Pick a direction;
-            the mix travels there without breaking the floor.
-          </p>
-        </div>
-
         <section class="now-playing" aria-label="Now playing">
           <div>
             <span class="label">NOW</span>
@@ -336,6 +339,6 @@
 
       <div class="sr-only" id="live-region" aria-live="polite"></div>
     </main>
-    <script type="module" src="./main.js?v=2.1.0"></script>
+    <script type="module" src="./main.js?v=2.1.0-causal-world"></script>
   </body>
 </html>

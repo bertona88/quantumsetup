@@ -108,8 +108,9 @@ The application may claim that it:
   `requestTonality()` while adding a frozen material snapshot with gesture, motif
   lineage, lane-clock summaries, candidate diagnostics, temperature, and
   kick-excursion status;
-- drives its quantum-inspired contour from audio analysis and scheduled musical
-  events.
+- drives one persistent causal field from a read-only event tape derived from the
+  already-frozen phrase: future pressure, audio-clock crossing, and long visual
+  residue are three phases of the same event; the visual does not rewrite the score.
 
 ## Nonclaims
 
@@ -163,6 +164,7 @@ The application does not claim:
 | first-48-bar trajectory distance tests | every fixed-manifest pair separates in rhythm and phrase grammar plus another musical domain with composite symbolic distance at least `0.20` | rendered-audio separation, masking, spectral balance, arbitrary-seed coverage, or listener discrimination |
 | taste-model and deck tests | bounded explicit-feedback updates, deterministic specimens, persistence fallback, exploration cadence, and arrangement isolation | whether the learned preference matches a listener's broader taste |
 | preview renderer tests | deterministic, finite, normalized specimen PCM and cleanup | perceived quality on every output device |
+| causal-world tests | deterministic spacetime event identity, nonzero future pressure, exact crossing dominance, decaying memory, idempotent forecast ingestion, and persistent post-impact scars | that the metaphor is physics or that the visual is artistically successful |
 | pure DSP tests | finite deterministic samples, hard voice endings, and renderer coverage for all 208 base forms | perceived sound quality |
 | worklet processor tests | queue and voice ceilings, bounded stealing, clean all-notes-off | long-run browser or device stability |
 | syntax checks | loadable JavaScript modules | browser audio behavior |

@@ -2,12 +2,12 @@
 
 **An audio-first, endlessly evolving procedural techno set.**
 
-- Live: https://quantumsetup.ai/ (`2.1.0` performance controls deployed from
-  `b16c5dc`)
+- Live: https://quantumsetup.ai/ (published from `main` through GitHub Pages)
 - Audio: synthesized locally with the Web Audio API; no samples or network calls
 - Interaction: one music surface with Vibe, Harmonic Gravity, live performance
   controls, and a local timbre preference deck
-- Visual: an analyser-driven quantum-inspired contour, explicitly artistic
+- Visual: one persistent causal field in which read-only future phrase events bend
+  long-lived matter before their audio-clock impact and remain as visual memory
 
 ## Product direction
 

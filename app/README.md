@@ -130,8 +130,13 @@ reverb, voice filters, and effect sends remain generator-owned.
 Native temporary voices are capped at 72 and the advanced bank at 24, preserving a
 combined ceiling of 96. Every voice has a finite hard end.
 
-`main.js` owns the single audio-first interface and the analyser-driven contour. The
-canvas follows audio-clock events; it never drives the music.
+`main.js` owns the single audio-first interface. `visual-grammar.js` converts the
+remaining bars of the already-frozen phrase, up to eight bars, into a read-only
+event forecast. `causal-world.js` turns that forecast into stable spacetime events
+and owns the long-lived filaments, future force, audio-clock crossings, and scars.
+`quantum-visual.js` renders that one world through native persistent framebuffer
+feedback. Analyser energy shades the material but does not define the world. The
+forecast never drives or rewrites the music.
 
 See [`../MUSICAL_SYSTEM.md`](../MUSICAL_SYSTEM.md) for the arrangement grammar,
 transition design, and research sources.

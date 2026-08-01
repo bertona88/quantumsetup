@@ -25,6 +25,22 @@ Tempo, note masks, effect sends, fades, bridges, fills, detailed arrangement, an
 individual synthesis parameters remain generator-owned. Signal Deck feedback is an
 indirect timbre preference, not an instrument selector or mixer.
 
+The opening viewport is an immersive visual field. Its only visible interaction is
+the icon-only transport gesture required to start browser audio; readouts and music
+controls begin below the fold and appear through ordinary scrolling. Once audio is
+running, the opening transport glyph withdraws and the visual owns that viewport.
+
+The visual is one continuously evolving causal world, not a slideshow of scenes or
+a stack of visualizer presets. A native persistent-feedback renderer owns one field
+of long-lived filaments, temporal worldlines, and impact scars. At each bar, the
+audio engine exposes a read-only forecast from the phrase that has already been
+frozen by the musical planner. The forecast becomes a spacetime event tape: future
+events deform the field before their Web Audio time, the audible crossing produces
+an impact, and the same event remains as decaying field memory. Analyser energy can
+shade the material but does not define its structure. The world is generative while
+silent and the transport attaches its audible plane; the forecast cannot rewrite
+the musical plan.
+
 ## Transport
 
 Start creates and resumes the set's one `AudioContext` from the user gesture. Stop

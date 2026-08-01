@@ -38,6 +38,9 @@ jobs:
             app/index.html \
             app/styles.css \
             app/main.js \
+            app/quantum-visual.js \
+            app/visual-grammar.js \
+            app/causal-world.js \
             app/audio-engine.js \
             app/techno-model.js \
             app/material-planner.js \

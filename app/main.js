@@ -14,9 +14,11 @@ import {
   parseTrajectoryId,
   trajectoryIdForUrl,
 } from "./trajectory-identity.js";
+import { QuantumPremonitionVisual } from "./quantum-visual.js";
 
 const app = document.querySelector("#app");
 const transportButton = document.querySelector("#transport-button");
+const portalTransportButton = document.querySelector("#portal-transport-button");
 const trajectoryButton = document.querySelector("#trajectory-button");
 const statusText = document.querySelector("#status-text");
 const nowVibe = document.querySelector("#now-vibe");
@@ -123,6 +125,7 @@ let signalDecisionLocked = false;
 let signalPointer = null;
 let signalAuditionTimer = null;
 let targetDirectionControls = performancePreferences.direction;
+let premonitionVisual = null;
 
 function titleCase(text) {
   return String(text)
@@ -509,6 +512,11 @@ function handleEngineEvent(event) {
     transportButton.querySelector("strong").textContent = event.running
       ? "STOP THE SET"
       : "START THE SET";
+    portalTransportButton.querySelector("span").textContent = event.running ? "■" : "▶";
+    portalTransportButton.setAttribute(
+      "aria-label",
+      event.running ? "Stop the set" : "Start the set",
+    );
     const interrupted = !event.running && event.reason === "interrupted";
     setStatus(
       event.running
@@ -521,7 +529,11 @@ function handleEngineEvent(event) {
     if (!event.running) {
       sectionReadout.textContent = "DORMANT";
       renderEnsemble(null, []);
+      premonitionVisual?.setRunning(false);
+    } else {
+      premonitionVisual?.setRunning(true, engine.ctx?.currentTime || 0);
     }
+    app.dataset.visualEngine = "causal-world";
     if (event.running) void stopSignalAudition();
     updateSignalAvailability();
   }
@@ -585,10 +597,16 @@ function handleEngineEvent(event) {
 
   if (event.type === "seed") {
     updateSeed(event.seed);
+    premonitionVisual?.setSeed(event.seed);
     visualState.seedFlash = 1;
     transitionCopy.textContent = "NEW MUSICAL DNA ENTERED THE MIX";
     transitionFill.style.width = "0%";
     liveRegion.textContent = `New trajectory ${formatSeed(event.seed)} entered at bar ${event.bar + 1}`;
+  }
+
+  if (event.type === "visual-forecast") {
+    premonitionVisual?.ingestForecast(event);
+    app.dataset.visualHorizon = String(event.forecast?.horizonSteps || 0);
   }
 
   if (event.type === "trajectory-rejected") {
@@ -599,6 +617,7 @@ function handleEngineEvent(event) {
   }
 
   if (event.type === "step") {
+    premonitionVisual?.ingestImpact(event);
     visualState.kick = Math.max(visualState.kick, event.kick);
     visualState.bass = Math.max(visualState.bass, event.bass);
     visualState.hat = Math.max(visualState.hat, event.hat);
@@ -672,6 +691,7 @@ async function toggleTransport() {
 }
 
 transportButton.addEventListener("click", toggleTransport);
+portalTransportButton.addEventListener("click", toggleTransport);
 trajectoryButton.addEventListener("click", () => engine.requestNewTrajectory());
 
 for (const button of vibeButtons) {
@@ -888,148 +908,29 @@ bpmReadout.textContent = engine.currentTempo.toFixed(1);
 renderSignalSpecimen(currentSignal);
 
 const canvas = document.querySelector("#quantum-contour");
-const canvasContext = canvas?.getContext?.("2d", { alpha: false }) || null;
 const spectrum = new Uint8Array(512);
 const reducedMotion = window.matchMedia
   ? window.matchMedia("(prefers-reduced-motion: reduce)")
   : { matches: false };
-let canvasWidth = 0;
-let canvasHeight = 0;
 let lastFrame = performance.now();
 let renderHandle = null;
 let renderTimer = null;
 
 function resizeCanvas() {
-  if (!canvas || !canvasContext) return;
-  const rect = canvas.getBoundingClientRect();
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-  canvasContext.setTransform(dpr, 0, 0, dpr, 0, 0);
-  canvasWidth = rect.width;
-  canvasHeight = rect.height;
-}
-
-function drawBackdrop(context, width, height, time) {
-  const gradient = context.createRadialGradient(
-    width * 0.69,
-    height * 0.38,
-    10,
-    width * 0.69,
-    height * 0.38,
-    Math.max(width, height) * 0.72,
-  );
-  gradient.addColorStop(
-    0,
-    `rgba(91, 55, 170, ${0.15 + visualState.chord * 0.13 + visualState.synth * 0.055})`,
-  );
-  gradient.addColorStop(0.36, "rgba(26, 15, 48, 0.16)");
-  gradient.addColorStop(1, "#070609");
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, width, height);
-
-  context.save();
-  context.globalAlpha = 0.16;
-  context.strokeStyle = "#8b79bb";
-  context.lineWidth = 1;
-  const cell = Math.max(48, Math.min(width, height) / 11);
-  const drift = reducedMotion.matches ? 0 : (time * 3.5) % cell;
-  for (let x = -cell + drift; x < width + cell; x += cell) {
-    context.beginPath();
-    context.moveTo(x, 0);
-    context.lineTo(x, height);
-    context.stroke();
-  }
-  for (let y = 0; y < height; y += cell) {
-    context.beginPath();
-    context.moveTo(0, y);
-    context.lineTo(width, y);
-    context.stroke();
-  }
-  context.restore();
-}
-
-function drawProbabilityContours(context, width, height, time, running) {
-  const left = width * 0.08;
-  const right = width * 0.96;
-  const span = right - left;
-  const center = height * 0.42;
-  const points = Math.max(72, Math.min(180, Math.floor(width / 8)));
-  const motion = reducedMotion.matches ? 0 : 1;
-  const contourCount = width < 700 ? 5 : 8;
-
-  context.save();
-  context.globalCompositeOperation = "screen";
-  for (let layer = 0; layer < contourCount; layer += 1) {
-    const offset = (layer - (contourCount - 1) / 2) * (9 + visualState.energy * 5);
-    context.beginPath();
-    for (let index = 0; index <= points; index += 1) {
-      const ratio = index / points;
-      const bin = spectrum[(index * 2 + visualState.bar * 3 + layer * 11) % 280] / 255;
-      const packet =
-        Math.exp(-((ratio - 0.55) ** 2) / (0.06 + visualState.energy * 0.07)) *
-        (34 + visualState.energy * 82);
-      const interference =
-        Math.sin(ratio * Math.PI * (9 + (visualState.bar % 7)) + time * 0.6 * motion + layer) *
-        (7 + bin * 21) *
-        motion;
-      const bassPull = visualState.bass * Math.sin(ratio * Math.PI * 3) * 18;
-      const kickLift = visualState.kick * packet * 0.23;
-      const seedRipple =
-        visualState.seedFlash * Math.sin(ratio * Math.PI * 28) * 19;
-      const synthesisFold =
-        visualState.synth *
-        Math.sin(ratio * Math.PI * (5 + layer * 0.72) + time * 1.2 * motion) *
-        (8 + bin * 18);
-      const x = left + ratio * span;
-      const y =
-        center +
-        offset +
-        interference +
-        bassPull -
-        packet * (0.18 + layer * 0.025) -
-        kickLift +
-        synthesisFold +
-        seedRipple;
-      if (index === 0) context.moveTo(x, y);
-      else context.lineTo(x, y);
-    }
-    const alpha = running ? 0.11 + layer * 0.025 + visualState.hat * 0.12 : 0.055;
-    context.strokeStyle =
-      layer % 3 === 0
-        ? `rgba(213,255,63,${alpha * 0.78})`
-        : layer % 2
-          ? `rgba(100,233,226,${alpha})`
-          : `rgba(154,124,255,${alpha * 1.24})`;
-    context.lineWidth = layer === Math.floor(contourCount / 2) ? 1.7 : 0.8;
-    context.shadowColor = layer % 2 ? "rgba(100,233,226,.25)" : "rgba(154,124,255,.3)";
-    context.shadowBlur = running ? 8 + visualState.kick * 16 : 0;
-    context.stroke();
-  }
-  context.restore();
-
-  const playheadX = left + (visualState.step / 15) * span;
-  context.save();
-  context.strokeStyle = `rgba(213,255,63,${running ? 0.22 + visualState.kick * 0.42 : 0.08})`;
-  context.lineWidth = 1;
-  context.beginPath();
-  context.moveTo(playheadX, height * 0.19);
-  context.lineTo(playheadX, height * 0.68);
-  context.stroke();
-  context.fillStyle = "rgba(213,255,63,.7)";
-  context.fillRect(playheadX - 1, height * 0.68, 2, 14);
-  context.restore();
+  premonitionVisual?.resize();
 }
 
 function render(now) {
-  if (!canvasContext) return;
+  if (!premonitionVisual?.context) return;
   const delta = Math.min(0.05, (now - lastFrame) / 1000);
   lastFrame = now;
   const running = engine.fillSpectrum(spectrum);
-  const context = canvasContext;
-  const time = now / 1000;
-  drawBackdrop(context, canvasWidth, canvasHeight, time);
-  drawProbabilityContours(context, canvasWidth, canvasHeight, time, running);
+  premonitionVisual.render({
+    now,
+    audioNow: engine.ctx?.currentTime || 0,
+    spectrum,
+    energy: visualState.energy,
+  });
 
   visualState.kick *= Math.exp(-delta * 8.8);
   visualState.bass *= Math.exp(-delta * 5.8);
@@ -1050,7 +951,13 @@ function render(now) {
   }
 }
 
-if (canvasContext) {
+premonitionVisual = new QuantumPremonitionVisual(canvas, {
+  reducedMotion: reducedMotion.matches,
+});
+premonitionVisual.setSeed(engine.seed);
+app.dataset.visualEngine = "causal-world";
+
+if (premonitionVisual.context) {
   if ("ResizeObserver" in window) {
     const observer = new ResizeObserver(resizeCanvas);
     observer.observe(canvas);

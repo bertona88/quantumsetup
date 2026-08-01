@@ -66,12 +66,15 @@ summary:focus-visible {
 
 #quantum-contour {
   position: fixed;
-  z-index: -3;
   inset: 0;
   display: block;
   width: 100%;
   height: 100%;
   pointer-events: none;
+}
+
+#quantum-contour {
+  z-index: -4;
 }
 
 .grain,
@@ -80,6 +83,71 @@ summary:focus-visible {
   z-index: -2;
   inset: 0;
   pointer-events: none;
+}
+
+.visual-portal {
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+}
+
+.portal-transport {
+  position: relative;
+  z-index: 2;
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(213, 255, 63, 0.56);
+  border-radius: 50%;
+  color: var(--acid);
+  background: rgba(4, 5, 8, 0.22);
+  box-shadow:
+    0 0 0 10px rgba(213, 255, 63, 0.018),
+    0 0 48px rgba(213, 255, 63, 0.08);
+  backdrop-filter: blur(5px);
+  cursor: pointer;
+  transition:
+    opacity 600ms ease,
+    transform 300ms ease,
+    background 300ms ease;
+}
+
+.portal-transport:hover {
+  background: rgba(213, 255, 63, 0.08);
+  transform: scale(1.06);
+}
+
+.portal-transport span {
+  margin-left: 3px;
+  font-size: 0.92rem;
+}
+
+.is-running .portal-transport {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.86);
+}
+
+.scroll-cue {
+  position: absolute;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  left: 50%;
+  width: 1px;
+  height: 42px;
+  background: linear-gradient(transparent, rgba(241, 242, 236, 0.48));
+}
+
+.scroll-cue i {
+  position: absolute;
+  bottom: 0;
+  left: -3px;
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid rgba(241, 242, 236, 0.58);
+  border-bottom: 1px solid rgba(241, 242, 236, 0.58);
+  transform: rotate(45deg);
 }
 
 .grain {
@@ -212,53 +280,21 @@ summary:focus-visible {
 
 .sound-stage {
   position: relative;
-  min-height: min(62svh, 680px);
-  padding: clamp(50px, 8vw, 118px) clamp(20px, 4vw, 64px) 34px;
+  min-height: 0;
+  padding: 28px clamp(20px, 4vw, 64px) 34px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: 1fr auto;
-  align-items: end;
-  gap: 48px;
-}
-
-.set-copy {
-  align-self: center;
-  max-width: 750px;
-}
-
-.eyebrow {
-  margin: 0 0 16px;
-  color: var(--acid);
-}
-
-h1 {
-  margin: 0;
-  max-width: 800px;
-  font-size: clamp(3.5rem, 8.2vw, 9rem);
-  font-weight: 760;
-  letter-spacing: -0.078em;
-  line-height: 0.79;
-  text-transform: uppercase;
-}
-
-h1 em {
-  color: transparent;
-  -webkit-text-stroke: 1px var(--violet);
-  font-style: normal;
-  text-shadow: 0 0 32px rgba(154, 124, 255, 0.25);
-}
-
-.dek {
-  max-width: 530px;
-  margin: 24px 0 0;
-  color: #b5b5b0;
-  font-size: clamp(0.92rem, 1.3vw, 1.12rem);
-  line-height: 1.55;
+  grid-template-columns: minmax(0, 1fr) minmax(232px, 320px);
+  align-items: center;
+  gap: 38px;
+  border-top: 1px solid var(--line);
+  background: rgba(7, 6, 9, 0.58);
+  backdrop-filter: blur(18px);
 }
 
 .now-playing {
   min-width: 232px;
-  align-self: center;
+  grid-column: 2;
+  grid-row: 1;
   display: grid;
   border-top: 1px solid var(--line-strong);
 }
@@ -290,7 +326,8 @@ h1 em {
 }
 
 .stage-telemetry {
-  grid-column: 1 / -1;
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
   display: grid;
   gap: 10px;
@@ -1256,10 +1293,6 @@ kbd {
   animation: surface-in 600ms 140ms both cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.instrument .set-copy {
-  animation: copy-in 720ms 40ms both cubic-bezier(0.22, 1, 0.36, 1);
-}
-
 @keyframes surface-in {
   from {
     opacity: 0;
@@ -1283,7 +1316,7 @@ kbd {
 
 @media (max-width: 1180px) {
   .sound-stage {
-    min-height: 580px;
+    min-height: 0;
   }
 
   .control-surface {
@@ -1336,18 +1369,16 @@ kbd {
   }
 
   .sound-stage {
-    min-height: 610px;
-    padding: 58px 18px 28px;
+    min-height: 0;
+    padding: 26px 18px 28px;
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr auto auto;
+    grid-template-rows: auto auto;
     gap: 28px;
   }
 
-  h1 {
-    font-size: clamp(3.3rem, 16vw, 6.6rem);
-  }
-
   .now-playing {
+    grid-column: 1;
+    grid-row: 1;
     width: 100%;
     min-width: 0;
     grid-template-columns: repeat(5, 1fr);
@@ -1371,6 +1402,11 @@ kbd {
 
   .transition-line {
     grid-column: auto;
+  }
+
+  .stage-telemetry {
+    grid-column: 1;
+    grid-row: 2;
   }
 
   .control-surface {
@@ -1520,12 +1556,7 @@ kbd {
   }
 
   .sound-stage {
-    min-height: 570px;
-  }
-
-  .dek {
-    max-width: 92%;
-    font-size: 0.86rem;
+    min-height: 0;
   }
 
   .now-playing {

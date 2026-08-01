@@ -47,6 +47,7 @@ import {
   freshTrajectoryId,
   normalizeTrajectoryId,
 } from "./trajectory-identity.js";
+import { createVisualForecast } from "./visual-grammar.js";
 
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 const AudioWorkletNodeClass =
@@ -1626,6 +1627,22 @@ export class InfiniteTechnoEngine {
     let hatPulse = 0;
     let chordPulse = 0;
     let synthPulse = 0;
+
+    if (step === 0) {
+      this.onEvent({
+        type: "visual-forecast",
+        bar,
+        audioTime: eventTime,
+        forecast: createVisualForecast({
+          seed: this.seed,
+          phrasePlans: this.phrasePlans,
+          bar,
+          stepDuration,
+          kickCut: this.mixControls.kickCut,
+          bassCut: this.mixControls.bassCut,
+        }),
+      });
+    }
 
     if (plan.kick[step] && !this.mixControls.kickCut) {
       this.kick(eventTime, plan.kick[step], plan.kickTimbre);
