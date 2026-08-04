@@ -48,7 +48,7 @@ const METADATA_RELABEL_SEED = "0123456789abcdeffedcba9876543211";
 const VIBE_TEST_SEED = "deadbeefdeadbeefdeadbeefdeadbeef";
 
 const EXPECTED_LANE_DOMAINS = Object.freeze({
-  kick: Object.freeze([12, 15, 16, 17, 18, 20]),
+  kick: Object.freeze([16]),
   clap: Object.freeze([12, 15, 16, 18, 20, 24]),
   hats: Object.freeze([
     5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
@@ -96,7 +96,7 @@ const KICK_RANGES = Object.freeze({
   drive: [1.2, 3.5],
   rumbleSend: [0, 0.14],
   rumbleCutoffHz: [84, 176],
-  rumbleFeedback: [0.12, 0.58],
+  rumbleFeedback: [0, 0.58],
 });
 
 const PERCUSSION_RANGES = Object.freeze({
@@ -418,11 +418,8 @@ function assertMaterialClockContract(materialState, context) {
   }
 
   const kick = materialState.clocks.kick;
-  assert.equal(
-    kick.hits,
-    kick.loopLength === 16 ? 4 : Math.round(kick.loopLength / 4),
-    `${context} violated the kick hit rule`,
-  );
+  assert.equal(kick.hits, 4, `${context} violated the kick hit rule`);
+  assert.equal(kick.rotation, 0, `${context} rotated the kick clock`);
   assert.ok(
     [2, 3].includes(materialState.clocks.clap.hits),
     `${context} violated the two-or-three-hit clap rule`,

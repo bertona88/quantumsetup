@@ -19,6 +19,7 @@ export const TRACK_DNA_VALUES = Object.freeze({
     "saturated-tail",
     "sub-drop",
   ]),
+  kickRumbleMode: freezeValues(["off", "short", "deep"]),
   percussionKit: freezeValues([
     "dry-machine",
     "bright-club",
@@ -77,6 +78,7 @@ export const TRACK_DNA_FIELDS = Object.freeze(Object.keys(TRACK_DNA_VALUES));
 export const TRACK_DNA_CORE_FIELDS = Object.freeze([
   "grooveFamily",
   "kickArchitecture",
+  "kickRumbleMode",
   "bassBehavior",
   "harmonyBehavior",
   "formPhenotype",
@@ -85,6 +87,7 @@ export const TRACK_DNA_CORE_FIELDS = Object.freeze([
 export const TRACK_DNA_WEIGHTS = Object.freeze({
   grooveFamily: 1.3,
   kickArchitecture: 1.3,
+  kickRumbleMode: 0.9,
   percussionKit: 0.8,
   bassBehavior: 1.3,
   bassVoiceBias: 0.8,

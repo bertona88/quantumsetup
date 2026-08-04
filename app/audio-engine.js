@@ -1128,7 +1128,7 @@ export class InfiniteTechnoEngine {
     );
     const bassTrimDb = bassPresence < 0
       ? bassPresence * 6
-      : bassPresence * 3;
+      : bassPresence * 4.5;
     const values = [
       [this.lowEq.gain, this.mixControls.low],
       [this.midEq.gain, this.mixControls.mid],
@@ -1645,8 +1645,30 @@ export class InfiniteTechnoEngine {
     }
 
     if (plan.kick[step] && !this.mixControls.kickCut) {
-      this.kick(eventTime, plan.kick[step], plan.kickTimbre);
-      this.duck(eventTime, plan.kick[step], plan.lowEnd);
+      const articulation = plan.kickArticulation?.[step] || "anchor";
+      const decayScale =
+        articulation === "pickup"
+          ? 0.52
+          : articulation === "roll"
+            ? 0.68
+            : 1;
+      const kickTimbre =
+        decayScale === 1
+          ? plan.kickTimbre
+          : {
+              ...plan.kickTimbre,
+              decaySeconds: plan.kickTimbre.decaySeconds * decayScale,
+              pitchDropSeconds:
+                plan.kickTimbre.pitchDropSeconds *
+                (articulation === "pickup" ? 0.72 : 0.84),
+            };
+      this.kick(eventTime, plan.kick[step], kickTimbre);
+      this.duck(
+        eventTime,
+        plan.kick[step],
+        plan.lowEnd,
+        articulation,
+      );
       kickPulse = plan.kick[step];
     }
     if (plan.clap[step]) {
@@ -1896,18 +1918,36 @@ export class InfiniteTechnoEngine {
     return nodes;
   }
 
-  duck(time, amount, lowEnd = null) {
+  duck(time, amount, lowEnd = null, articulation = "anchor") {
     const impact = clamp(Number(amount) || 0, 0, 1);
+    const articulationScale =
+      articulation === "pickup"
+        ? 0.32
+        : articulation === "roll"
+          ? 0.5
+          : 1;
     const musicDepth = clamp(
-      Number(lowEnd?.musicDuckDepth) || 0.5,
-      0.2,
+      (Number(lowEnd?.musicDuckDepth) || 0.5) * articulationScale,
+      0.08,
       0.72,
     );
     const bassDepth = clamp(
-      Number(lowEnd?.bassDuckDepth) || 0.7,
-      0.42,
+      (Number(lowEnd?.bassDuckDepth) || 0.7) * articulationScale,
+      0.1,
       0.86,
     );
+    const musicRecovery =
+      articulation === "pickup"
+        ? 0.065
+        : articulation === "roll"
+          ? 0.085
+          : 0.14;
+    const bassRecovery =
+      articulation === "pickup"
+        ? 0.055
+        : articulation === "roll"
+          ? 0.075
+          : 0.105;
     const musicFloor = clamp(
       MUSIC_BUS_LEVEL * (1 - musicDepth * impact),
       0.18,
@@ -1926,7 +1966,7 @@ export class InfiniteTechnoEngine {
     );
     this.musicBus.gain.exponentialRampToValueAtTime(
       MUSIC_BUS_LEVEL,
-      time + 0.15,
+      time + musicRecovery,
     );
 
     holdParamAtTime(this.bassBus.gain, time, BASS_BUS_LEVEL);
@@ -1936,7 +1976,7 @@ export class InfiniteTechnoEngine {
     );
     this.bassBus.gain.exponentialRampToValueAtTime(
       BASS_BUS_LEVEL,
-      time + 0.19,
+      time + bassRecovery,
     );
   }
 
@@ -2360,7 +2400,7 @@ export class InfiniteTechnoEngine {
     localDrive.oversample = "2x";
     gain.gain.setValueAtTime(0.0001, time);
     gain.gain.exponentialRampToValueAtTime(
-      0.085 + velocity * 0.055 + accent * 0.035,
+      0.105 + velocity * 0.075 + accent * 0.04,
       time + 0.006,
     );
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
@@ -2370,7 +2410,7 @@ export class InfiniteTechnoEngine {
     localDrive.connect(gain);
     const routes = this.route(
       gain,
-      0.88,
+      0.9,
       0.025 + profile.space * 0.09,
       0.015 + profile.space * 0.035,
       "bass",
@@ -2410,7 +2450,7 @@ export class InfiniteTechnoEngine {
     filter.Q.value = 0.8;
     gain.gain.setValueAtTime(0.0001, time);
     gain.gain.exponentialRampToValueAtTime(
-      0.085 + velocity * 0.05 + (note.accent ? 0.025 : 0),
+      0.11 + velocity * 0.07 + (note.accent ? 0.03 : 0),
       time + 0.008,
     );
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
@@ -2419,7 +2459,7 @@ export class InfiniteTechnoEngine {
     filter.connect(gain);
     const routes = this.route(
       gain,
-      0.92,
+      0.94,
       0.015,
       0.012 + profile.space * 0.025,
       "bass",
@@ -2456,14 +2496,14 @@ export class InfiniteTechnoEngine {
     shaper.oversample = "2x";
     gain.gain.setValueAtTime(0.0001, time);
     gain.gain.exponentialRampToValueAtTime(
-      0.075 + velocity * 0.055 + (note.accent ? 0.025 : 0),
+      0.1 + velocity * 0.075 + (note.accent ? 0.03 : 0),
       time + 0.004,
     );
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
     oscillator.connect(filter);
     filter.connect(shaper);
     shaper.connect(gain);
-    const routes = this.route(gain, 0.84, 0.035, 0.018, "bass");
+    const routes = this.route(gain, 0.88, 0.035, 0.018, "bass");
     if (!this.registerVoice([oscillator], [filter, shaper, gain, ...routes])) return;
     oscillator.start(time);
     oscillator.stop(time + duration + 0.025);

@@ -47,8 +47,8 @@ immediately; cuts enter at the next beat and do not rewrite planned notes.
 
 ## Musical architecture
 
-`track-dna.js` derives a frozen eleven-domain macro phenotype from the 128-bit
-trajectory identity: groove, kick architecture, percussion kit, bass behavior and
+`track-dna.js` derives a frozen twelve-domain macro phenotype from the 128-bit
+trajectory identity: groove, kick architecture, track-level kick rumble, percussion kit, bass behavior and
 voice bias, harmonic behavior, foreground engine and role, spectral/spatial
 profile, and form phenotype. These fields must change across several core domains
 before a requested New Trajectory can enter.
@@ -102,15 +102,24 @@ Arrangement-aware placement resolves synth-on-synth collisions, protects low-end
 space around the bass and kick floor, and thins modal events around metallic
 percussion.
 
-Kick behavior combines persistent material with form intent. The normal material
-clock is `E(4,16)`; earned one-to-four-phrase excursions may drift to 12, 15, 17,
-18, or 20 steps before forced re-anchoring. Form may still thin or briefly withdraw
-the selected kick. The planner also emits bounded kick body, pitch-drop, decay,
-click, drive, and rumble parameters. A separate kick-family lineage may morph only
+Kick behavior combines curated phrase material with form intent. Its clock always
+remains the bar-aligned `E(4,16)` foundation; persistent eight-bar anchor,
+turnaround-pickup, breathing, and rolling-pressure families vary phrasing without
+drifting against the bar. Form may still thin or briefly withdraw the selected
+kick. Pickup and rolling hits use quieter, shorter articulations. The planner also
+emits bounded kick body, pitch-drop, decay, click, and drive parameters. Track DNA
+selects `off`, `short`, or `deep` rumble for the whole trajectory, so rumble can be
+genuinely absent rather than probabilistically applied to every hit. A separate kick-family lineage may morph only
 after an earned release or floor recommit, has a 24-phrase cooldown, and
 interpolates those physical fields across its event phrase. Bass follows a
 persistent 12–32-step Euclidean clock and resident modal motif lineage rather than
-a fixed two-bar cell; its onsets yield to the selected kick. Bass voice identity,
+a fixed two-bar cell; its onsets yield to foundation kicks, while collisions with
+quiet pickup or rolling articulations relocate to an adjacent safe step. Sub intent
+stays restrained; Rolling and Acid can occasionally reach reference-like density
+without becoming fixed masks. Secondary kick hits duck less and recover faster,
+foundation ducking releases within one sixteenth, and bass-only gain/definition plus
+bounded deep-rumble protection improve audibility without boosting global Low EQ.
+Bass voice identity,
 material motif and clocks, tonal state, harmony position, and semantic scene remain
 separate domains. A motif operation cannot reset them together, and a 192-bar
 observation boundary cannot restart form or material residency.

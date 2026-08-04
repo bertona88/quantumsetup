@@ -1,6 +1,6 @@
 import { clamp, hash32 } from "./generative-utils.js";
 
-export const MATERIAL_VERSION = "2.0.0";
+export const MATERIAL_VERSION = "2.1.0";
 export const MATERIAL_CANDIDATE_COUNT = 12;
 export const MATERIAL_SCORE_FLOOR = 0.55;
 export const MATERIAL_SCORE_BAND = 0.2;
@@ -48,7 +48,7 @@ export const SCORE_WEIGHTS = Object.freeze({
 });
 
 export const LANE_DOMAINS = Object.freeze({
-  kick: Object.freeze([12, 15, 16, 17, 18, 20]),
+  kick: Object.freeze([16]),
   clap: Object.freeze([12, 15, 16, 18, 20, 24]),
   hats: Object.freeze(Array.from({ length: 25 }, (_, index) => index + 5)),
   percussion: Object.freeze(Array.from({ length: 25 }, (_, index) => index + 5)),
@@ -57,6 +57,19 @@ export const LANE_DOMAINS = Object.freeze({
   synthModal: Object.freeze([7, 9, 11, 13, 15, 17, 19, 23, 29, 31]),
   synthString: Object.freeze([7, 9, 11, 13, 15, 17, 19, 23, 29, 31]),
 });
+
+export const KICK_PHRASE_IDS = Object.freeze([
+  "anchor",
+  "turnaround-pickup",
+  "breathing",
+  "rolling-pressure",
+]);
+
+export const KICK_ARTICULATIONS = Object.freeze([
+  "anchor",
+  "pickup",
+  "roll",
+]);
 
 const LANE_IDS = Object.freeze(Object.keys(LANE_DOMAINS));
 const STRUCTURAL_LANES = Object.freeze(
@@ -254,7 +267,15 @@ function clockHoldPhrases(trackDNA, seed, phraseIndex, lane, mutationCount) {
   );
 }
 
-function hitsForClock(lane, loopLength, profile, seed, phraseIndex, mutationCount) {
+function hitsForClock(
+  lane,
+  loopLength,
+  profile,
+  seed,
+  phraseIndex,
+  mutationCount,
+  trackDNA = null,
+) {
   if (lane === "kick") return loopLength === 16 ? 4 : clamp(Math.round(loopLength / 4), 3, 5);
   if (lane === "clap") {
     return 2 + (hash32(seed, phraseIndex, mutationCount, "clap-hits") % 2);
@@ -277,10 +298,32 @@ function hitsForClock(lane, loopLength, profile, seed, phraseIndex, mutationCoun
       -1,
       1,
     );
+    const character = profile?.performanceBassCharacter || "auto";
+    const behavior = trackDNA?.bassBehavior;
+    const characterDensity = {
+      sub: 0.095,
+      rolling: 0.225,
+      acid: 0.255,
+      syncopated: 0.175,
+    }[character];
+    const behaviorDensity = {
+      "offbeat-pulse": 0.14,
+      "rolling-cell": 0.19,
+      "acid-serpent": 0.215,
+      "sub-sustain": 0.095,
+      "syncopated-stabs": 0.17,
+    }[behavior] ?? 0.125;
+    const rhythmicLift =
+      unitHash(seed, phraseIndex, mutationCount, "bass-density-lift") *
+      (character === "rolling" || character === "acid" ? 0.035 : 0.018);
     return clamp(
       Math.round(
         loopLength *
-          (0.1 + density * 0.08 + syncopation * 0.05 + presence * 0.045),
+          ((characterDensity ?? behaviorDensity) +
+            density * 0.075 +
+            syncopation * 0.052 +
+            presence * 0.045 +
+            rhythmicLift),
       ),
       2,
       10,
@@ -296,14 +339,8 @@ function createClock({
   trackDNA,
   profile,
   mutationCount = 0,
-  excursion = false,
 }) {
-  const domain =
-    lane === "kick" && !excursion
-      ? [16]
-      : lane === "kick"
-        ? LANE_DOMAINS.kick.filter((length) => length !== 16)
-        : LANE_DOMAINS[lane];
+  const domain = LANE_DOMAINS[lane];
   const weights = domain.map((length) =>
     grooveLengthWeight(length, trackDNA?.grooveFamily, lane),
   );
@@ -323,15 +360,16 @@ function createClock({
     seed,
     phraseIndex,
     mutationCount,
+    trackDNA,
   );
   const rotation =
-    lane === "kick" && !excursion
+    lane === "kick"
       ? 0
       : hash32(seed, phraseIndex, lane, mutationCount, "clock-rotation") %
         loopLength;
   const phraseStartStep = phraseIndex * STEPS_PER_PHRASE;
   const phaseOffset =
-    lane === "kick" && !excursion
+    lane === "kick"
       ? 0
       : hash32(seed, phraseIndex, lane, mutationCount, "clock-phase") %
         loopLength;
@@ -374,7 +412,7 @@ function ageClock(clock) {
   };
 }
 
-function mutateClock(clock, input, candidateIndex, excursion = false) {
+function mutateClock(clock, input, candidateIndex) {
   const nextMutation = clock.mutationCount + 1;
   let next = createClock({
     lane: clock.lane,
@@ -383,7 +421,6 @@ function mutateClock(clock, input, candidateIndex, excursion = false) {
     trackDNA: input.trackDNA,
     profile: input.profile,
     mutationCount: nextMutation + candidateIndex * 17,
-    excursion,
   });
   if (
     next.loopLength === clock.loopLength &&
@@ -672,129 +709,100 @@ function mutationAllowance(form, gesture) {
   return form?.climax || form?.release || gesture === "recall" ? 2 : 1;
 }
 
-function kickTransition(previousState, input, candidateIndex, agedKick) {
-  const prior = previousState?.kickExcursion;
-  if (!prior) {
-    return {
-      clock: agedKick,
-      mutated: false,
-      renewed: false,
-      status: {
-        active: false,
-        remainingPhrases: 0,
-        durationPhrases: 0,
-        anchoredPhrasesSince: 1,
-        requiredAnchoredPhrases: 4,
-        forcedReanchor: false,
-        exceptional: false,
-        totalPhrases: 1,
-        anchoredPhrases: 1,
-      },
-    };
-  }
-  if (prior.active && prior.remainingPhrases > 1) {
-    return {
-      clock: agedKick,
-      mutated: false,
-      renewed: false,
-      status: {
-        ...prior,
-        remainingPhrases: prior.remainingPhrases - 1,
-        forcedReanchor: false,
-        totalPhrases: prior.totalPhrases + 1,
-      },
-    };
-  }
-  if (prior.active) {
-    const anchoredClock = mutateClock(
-      agedKick,
-      input,
-      candidateIndex,
-      false,
-    );
-    return {
-      clock: anchoredClock,
-      mutated: true,
-      renewed: false,
-      status: {
-        active: false,
-        remainingPhrases: 0,
-        durationPhrases: prior.durationPhrases,
-        anchoredPhrasesSince: 1,
-        requiredAnchoredPhrases: Math.max(4, prior.durationPhrases * 3),
-        forcedReanchor: true,
-        exceptional: prior.exceptional === true,
-        totalPhrases: prior.totalPhrases + 1,
-        anchoredPhrases: prior.anchoredPhrases + 1,
-      },
-    };
-  }
+function kickPhraseWeights(input) {
+  const energy = formValue(input.form, "energy", 0.55);
+  const space = formValue(input.form, "space", 0.5);
+  const novelty = formValue(input.form, "noveltyDebt", 0.45);
+  const drive = profileValue(input.profile, "drive", 0.5);
+  const groove = input.trackDNA?.grooveFamily;
+  const weights = {
+    anchor: 0.42 + (1 - novelty) * 0.16,
+    "turnaround-pickup": 0.25 + novelty * 0.16,
+    breathing:
+      0.18 + space * 0.2 + (input.form?.release ? 0.26 : 0) +
+      (input.gesture === "rest" || input.gesture === "subtract" ? 0.18 : 0),
+    "rolling-pressure":
+      0.16 + energy * 0.18 + drive * 0.2 + (input.form?.climax ? 0.24 : 0),
+  };
+  if (groove === "straight-pressure") weights.anchor += 0.18;
+  if (groove === "rolling-syncopation") weights["rolling-pressure"] += 0.22;
+  if (groove === "triplet-weave") weights["turnaround-pickup"] += 0.12;
+  if (groove === "broken-machine") weights.breathing += 0.18;
+  if (groove === "swung-motor") weights["rolling-pressure"] += 0.14;
+  return weights;
+}
 
-  const earned =
-    prior.anchoredPhrasesSince >= prior.requiredAnchoredPhrases &&
-    agedKick.agePhrases >= 2 &&
-    (input.form?.climax ||
-      input.form?.release ||
-      input.gesture === "recall");
-  const starts =
-    earned &&
-    input.kickExcursionAllowed === true &&
-    unitHash(
-      input.seed,
-      input.phraseIndex,
-      candidateIndex,
-      "kick-excursion-start",
-    ) <
-      0.28;
-  const proposedDuration =
+function chooseKickPhrase(previousState, input, candidateIndex, gesture) {
+  const previous = previousState?.kickPhrase || null;
+  if (previous && previous.agePhrases + 1 < previous.holdPhrases) {
+    return {
+      ...previous,
+      agePhrases: previous.agePhrases + 1,
+      changed: false,
+      priorId: previous.id,
+    };
+  }
+  const weightedInput = { ...input, gesture };
+  const weights = kickPhraseWeights(weightedInput);
+  const choices = previous
+    ? KICK_PHRASE_IDS.filter((id) => id !== previous.id)
+    : [...KICK_PHRASE_IDS];
+  if (!previous) weights.anchor += 0.2;
+  const id = coordinateChoice(
+    choices,
+    choices.map((choice) => weights[choice]),
+    input.seed,
+    input.phraseIndex,
+    candidateIndex,
+    "kick-phrase-family",
+  );
+  const holdSpan = id === "anchor" ? 3 : 2;
+  const holdPhrases =
     1 +
     (hash32(
       input.seed,
       input.phraseIndex,
       candidateIndex,
-      "kick-excursion-duration",
-    ) %
-      4);
-  const preservesAnchorShare =
-    prior.anchoredPhrases /
-      Math.max(1, prior.totalPhrases + proposedDuration) >=
-    0.75;
-  if (!starts || !preservesAnchorShare) {
-    const shouldRenew = agedKick.agePhrases >= agedKick.holdPhrases;
-    const stableKick = shouldRenew
-      ? renewClockIdentity(agedKick, input, candidateIndex)
-      : agedKick;
-    return {
-      clock: stableKick,
-      mutated: false,
-      renewed: shouldRenew,
-      status: {
-        ...prior,
-        anchoredPhrasesSince: prior.anchoredPhrasesSince + 1,
-        forcedReanchor: false,
-        exceptional: false,
-        totalPhrases: prior.totalPhrases + 1,
-        anchoredPhrases: prior.anchoredPhrases + 1,
-      },
-    };
-  }
-  const durationPhrases = proposedDuration;
+      id,
+      "kick-phrase-hold",
+    ) % holdSpan);
   return {
-    clock: mutateClock(agedKick, input, candidateIndex, true),
-    mutated: true,
-    renewed: false,
-    status: {
-      active: true,
-      remainingPhrases: durationPhrases,
-      durationPhrases,
-      anchoredPhrasesSince: 0,
-      requiredAnchoredPhrases: Math.max(4, durationPhrases * 3),
-      forcedReanchor: false,
-      exceptional: true,
-      totalPhrases: prior.totalPhrases + 1,
-      anchoredPhrases: prior.anchoredPhrases,
-    },
+    id,
+    priorId: previous?.id ?? id,
+    agePhrases: 0,
+    holdPhrases,
+    changed: Boolean(previous && previous.id !== id),
   };
+}
+
+function materializeKickPhrase(kickPhrase) {
+  const pattern = Array(STEPS_PER_PHRASE).fill(false);
+  const articulations = Array(STEPS_PER_PHRASE).fill(null);
+  const add = (bar, step, articulation = "anchor") => {
+    const offset = bar * STEPS_PER_BAR + step;
+    pattern[offset] = true;
+    articulations[offset] = articulation;
+  };
+  for (let bar = 0; bar < PHRASE_BARS; bar += 1) {
+    let steps = [0, 4, 8, 12];
+    if (kickPhrase.id === "breathing" && bar % 4 === 2) {
+      steps = [0, 8];
+    } else if (kickPhrase.id === "rolling-pressure" && bar % 2 === 1) {
+      steps = [0, 4, 7, 10, 12];
+    }
+    for (const step of steps) {
+      const articulation =
+        kickPhrase.id === "rolling-pressure" && [7, 10].includes(step)
+          ? "roll"
+          : "anchor";
+      add(bar, step, articulation);
+    }
+    const turnaround =
+      (kickPhrase.id === "turnaround-pickup" && [3, 7].includes(bar)) ||
+      (kickPhrase.id === "breathing" && bar % 4 === 3);
+    if (turnaround) add(bar, 14, "pickup");
+  }
+  return { pattern, articulations };
 }
 
 function candidateClocks(previousState, input, candidateIndex, gesture) {
@@ -811,19 +819,18 @@ function candidateClocks(previousState, input, candidateIndex, gesture) {
         })
       : ageClock(previousState.clocks[lane]);
   }
-  const nonKickClocks = STRUCTURAL_LANES.map((lane) => clocks[lane]);
-  const kickExcursionAllowed =
-    nonKickClocks.every((clock) => clock.mutationCount > 0) &&
-    Math.max(...nonKickClocks.map((clock) => clock.agePhrases)) <= 7;
-  const kick = kickTransition(
+  const renewKick = clocks.kick.agePhrases >= clocks.kick.holdPhrases;
+  if (renewKick) {
+    clocks.kick = renewClockIdentity(clocks.kick, input, candidateIndex);
+  }
+  const kickPhrase = chooseKickPhrase(
     previousState,
-    { ...input, gesture, kickExcursionAllowed },
+    input,
     candidateIndex,
-    clocks.kick,
+    gesture,
   );
-  clocks.kick = kick.clock;
-  const mutatedLanes = kick.mutated ? ["kick"] : [];
-  const renewedLanes = kick.renewed ? ["kick"] : [];
+  const mutatedLanes = [];
+  const renewedLanes = renewKick ? ["kick"] : [];
   const totalAllowance = mutationAllowance(input.form, gesture);
   let remaining = totalAllowance - mutatedLanes.length;
   const eligible = STRUCTURAL_LANES.filter(
@@ -866,7 +873,7 @@ function candidateClocks(previousState, input, candidateIndex, gesture) {
     clocks,
     mutatedLanes,
     renewedLanes,
-    kickExcursion: kick.status,
+    kickPhrase,
   };
 }
 
@@ -918,14 +925,35 @@ function assignDegrees(pattern, motif, offset = 0, reverse = false) {
   return degrees;
 }
 
-function materializePhrase(clocks, motif, gesture, input, candidateIndex) {
-  const kick = renderClock(clocks.kick, input.phraseIndex);
+function materializePhrase(
+  clocks,
+  kickPhrase,
+  motif,
+  gesture,
+  input,
+  candidateIndex,
+) {
+  const materializedKick = materializeKickPhrase(kickPhrase);
+  const kick = materializedKick.pattern;
   const clap = renderClock(clocks.clap, input.phraseIndex);
   const hats = renderClock(clocks.hats, input.phraseIndex);
   const percussion = renderClock(clocks.percussion, input.phraseIndex);
   const bass = renderClock(clocks.bass, input.phraseIndex);
   for (let offset = 0; offset < bass.length; offset += 1) {
-    if (kick[offset]) bass[offset] = false;
+    if (!bass[offset] || !kick[offset]) continue;
+    const articulation = materializedKick.articulations[offset];
+    bass[offset] = false;
+    if (articulation === "anchor") continue;
+    const barStart = Math.floor(offset / STEPS_PER_BAR) * STEPS_PER_BAR;
+    const barEnd = barStart + STEPS_PER_BAR;
+    const destination = [offset + 1, offset - 1, offset + 2].find(
+      (candidate) =>
+        candidate >= barStart &&
+        candidate < barEnd &&
+        !kick[candidate] &&
+        !bass[candidate],
+    );
+    if (destination !== undefined) bass[destination] = true;
   }
   const synth = Object.fromEntries(
     Object.entries(SYNTH_LANES).map(([engine, lane]) => [
@@ -970,6 +998,8 @@ function materializePhrase(clocks, motif, gesture, input, candidateIndex) {
     return choice < 0.48 ? "shaker" : "rim";
   });
   return {
+    kickPhraseId: kickPhrase.id,
+    kickArticulations: materializedKick.articulations,
     patterns: {
       kick,
       clap,
@@ -1032,6 +1062,8 @@ export function materialPhraseFingerprint(phrase) {
     .map(encodeValues)
     .join("/");
   return hash32(
+    phrase.kickPhraseId,
+    encodeValues(phrase.kickArticulations),
     laneSignature,
     voiceSignature,
     degreeSignature,
@@ -1048,9 +1080,13 @@ function scoreCandidate(candidate, previousState, input) {
         (lane) => candidate.clocks[lane].id === previousState.clocks[lane].id,
       ).length / LANE_IDS.length
     : 0.72;
-  const kickAnchor = candidate.clocks.kick.loopLength === 16 ? 1 : 0.62;
+  const kickPhraseContinuity = previousState
+    ? candidate.kickPhrase.id === previousState.kickPhrase.id
+      ? 1
+      : 0.68
+    : 0.82;
   const grooveContinuity = clamp(
-    clockContinuity * 0.72 + kickAnchor * 0.28,
+    clockContinuity * 0.72 + kickPhraseContinuity * 0.28,
     0,
     1,
   );
@@ -1300,20 +1336,45 @@ export function validateMaterialCandidate(candidate, previousState = null) {
   ) {
     reasons.push("emitted-pitch-bound");
   }
-  const excursion = candidate.kickExcursion;
   if (
-    (excursion.active &&
-      (candidate.clocks.kick.loopLength === 16 ||
-        excursion.durationPhrases < 1 ||
-        excursion.durationPhrases > 4 ||
-        excursion.remainingPhrases < 1 ||
-        excursion.remainingPhrases > excursion.durationPhrases)) ||
-    (!excursion.active &&
-      (candidate.clocks.kick.loopLength !== 16 ||
-        excursion.remainingPhrases !== 0)) ||
-    (excursion.forcedReanchor && excursion.active)
+    candidate.clocks.kick.loopLength !== 16 ||
+    candidate.clocks.kick.hits !== 4 ||
+    candidate.clocks.kick.rotation !== 0
   ) {
-    reasons.push("kick-excursion");
+    reasons.push("kick-anchor-clock");
+  }
+  if (
+    !KICK_PHRASE_IDS.includes(candidate.kickPhrase?.id) ||
+    candidate.phrase.kickPhraseId !== candidate.kickPhrase?.id
+  ) {
+    reasons.push("kick-phrase-family");
+  }
+  if (
+    !Array.isArray(candidate.phrase.kickArticulations) ||
+    candidate.phrase.kickArticulations.length !== STEPS_PER_PHRASE ||
+    candidate.phrase.kickArticulations.some(
+      (articulation, offset) =>
+        (patterns.kick[offset] &&
+          !KICK_ARTICULATIONS.includes(articulation)) ||
+        (!patterns.kick[offset] && articulation !== null),
+    )
+  ) {
+    reasons.push("kick-articulation");
+  }
+  const kickOnsets = patterns.kick.flatMap((active, offset) =>
+    active ? [offset] : [],
+  );
+  if (
+    Array.from({ length: PHRASE_BARS }, (_, bar) =>
+      patterns.kick[bar * STEPS_PER_BAR],
+    ).some((active) => !active) ||
+    kickOnsets.some(
+      (offset, index) =>
+        index > 0 && offset - kickOnsets[index - 1] < 2,
+    ) ||
+    STEPS_PER_PHRASE - kickOnsets.at(-1) + kickOnsets[0] < 2
+  ) {
+    reasons.push("kick-phrase-safety");
   }
   if (!patterns.kick.some(Boolean)) reasons.push("silence");
   if (
@@ -1398,6 +1459,7 @@ function makeCandidate(previousState, input, candidateIndex) {
   );
   const materialized = materializePhrase(
     clockResult.clocks,
+    clockResult.kickPhrase,
     transformed.motif,
     gestureChoice.gesture,
     input,
@@ -1416,7 +1478,7 @@ function makeCandidate(previousState, input, candidateIndex) {
     clocks: clockResult.clocks,
     mutatedLanes: clockResult.mutatedLanes,
     renewedLanes: clockResult.renewedLanes,
-    kickExcursion: clockResult.kickExcursion,
+    kickPhrase: clockResult.kickPhrase,
     motif: transformed.motif,
     mutation: {
       changedOnsets: transformed.changedOnsets,
@@ -1581,7 +1643,7 @@ function stateFromSelection(previousState, input, candidates, selection) {
     clocks: selected.clocks,
     mutatedLanes: selected.mutatedLanes,
     renewedLanes: selected.renewedLanes,
-    kickExcursion: selected.kickExcursion,
+    kickPhrase: selected.kickPhrase,
     phrase: selected.phrase,
     phraseMemory: {
       residentMotif: selected.motif,
@@ -1623,7 +1685,9 @@ export function createMaterialState(rawInput) {
 
 export function advanceMaterialState(previousState, rawInput) {
   if (!previousState || previousState.version !== MATERIAL_VERSION) {
-    throw new TypeError("previous material state must be a version 2.0.0 state");
+    throw new TypeError(
+      `previous material state must be a version ${MATERIAL_VERSION} state`,
+    );
   }
   const input = normalizeInput(previousState, rawInput);
   const candidates = generateMaterialCandidates(previousState, input);
@@ -1711,12 +1775,12 @@ export function summarizeMaterialState(state) {
       candidateCount: 0,
       eligibleCandidateCount: 0,
       samplingTemperature: null,
-      kickExcursion: {
-        active: false,
-        remainingPhrases: 0,
-        durationPhrases: 0,
-        anchoredPhrasesSince: 0,
-        forcedReanchor: false,
+      kickPhrase: {
+        id: null,
+        priorId: null,
+        agePhrases: 0,
+        holdPhrases: 0,
+        changed: false,
       },
     });
   }
@@ -1746,13 +1810,12 @@ export function summarizeMaterialState(state) {
     candidateCount: state.selection.candidateCount,
     eligibleCandidateCount: state.selection.eligibleCandidateCount,
     samplingTemperature: state.selection.samplingTemperature,
-    kickExcursion: {
-      active: state.kickExcursion.active,
-      remainingPhrases: state.kickExcursion.remainingPhrases,
-      durationPhrases: state.kickExcursion.durationPhrases,
-      anchoredPhrasesSince: state.kickExcursion.anchoredPhrasesSince,
-      requiredAnchoredPhrases: state.kickExcursion.requiredAnchoredPhrases,
-      forcedReanchor: state.kickExcursion.forcedReanchor,
+    kickPhrase: {
+      id: state.kickPhrase.id,
+      priorId: state.kickPhrase.priorId,
+      agePhrases: state.kickPhrase.agePhrases,
+      holdPhrases: state.kickPhrase.holdPhrases,
+      changed: state.kickPhrase.changed,
     },
   });
 }

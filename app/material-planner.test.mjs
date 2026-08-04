@@ -6,6 +6,8 @@ import { hash32 } from "./generative-utils.js";
 import {
   GESTURES,
   GESTURE_TRANSITIONS,
+  KICK_ARTICULATIONS,
+  KICK_PHRASE_IDS,
   LANE_DOMAINS,
   MATERIAL_CANDIDATE_COUNT,
   MATERIAL_SCORE_BAND,
@@ -60,7 +62,7 @@ const EXPECTED_TRANSITIONS = Object.freeze({
 });
 
 const EXPECTED_LANE_DOMAINS = Object.freeze({
-  kick: [12, 15, 16, 17, 18, 20],
+  kick: [16],
   clap: [12, 15, 16, 18, 20, 24],
   hats: Array.from({ length: 25 }, (_, index) => index + 5),
   percussion: Array.from({ length: 25 }, (_, index) => index + 5),
@@ -72,7 +74,6 @@ const EXPECTED_LANE_DOMAINS = Object.freeze({
 
 const LANE_IDS = Object.freeze(Object.keys(LANE_DOMAINS));
 const RAW_PATTERN_LANES = Object.freeze([
-  "kick",
   "clap",
   "hats",
   "percussion",
@@ -294,7 +295,7 @@ test("canonical Euclidean patterns are immutable, even, rotated, and validated",
 });
 
 test("gesture grammar and candidate score weights preserve the authored contract", () => {
-  assert.equal(MATERIAL_VERSION, "2.0.0");
+  assert.equal(MATERIAL_VERSION, "2.1.0");
   assert.equal(MATERIAL_CANDIDATE_COUNT, 12);
   assert.equal(MATERIAL_SCORE_FLOOR, 0.55);
   assert.equal(MATERIAL_SCORE_BAND, 0.2);
@@ -332,6 +333,13 @@ test("gesture grammar and candidate score weights preserve the authored contract
   approximatelyEqual(sum(Object.values(SCORE_WEIGHTS)), 1);
   assert.deepEqual(LANE_DOMAINS, EXPECTED_LANE_DOMAINS);
   assertDeepFrozen(LANE_DOMAINS);
+  assert.deepEqual(KICK_PHRASE_IDS, [
+    "anchor",
+    "turnaround-pickup",
+    "breathing",
+    "rolling-pressure",
+  ]);
+  assert.deepEqual(KICK_ARTICULATIONS, ["anchor", "pickup", "roll"]);
 
   const baseline = gestureProbabilities("repeat");
   const novelty = gestureProbabilities("repeat", { noveltyDebt: 1 });
@@ -365,6 +373,98 @@ test("gesture grammar and candidate score weights preserve the authored contract
   for (const gesture of ["add", "displace", "answer"]) {
     assert.ok(climax[gesture] > baseline[gesture]);
   }
+});
+
+test("kick phrases stay bar-aligned and realize the approved curated vocabulary", () => {
+  const seed = 7;
+  const trace = traceMaterial({
+    seed,
+    trackDNA: createTrackDNA(seed),
+    phraseCount: 64,
+    formForPhrase: (phraseIndex) => derivePhraseState(seed, phraseIndex),
+    profile: PROFILE,
+    tonality: "minor",
+  });
+  const examples = new Map();
+  for (const state of trace) {
+    if (!examples.has(state.kickPhrase.id)) {
+      examples.set(state.kickPhrase.id, state);
+    }
+  }
+  assert.deepEqual([...examples.keys()].sort(), [...KICK_PHRASE_IDS].sort());
+  const expected = {
+    anchor: { hits: 32, pickup: 0, roll: 0 },
+    "turnaround-pickup": { hits: 34, pickup: 2, roll: 0 },
+    breathing: { hits: 30, pickup: 2, roll: 0 },
+    "rolling-pressure": { hits: 36, pickup: 0, roll: 8 },
+  };
+  for (const [id, state] of examples) {
+    const onsets = state.phrase.patterns.kick.flatMap(
+      (active, offset) => (active ? [offset] : []),
+    );
+    assert.equal(onsets.length, expected[id].hits);
+    assert.equal(
+      state.phrase.kickArticulations.filter((value) => value === "pickup")
+        .length,
+      expected[id].pickup,
+    );
+    assert.equal(
+      state.phrase.kickArticulations.filter((value) => value === "roll").length,
+      expected[id].roll,
+    );
+    for (let bar = 0; bar < PHRASE_BARS; bar += 1) {
+      assert.equal(state.phrase.patterns.kick[bar * STEPS_PER_BAR], true);
+    }
+    for (let index = 1; index < onsets.length; index += 1) {
+      assert.ok(onsets[index] - onsets[index - 1] >= 2);
+    }
+    const rawBass = expectedClockPattern(state, "bass");
+    const anchorCollisions = rawBass.filter(
+      (active, offset) =>
+        active &&
+        state.phrase.patterns.kick[offset] &&
+        state.phrase.kickArticulations[offset] === "anchor",
+    ).length;
+    assert.equal(
+      rawBass.filter(Boolean).length -
+        state.phrase.patterns.bass.filter(Boolean).length,
+      anchorCollisions,
+      `${id} allowed a pickup or rolling kick to erase bass material`,
+    );
+  }
+});
+
+test("bass character biases density without exposing or fixing note masks", () => {
+  const densities = {
+    sub: [],
+    rolling: [],
+    acid: [],
+    syncopated: [],
+  };
+  for (let seed = 0; seed < 128; seed += 1) {
+    const trackDNA = createTrackDNA(seed);
+    for (const character of Object.keys(densities)) {
+      const state = createMaterialState({
+        seed,
+        trackDNA,
+        phraseIndex: 0,
+        form: derivePhraseState(seed, 0),
+        profile: {
+          ...PROFILE,
+          performanceBassCharacter: character,
+        },
+        tonality: "minor",
+      });
+      densities[character].push(
+        state.clocks.bass.hits / state.clocks.bass.loopLength,
+      );
+    }
+  }
+  assert.ok(mean(densities.sub) < mean(densities.syncopated));
+  assert.ok(mean(densities.syncopated) < mean(densities.rolling));
+  assert.ok(mean(densities.rolling) < mean(densities.acid));
+  assert.ok(Math.max(...densities.rolling) >= 0.35);
+  assert.ok(Math.max(...densities.acid) >= 0.4);
 });
 
 test("candidate generation is deterministic, order-independent, bounded, and collision-safe", () => {
@@ -534,10 +634,13 @@ test("candidate validator rejects crafted unsafe material for every safety class
   );
   assert.ok(
     reasonsFor((unsafe) => {
-      unsafe.kickExcursion.active = true;
-      unsafe.kickExcursion.durationPhrases = 1;
-      unsafe.kickExcursion.remainingPhrases = 1;
-    }).includes("kick-excursion"),
+      unsafe.clocks.kick.loopLength = 17;
+    }).includes("kick-anchor-clock"),
+  );
+  assert.ok(
+    reasonsFor((unsafe) => {
+      unsafe.kickPhrase.id = "racing-excursion";
+    }).includes("kick-phrase-family"),
   );
   assert.ok(
     reasonsFor((unsafe) => unsafe.phrase.patterns.kick.fill(false))
@@ -734,6 +837,10 @@ test("absolute clock phase and material identity continue across the 192-bar obs
   });
 
   for (const state of trace) {
+    assert.equal(state.clocks.kick.loopLength, 16);
+    assert.equal(state.clocks.kick.hits, 4);
+    assert.equal(state.clocks.kick.rotation, 0);
+    assert.ok(KICK_PHRASE_IDS.includes(state.kickPhrase.id));
     for (const lane of RAW_PATTERN_LANES) {
       const renderedPattern =
         lane === "hats"
@@ -1016,10 +1123,10 @@ test("128 trajectories over 384 bars satisfy the material long-scan contract", (
   const lookaheadPhrases = 4;
   const reachedGestures = new Set();
   const reachedAnswerDirections = new Set();
+  const reachedKickPhrases = new Set();
   const selectedCandidateIndices = new Set();
   let totalPhrases = 0;
-  let anchoredPhrases = 0;
-  let excursionRuns = 0;
+  let kickPhraseTransitions = 0;
   let answeredCalls = 0;
   let nonMaximumSelections = 0;
   let maximumRestStreak = 0;
@@ -1042,18 +1149,18 @@ test("128 trajectories over 384 bars satisfy the material long-scan contract", (
     });
     assert.equal(trace.length, phraseCount + lookaheadPhrases);
 
-    const seedAnchored = trace.slice(0, phraseCount).filter(
-      (state) => state.clocks.kick.loopLength === 16,
-    ).length;
     assert.ok(
-      seedAnchored / phraseCount >= 0.75,
-      `seed ${seed} anchored only ${seedAnchored}/${phraseCount} phrases`,
+      trace.slice(0, phraseCount).every(
+        (state) =>
+          state.clocks.kick.loopLength === 16 &&
+          state.clocks.kick.hits === 4 &&
+          state.clocks.kick.rotation === 0,
+      ),
+      `seed ${seed} allowed the foundation kick to leave the bar`,
     );
 
     const clockRuns = {};
     let persistentNonSixteen = false;
-    let currentExcursion = null;
-    let anchoredSinceExcursion = Number.POSITIVE_INFINITY;
     const seenFingerprints = new Set();
 
     const laneHasAudibleOnset = (state, lane) => {
@@ -1079,8 +1186,8 @@ test("128 trajectories over 384 bars satisfy the material long-scan contract", (
       const previous = trace[index - 1] || null;
       const form = forms[index];
       totalPhrases += 1;
-      anchoredPhrases += Number(state.clocks.kick.loopLength === 16);
       reachedGestures.add(state.gesture);
+      reachedKickPhrases.add(state.kickPhrase.id);
       selectedCandidateIndices.add(state.selection.selectedCandidateIndex);
       maximumRestStreak = Math.max(
         maximumRestStreak,
@@ -1097,15 +1204,10 @@ test("128 trajectories over 384 bars satisfy the material long-scan contract", (
       assert.ok(state.selection.samplingTemperature >= 0.35);
       assert.ok(state.selection.samplingTemperature <= 0.85);
       assert.ok([2, 3].includes(state.clocks.clap.hits));
-      if (state.clocks.kick.loopLength === 16) {
-        assert.equal(state.clocks.kick.hits, 4);
-      } else {
-        assert.ok(
-          Math.abs(
-            state.clocks.kick.hits - state.clocks.kick.loopLength / 4,
-          ) <= 1,
-        );
-      }
+      assert.equal(state.clocks.kick.loopLength, 16);
+      assert.equal(state.clocks.kick.hits, 4);
+      assert.equal(state.clocks.kick.rotation, 0);
+      assert.ok(KICK_PHRASE_IDS.includes(state.kickPhrase.id));
       assert.ok(state.motif.events.length >= 4);
       assert.ok(state.motif.events.every(
         (event) =>
@@ -1251,47 +1353,43 @@ test("128 trajectories over 384 bars satisfy the material long-scan contract", (
         answeredCalls += 1;
       }
 
-      if (state.kickExcursion.active) {
-        if (!currentExcursion) {
-          assert.ok(
-            anchoredSinceExcursion >= 4,
-            `seed ${seed} began an excursion after ${anchoredSinceExcursion} anchors`,
-          );
-          currentExcursion = {
-            duration: state.kickExcursion.durationPhrases,
-            phrases: 0,
-          };
-          excursionRuns += 1;
+      for (let bar = 0; bar < PHRASE_BARS; bar += 1) {
+        assert.equal(
+          state.phrase.patterns.kick[bar * STEPS_PER_BAR],
+          true,
+          `seed ${seed} phrase ${index} lost bar ${bar + 1}'s downbeat`,
+        );
+      }
+      const kickOnsets = state.phrase.patterns.kick.flatMap(
+        (active, offset) => (active ? [offset] : []),
+      );
+      for (let onset = 1; onset < kickOnsets.length; onset += 1) {
+        assert.ok(
+          kickOnsets[onset] - kickOnsets[onset - 1] >= 2,
+          `seed ${seed} phrase ${index} emitted a racing kick gap`,
+        );
+      }
+      state.phrase.kickArticulations.forEach((articulation, offset) => {
+        assert.equal(
+          articulation === null,
+          !state.phrase.patterns.kick[offset],
+        );
+        if (articulation !== null) {
+          assert.ok(KICK_ARTICULATIONS.includes(articulation));
         }
-        currentExcursion.phrases += 1;
-        assert.ok(state.clocks.kick.loopLength !== 16);
-        assert.ok(state.kickExcursion.durationPhrases >= 1);
-        assert.ok(state.kickExcursion.durationPhrases <= 4);
-        anchoredSinceExcursion = 0;
-      } else {
-        assert.equal(state.clocks.kick.loopLength, 16);
-        for (let bar = 0; bar < PHRASE_BARS; bar += 1) {
-          const start = bar * STEPS_PER_BAR;
-          assert.deepEqual(
-            state.phrase.patterns.kick
-              .slice(start, start + STEPS_PER_BAR)
-              .map(Boolean),
-            [
-              true, false, false, false,
-              true, false, false, false,
-              true, false, false, false,
-              true, false, false, false,
-            ],
-          );
-        }
-        anchoredSinceExcursion += 1;
-        if (currentExcursion) {
+      });
+      if (previous) {
+        if (state.kickPhrase.id === previous.kickPhrase.id) {
+          assert.equal(state.kickPhrase.changed, false);
           assert.equal(
-            currentExcursion.phrases,
-            currentExcursion.duration,
+            state.kickPhrase.agePhrases,
+            previous.kickPhrase.agePhrases + 1,
           );
-          assert.equal(state.kickExcursion.forcedReanchor, true);
-          currentExcursion = null;
+        } else {
+          kickPhraseTransitions += 1;
+          assert.equal(state.kickPhrase.changed, true);
+          assert.equal(state.kickPhrase.priorId, previous.kickPhrase.id);
+          assert.equal(state.kickPhrase.agePhrases, 0);
         }
       }
     }
@@ -1309,32 +1407,6 @@ test("128 trajectories over 384 bars satisfy the material long-scan contract", (
         persistentNonSixteen = true;
       }
     }
-    if (currentExcursion) {
-      for (
-        let index = phraseCount;
-        index < trace.length && currentExcursion;
-        index += 1
-      ) {
-        const state = trace[index];
-        if (state.kickExcursion.active) {
-          currentExcursion.phrases += 1;
-          assert.notEqual(state.clocks.kick.loopLength, 16);
-        } else {
-          assert.equal(
-            currentExcursion.phrases,
-            currentExcursion.duration,
-          );
-          assert.equal(state.clocks.kick.loopLength, 16);
-          assert.equal(state.kickExcursion.forcedReanchor, true);
-          currentExcursion = null;
-        }
-      }
-      assert.equal(
-        currentExcursion,
-        null,
-        `seed ${seed}: excursion beginning in the measured window did not re-anchor`,
-      );
-    }
     assert.equal(
       persistentNonSixteen,
       true,
@@ -1347,8 +1419,8 @@ test("128 trajectories over 384 bars satisfy the material long-scan contract", (
     [...reachedAnswerDirections].sort(),
     ["downward", "registral", "rhythmic", "upward"],
   );
-  assert.ok(anchoredPhrases / totalPhrases >= 0.75);
-  assert.ok(excursionRuns > 0);
+  assert.deepEqual([...reachedKickPhrases].sort(), [...KICK_PHRASE_IDS].sort());
+  assert.ok(kickPhraseTransitions > totalPhrases * 0.2);
   assert.ok(answeredCalls > 0);
   assert.ok(selectedCandidateIndices.size >= 8);
   assert.ok(nonMaximumSelections > totalPhrases * 0.2);

@@ -1,6 +1,7 @@
 # Claims and Validation
 
-Status: claim register for deployed Infinite Techno `2.1.0` performance controls
+Status: claim register for local Infinite Techno `2.2.0` kick-phrase candidate;
+deployed `2.1.0` performance-control evidence remains historical
 
 The named `2.1.0` deployment is verified at `b16c5dc`, Pages run `30631366177`, and
 deployment `5691599940`. All 18 published files byte-match and a focused public
@@ -33,8 +34,16 @@ The application may claim that it:
   and 192-bar observation boundaries;
 - uses Track DNA as a weighted clock and material-holding dialect rather than an
   onset mask;
-- normally protects the kick with four-floor `E(4,16)` and permits only earned,
-  finite one-to-four-phrase polymetric excursions followed by forced re-anchoring;
+- keeps the kick clock on four-floor `E(4,16)` and varies it only through curated,
+  bar-aligned anchor, turnaround-pickup, breathing, and rolling-pressure phrases;
+- selects track-level `off`, `short`, or `deep` kick rumble, with zero send and
+  feedback when rumble is off;
+- relocates bass collisions caused by quiet pickup and rolling kick articulations
+  to adjacent safe steps while retaining foundation-kick authority;
+- applies shallower 55–75 ms ducking to secondary kicks and 105 ms recovery to
+  foundation kicks, with bass-only level/definition and dense-bass rumble protection;
+- treats bass character as a density bias: Sub remains restrained while Rolling
+  and Acid can occasionally reach seven or eight onsets per 20-step clock;
 - keeps lane identities resident for two to eight phrases and limits structural
   mutation to one lane ordinarily or two during earned climax, release, or recall;
 - carries phrase memory containing a resident motif, previous gesture, unresolved
@@ -46,7 +55,7 @@ The application may claim that it:
   of onsets or degrees, and keeps emitted notes modal, register-bounded, and
   lineage-traceable;
 - generates twelve complete symbolic candidates at each eight-bar boundary, rejects
-  density, voice, pitch, collision, excursion, silence, and DSP-safety violations,
+  density, voice, pitch, collision, kick anchoring or articulation, silence, and DSP-safety violations,
   and scores eligible candidates with normalized musical measures;
 - keeps candidates scoring at least `0.55` and within `0.20` of the best, then uses
   deterministic seeded softmax sampling at temperature `0.35`–`0.85` rather than
@@ -107,7 +116,7 @@ The application may claim that it:
 - preserves `window.QuantumTechno.getSnapshot()`, `requestVibe()`, and
   `requestTonality()` while adding a frozen material snapshot with gesture, motif
   lineage, lane-clock summaries, candidate diagnostics, temperature, and
-  kick-excursion status;
+  kick-phrase status;
 - drives one persistent causal field from a read-only event tape derived from the
   already-frozen phrase: future pressure, audio-clock crossing, and long visual
   residue are three phases of the same event; the visual does not rewrite the score.
@@ -155,8 +164,9 @@ The application does not claim:
 | candidate-selection tests | twelve-candidate construction, rejection bounds, normalized scoring, threshold and near-best filtering, deterministic softmax, and cross-seed choice diversity | that the selected candidate is musically best |
 | model tests | frozen phrase materialization, legal structure, bounded lanes and pitch families | subjective groove quality |
 | emergent-form distribution tests | bounded recurrent state, removal of fixed schedules, varied/absent and materially long climax windows, operative gates, causal gesture cooldowns, honest recall labels, non-causal derived sections, and safe replay bounds | whether the resulting long arc feels earned to a listener |
-| 128-seed, 384-bar material scan | at least 75% anchored kick phrases, one-to-four-phrase excursion bounds, forced re-anchor/cooldown, persistent non-16 polymeter, no global lane reset, and attributable exact repetition | club-system translation or perceived low-end authority |
-| low-end planner tests | independent kick-family cooldown and phrase morph, bounded physical kick fields, persistent bass-clock and motif-lineage continuity, independently resident voice identity, kick/bass onset separation, and routing-contract bounds | club-system translation or perceived low-end authority |
+| 128-seed, 384-bar material scan | kick clock remains bar-aligned in every phrase, all four curated kick families are reached with safe spacing and phrase-boundary transitions, secondary lanes retain persistent non-16 polymeter, no global lane reset, and exact repetition remains attributable | club-system translation or perceived low-end authority |
+| low-end planner tests | independent kick-family cooldown and phrase morph, track-level off/short/deep rumble, secondary-kick bass survival, character-dependent bass density, articulation-aware duck bounds, bounded physical fields, persistent clock/lineage continuity, and routing-contract bounds | club-system translation or perceived low-end authority |
+| same-seed real-engine captures | unnormalized browser-engine bass-solo and full-mix WAVs for rolling/off-rumble and acid/deep-rumble trajectories; bass RMS remains within 8.84–10.03 dB of the corresponding full mix | subjective audibility on the user's system, club translation, or parity with illustrative reference renders |
 | performance-control tests | bounded normalization, dB EQ routing, separate gain stages, next-beat cut state, phantom-duck prevention, phrase-safe direction transitions, and frozen active/target telemetry | good control settings, listening quality, or club-system translation |
 | causal handoff tests | hold isolation, mutate/replace/recall authorization, non-round-robin engine reachability, stable event selection, and one-engine staging | whether the timbral change feels musically earned |
 | council and ensemble tests | semantic scene-role reachability without onset masks, causal one-engine handoff, decisive cast limits, layer editing, collision rules, rare fills, and onset budgets | whether the resulting arrangement sounds musically compelling |

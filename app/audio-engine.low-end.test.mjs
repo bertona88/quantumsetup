@@ -258,6 +258,21 @@ test("the graph keeps kick, bass, rumble, and music on distinct bounded buses", 
   assert.equal(lastEvent(engine.rumbleSendGain.gain, "target").value, 0.14);
   assert.equal(lastEvent(engine.rumbleFilter.frequency, "target").value, 176);
   assert.equal(lastEvent(engine.rumbleFeedback.gain, "target").value, 0.58);
+
+  engine.syncEffects(
+    { space: 0.5, rumble: 0.7, warmth: 0.5 },
+    {
+      filterOpen: 0.7,
+      kickTimbre: {
+        rumbleSend: 0,
+        rumbleCutoffHz: 120,
+        rumbleFeedback: 0,
+      },
+    },
+    true,
+  );
+  assert.equal(lastEvent(engine.rumbleSendGain.gain, "target").value, 0);
+  assert.equal(lastEvent(engine.rumbleFeedback.gain, "target").value, 0);
 });
 
 test("live EQ applies in dB and beat-quantized cuts preserve separate gain stages", () => {
@@ -453,15 +468,34 @@ test("music and bass duck independently and restore their declared bus levels", 
   approximatelyEqual(musicRamps[0].value, 0.55);
   approximatelyEqual(musicRamps[0].time, 3.008);
   assert.equal(musicRamps[1].value, 1);
-  approximatelyEqual(musicRamps[1].time, 3.15);
+  approximatelyEqual(musicRamps[1].time, 3.14);
 
   approximatelyEqual(bassRamps[0].value, 0.96 * (1 - 0.72 * 0.9));
   approximatelyEqual(bassRamps[0].time, 3.006);
   assert.equal(bassRamps[1].value, 0.96);
-  approximatelyEqual(bassRamps[1].time, 3.19);
+  approximatelyEqual(bassRamps[1].time, 3.105);
   assert.ok(musicRamps[0].value > 0);
   assert.ok(bassRamps[0].value > 0);
   assert.notEqual(musicRamps[0].value, bassRamps[0].value);
+
+  engine.musicBus.gain.events.length = 0;
+  engine.bassBus.gain.events.length = 0;
+  engine.duck(
+    4,
+    0.9,
+    { musicDuckDepth: 0.5, bassDuckDepth: 0.72 },
+    "pickup",
+  );
+  const pickupMusicRamps = engine.musicBus.gain.events.filter(
+    (event) => event.type === "ramp",
+  );
+  const pickupBassRamps = engine.bassBus.gain.events.filter(
+    (event) => event.type === "ramp",
+  );
+  assert.ok(pickupMusicRamps[0].value > musicRamps[0].value);
+  assert.ok(pickupBassRamps[0].value > bassRamps[0].value);
+  approximatelyEqual(pickupMusicRamps[1].time, 4.065);
+  approximatelyEqual(pickupBassRamps[1].time, 4.055);
 });
 
 test("acid, pulse, and both sub oscillators share bounded slide timing", () => {

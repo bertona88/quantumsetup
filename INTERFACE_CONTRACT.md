@@ -1,6 +1,6 @@
 # Interface Contract
 
-Browser API contract: `window.QuantumTechno/2.1.0`
+Browser API contract: `window.QuantumTechno/2.2.0`
 Scope: one audio-first generative techno instrument
 Release boundary: deployed production interface from `b16c5dc`; local and public
 focused performance smoke recorded; full browser, soak, listening, render, and
@@ -118,13 +118,18 @@ state-dependent lens scores. It normally exposes one advanced voice, may expose 
 for intentional rest, and admits a second only when the current phenotype and
 recurrent phrase state justify dialogue. It never exposes all three together.
 
-Persistent Euclidean lane clocks, polymetric phase, material gestures, candidate
-selection, kick-excursion state, bass lineage, independent kick-family timbre,
+Persistent Euclidean secondary-lane clocks, polymetric phase, material gestures, candidate
+selection, curated kick-phrase state, bass lineage, independent kick-family timbre,
 physical kick parameters, duck depths, and rumble settings remain generator-owned.
 The performance layer can trim rendered buses or bias future phrases, but never
-edits a frozen onset mask. The ordinary kick clock is four-on-the-floor; any
-polymetric kick excursion is earned, finite, followed by forced re-anchoring, and
-never exposed as a new control.
+edits a frozen onset mask. The kick clock is always bar-aligned four-on-the-floor;
+its anchor, turnaround-pickup, breathing, and rolling-pressure phrase families are
+generator-owned and never exposed as note-mask controls. Track DNA keeps kick
+rumble `off`, `short`, or `deep` for the trajectory rather than toggling it per hit.
+Breathing opens generator-owned bass space; pickup and rolling collisions relocate
+the bass to a safe adjacent step. Secondary kick articulations use shallower,
+faster bass ducking, while Sub/Rolling/Acid/Syncopated remain density and character
+intents rather than fixed onset masks.
 
 ## Signal Deck
 
@@ -147,7 +152,7 @@ After startup:
 
 ```js
 window.QuantumTechno = Object.freeze({
-  version: "2.1.0",
+  version: "2.2.0",
   getSnapshot,
   requestVibe,
   requestTonality,
@@ -164,7 +169,7 @@ taste summary, advanced-synth availability/voice statistics, active/target
 performance state, and a frozen `material` summary. The material summary contains
 the current gesture, motif
 lineage, bounded lane-clock summaries, selected-candidate score, candidate count,
-sampling temperature, and kick-excursion status. It is diagnostic telemetry, not a
+sampling temperature, and curated kick-phrase status. It is diagnostic telemetry, not a
 control surface. The object is a local application API, not a versioned Setup
 Universe interface.
 

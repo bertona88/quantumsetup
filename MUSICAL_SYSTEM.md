@@ -1,9 +1,9 @@
 # Infinite Techno Musical System
 
-Status: deployed `2.1.0` performance-control release; 130-test deterministic suite,
-focused performance browser smoke, and 18-file public byte comparison passed;
-render, listening, full browser, soak, and public-acceptance gates remain separate
-Generator version: `2.1.0` (`2.0.0` material-state schema)
+Status: local `2.2.0` kick-phrase candidate; deterministic and browser/audio
+validation remain separate from the deployed `2.1.0` release and from listening,
+soak, deployment, and public-acceptance gates
+Generator version: `2.2.0` (`2.1.0` material-state schema)
 Primary product: music  
 Quantum role: visual and poetic contour only
 
@@ -35,13 +35,13 @@ realize downstream:
 | Musical domain | Track DNA fields |
 | --- | --- |
 | Groove and drums | groove family, percussion kit |
-| Low end | kick architecture, bass behaviour, bass-voice bias |
+| Low end | kick architecture, kick-rumble mode, bass behaviour, bass-voice bias |
 | Harmony | harmony behaviour |
 | Foreground synthesis | preferred engine and musical role |
 | Mix contour | spectral and spatial profiles |
 | Long-form tendency | form phenotype |
 
-All 11 fields use curated categorical vocabularies. They bias persistent clock
+All 12 fields use curated categorical vocabularies. They bias persistent clock
 domains, material holding time, kick parameters, hat and clap envelopes,
 clap-burst topology, percussion effect sends, bass and voice residence, harmonic
 activity, note-bearing synthesis roles and genomes, audio-engine profile controls,
@@ -111,7 +111,7 @@ observation window about six minutes.
 
 ## Phrase-sequential generative material
 
-The `2.0.0` material planner is a second recurrent layer downstream of emergent
+The `2.1.0` material planner is a second recurrent layer downstream of emergent
 form. At every eight-bar boundary it accepts the trajectory seed, Track DNA, current
 form snapshot, Vibe profile settled for that phrase boundary, tonality, and previous
 material state. It plans and freezes the complete eight-bar symbolic phrase once.
@@ -137,7 +137,7 @@ The bounded loop domains are:
 
 | Lane | Loop domain |
 | --- | --- |
-| Kick | anchored `E(4,16)`; earned excursions at 12, 15, 17, 18, or 20 steps with about one hit per four steps |
+| Kick | bar-aligned `E(4,16)` foundation plus curated eight-bar anchor, turnaround-pickup, breathing, or rolling-pressure phrasing |
 | Clap | 12, 15, 16, 18, 20, or 24 steps with two or three hits |
 | Hats and secondary percussion | 5–29 steps, biased by Track DNA groove family |
 | Bass | 12, 15, 16, 18, 20, 24, 28, or 32 steps |
@@ -173,7 +173,7 @@ registral. Ordinary transformations edit no more than 25% of resident motif onse
 or degrees. Emitted notes remain modal, register-bounded, and lineage-traceable.
 
 For every boundary, the planner constructs twelve complete candidates. It rejects
-violations of density, voice, pitch, collision, kick-excursion, silence, or DSP
+violations of density, voice, pitch, collision, kick anchoring or articulation, silence, or DSP
 safety bounds. Eligible candidates receive normalized scores:
 
 | Measure | Weight |
@@ -193,10 +193,14 @@ novelty debt and trajectory phenotype. Candidate construction and selection are
 coordinate-addressed and replayable: the same seed plus the same intent history
 produces the same material trace.
 
-The kick normally holds four-floor `E(4,16)`. A polymetric excursion lasts one to
-four phrases, follows at least four anchored phrases, and forces re-anchoring when it
-ends. At least 75% of phrases must remain anchored across the long validation scan.
-This material excursion is distinct from a rare form-level intentional withdrawal.
+The kick clock always remains the four-floor `E(4,16)` foundation. Phrase-level
+variation is selected from four curated eight-bar families: anchor,
+turnaround-pickup, breathing, and rolling-pressure. Every family retains each bar's
+downbeat, has no onset spacing below two sixteenth notes, and remains resident for
+one to three phrases. Pickup and rolling articulations are quieter and shorter than
+foundation hits. Polymetric clocks remain available to secondary lanes, never to
+the kick. This curated material phrasing is distinct from rare form-level thinning
+or intentional withdrawal.
 
 ## Emergent form
 
@@ -269,18 +273,34 @@ The kick and bass are planned as a relationship rather than independent lanes.
   32-bar clock or reset when a motif gesture changes.
 - Candidate validation scores kick/bass separation and rejects unsafe overlap before
   the phrase is frozen.
+- Breathing kick phrases expose two additional quarter-note positions per phrase.
+  When a quiet pickup or rolling kick collides with planned bass, the bass onset is
+  moved to an adjacent safe step inside the same bar; foundation kicks remain the
+  authoritative collision mask.
+- Bass-character intent biases clock density without supplying a note mask. Sub
+  remains restrained, while Rolling and Acid can occasionally reach seven or eight
+  onsets in a 20-step clock; intentional rests and recurrent density still apply.
 - The planner emits a dedicated low-end contract containing motif lineage, clock
-  summary, kick-excursion state, bass density and voice, rumble send, and separate
+  summary, kick-phrase state, bass density and voice, track-level rumble mode, and separate
   duck depths.
 
 Kick identity is stable but not frozen. An independent family lineage may change
 only after a state-earned release or floor recommit and then enters a 24-phrase
 cooldown. Its bounded body frequency, pitch start and drop time, decay, click,
-drive, rumble send, cutoff, and feedback interpolate over the event phrase; climax
+drive, and any enabled rumble send, cutoff, and feedback interpolate over the event phrase; climax
 age adds bounded pressure without selecting a scripted sequence. The audio graph
 routes kick, bass, rumble, and the remaining music through separate buses before
 the shared master chain. Kick hits duck bass and music independently, so the sub
 relationship does not depend on one global music-bus envelope.
+Track DNA independently selects `off`, `short`, or `deep` kick rumble for the whole
+trajectory. `off` sets both rumble send and feedback to zero; the other identities
+remain bounded and do not toggle probabilistically from hit to hit. Dense Rolling,
+Acid, and Syncopated bass material lowers the rumble cutoff, send, and feedback to
+protect bass definition. Foundation kicks retain the normal bass duck; pickup and
+rolling articulations duck substantially less and recover in 55–75 ms. Foundation
+bass ducking recovers in 105 ms so a note one sixteenth later is not held under the
+prior 190 ms envelope. Bass voices carry stronger local gain and harmonic definition,
+and Bass Presence reaches +4.5 dB without changing the global Low EQ.
 
 ## Advanced synthesis bank
 
@@ -300,7 +320,7 @@ synthetic two-seed, five-Vibe motif-event scan that constructed all 208 structur
 selected at least 200 through the causally authorized handoff-candidate path, and
 reached more than 170 candidate parameter genomes. It does not establish that every
 architecture becomes note-bearing or audible inside a real trajectory window, and
-it does not validate the `2.0.0` material planner.
+it does not validate the current `2.1.0` material planner.
 
 ### Council-edited conversation grammar
 
@@ -461,7 +481,7 @@ Allowed:
 - persistent Euclidean/polymetric lane clocks with absolute phase;
 - authored probabilistic material gestures and deterministic seeded candidate
   sampling;
-- rule-earned, bounded climax, kick-excursion, and motif-lineage behavior;
+- rule-earned, bounded climax, curated kick-phrase, and motif-lineage behavior;
 - lineage-authored tonal material and one-engine causal synthesis handoffs;
 - separate kick, bass, rumble, and music buses with bounded low-end routing;
 - gradual, phrase-quantized high-level direction changes;

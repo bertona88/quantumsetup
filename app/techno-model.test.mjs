@@ -49,7 +49,7 @@ test("canonical supplied generator remains byte-identical", () => {
 });
 
 test("the versioned high-level browser API remains source-compatible", () => {
-  assert.equal(GENERATOR_VERSION, "2.1.0");
+  assert.equal(GENERATOR_VERSION, "2.2.0");
   const source = readFileSync(
     new URL("./main.js", import.meta.url),
     "utf8",
@@ -66,6 +66,32 @@ test("the versioned high-level browser API remains source-compatible", () => {
   ]) {
     assert.ok(source.includes(fragment), `${fragment} browser contract was removed`);
   }
+});
+
+test("trajectory DNA makes kick rumble absent, short, or deep for the whole track", () => {
+  const plans = Object.fromEntries(
+    [
+      ["off", 0],
+      ["short", 4],
+      ["deep", 2],
+    ].map(([mode, seed]) => [mode, buildBarPlan({ seed, bar: 0 })]),
+  );
+  for (const [mode, plan] of Object.entries(plans)) {
+    assert.equal(plan.trackDNA.kickRumbleMode, mode);
+    assert.equal(plan.lowEnd.kickRumbleMode, mode);
+  }
+  assert.equal(plans.off.kickTimbre.rumbleSend, 0);
+  assert.equal(plans.off.kickTimbre.rumbleFeedback, 0);
+  assert.ok(plans.short.kickTimbre.rumbleSend > 0);
+  assert.ok(plans.short.kickTimbre.rumbleFeedback > 0);
+  assert.ok(plans.short.kickTimbre.rumbleFeedback <= 0.29);
+  assert.ok(plans.deep.kickTimbre.rumbleSend > 0);
+  assert.ok(plans.deep.kickTimbre.rumbleFeedback > 0.29);
+  const bassProtectedDeep = buildBarPlan({ seed: 3, bar: 0 });
+  assert.equal(bassProtectedDeep.trackDNA.kickRumbleMode, "deep");
+  assert.equal(bassProtectedDeep.trackDNA.bassBehavior, "acid-serpent");
+  assert.ok(bassProtectedDeep.kickTimbre.rumbleCutoffHz <= 124);
+  assert.ok(bassProtectedDeep.kickTimbre.rumbleSend < plans.deep.kickTimbre.rumbleSend);
 });
 
 test("hash and random stream are deterministic", () => {
@@ -796,12 +822,10 @@ test("the four-lens council enforces one idea, earned dialogue, and rare fills",
         assert.equal(verdict.allowFill, true);
       }
       if (
-        plan.form.kickPolicy === "anchor" &&
-        !plan.material.kickExcursion.active
+        plan.form.kickPolicy === "anchor"
       ) {
-        for (const step of [0, 4, 8, 12]) assert.ok(plan.kick[step] > 0);
-      } else if (plan.material.kickExcursion.active) {
-        assert.notEqual(plan.material.laneClocks.kick.loopLength, 16);
+        assert.ok(plan.kick[0] > 0);
+        assert.equal(plan.material.laneClocks.kick.loopLength, 16);
       } else if (plan.form.kickPolicy === "withdraw") {
         for (const step of [0, 4, 8, 12]) assert.equal(plan.kick[step], 0);
       }

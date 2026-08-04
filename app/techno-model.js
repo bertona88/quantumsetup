@@ -34,7 +34,7 @@ export {
   summarizeMaterialState,
 };
 
-export const GENERATOR_VERSION = "2.1.0";
+export const GENERATOR_VERSION = "2.2.0";
 export const STEPS_PER_BAR = 16;
 export const PHRASE_BARS = 8;
 export const MOVEMENT_BARS = 192;
@@ -2150,6 +2150,16 @@ function buildKickTimbre(
 ) {
   const architectureId =
     movement.trackDNA?.kickArchitecture || "deep-round";
+  const rumbleMode =
+    movement.trackDNA?.kickRumbleMode || "off";
+  const bassCharacter = profile.performanceBassCharacter || "auto";
+  const bassBehavior = movement.trackDNA?.bassBehavior;
+  const denseBass =
+    ["rolling", "acid", "syncopated"].includes(bassCharacter) ||
+    ["rolling-cell", "acid-serpent", "syncopated-stabs"].includes(
+      bassBehavior,
+    );
+  const rumbleBassProtection = denseBass ? 0.64 : 1;
   const architecture = {
     "short-punch": {
       bodyHz: 51,
@@ -2282,33 +2292,43 @@ function buildKickTimbre(
       1.2,
       3.5,
     ),
-    rumbleSend: clamp(
-      (0.015 +
-        profile.rumble * 0.075 +
-        familyValue("rumble") * 0.035 +
-        climaxDepth * 0.018) *
-        architecture.rumbleScale *
-        (form.kickPolicy === "withdraw" ? 0.15 : 1),
-      0,
-      0.14,
-    ),
+    rumbleSend:
+      rumbleMode === "off"
+        ? 0
+        : clamp(
+            (0.015 +
+              profile.rumble * 0.075 +
+              familyValue("rumble") * 0.035 +
+              climaxDepth * 0.018) *
+              architecture.rumbleScale *
+              (rumbleMode === "short" ? 0.42 : 1) *
+              rumbleBassProtection *
+              (form.kickPolicy === "withdraw" ? 0.15 : 1),
+            0,
+            0.14,
+          ),
     rumbleCutoffHz: clamp(
       84 +
         familyValue("rumbleTone") * 58 +
         profile.rumble * 29 +
         form.space * 12,
       84,
-      176,
+      denseBass ? 124 : 176,
     ),
-    rumbleFeedback: clamp(
-      0.12 +
-        familyValue("feedback") * 0.25 +
-        profile.rumble * 0.13 +
-        form.space * 0.04 +
-        climaxDepth * 0.055,
-      0.12,
-      0.58,
-    ),
+    rumbleFeedback:
+      rumbleMode === "off"
+        ? 0
+        : clamp(
+            (0.12 +
+              familyValue("feedback") * 0.25 +
+              profile.rumble * 0.13 +
+              form.space * 0.04 +
+              climaxDepth * 0.055) *
+              (rumbleMode === "short" ? 0.5 : 1) *
+              (denseBass ? 0.82 : 1),
+            0.06,
+            rumbleMode === "short" ? 0.29 : 0.58,
+          ),
   });
 }
 
@@ -2535,10 +2555,19 @@ export function buildBarPlan({
 
   const phrasePatterns = materialState.phrase.patterns;
   const kick = emptyPattern();
+  const kickArticulation = emptyPattern(null);
+  const sourceKickArticulations = materialBarSlice(
+    materialState.phrase.kickArticulations,
+    barInPhrase,
+  );
   const kickOnsets = materialBarSlice(
     phrasePatterns.kick,
     barInPhrase,
-  ).flatMap((active, step) => (active ? [step] : []));
+  ).flatMap((active, step) =>
+    active
+      ? [{ step, articulation: sourceKickArticulations[step] || "anchor" }]
+      : [],
+  );
   const kickLimit =
     form.kickPolicy === "withdraw"
       ? 0
@@ -2555,8 +2584,9 @@ export function buildBarPlan({
           )
         : kickOnsets.length;
   kickOnsets
-    .map((step) => ({
+    .map(({ step, articulation }) => ({
       step,
+      articulation,
       priority:
         unitHash(
           seed,
@@ -2564,17 +2594,29 @@ export function buildBarPlan({
           phraseIndex,
           step,
           "material-kick-priority",
-        ) + (step === 0 ? 0.3 : 0),
+        ) +
+        (step === 0 ? 2 : 0) +
+        (articulation === "anchor" ? 0.35 : 0),
     }))
     .sort((left, right) => right.priority - left.priority)
     .slice(0, kickLimit)
     .sort((left, right) => left.step - right.step)
-    .forEach(({ step }, index) => {
-      kick[step] =
-        0.73 +
-        energy * 0.18 +
-        (step === 0 ? 0.055 : 0) +
-        (index % 2) * 0.012;
+    .forEach(({ step, articulation }) => {
+      kickArticulation[step] = articulation;
+      const articulationVelocity =
+        articulation === "pickup"
+          ? 0.48 + energy * 0.08
+          : articulation === "roll"
+            ? 0.59 + energy * 0.1
+            : 0.75 + energy * 0.15 + (step === 0 ? 0.045 : 0);
+      kick[step] = clamp(
+        articulationVelocity +
+          (unitHash(seed, phraseIndex, barInPhrase, step, "kick-velocity") -
+            0.5) *
+            0.018,
+        0.45,
+        0.94,
+      );
     });
 
   const clap = emptyPattern();
@@ -2948,6 +2990,10 @@ export function buildBarPlan({
     motifMutationCount: form.motifMutationCount,
     kickPolicy: form.kickPolicy,
     kickReason: form.kickReason,
+    kickPhraseId: materialState.kickPhrase.id,
+    kickPhraseAge: materialState.kickPhrase.agePhrases,
+    kickPhraseHold: materialState.kickPhrase.holdPhrases,
+    kickRumbleMode: trackDNA.kickRumbleMode,
     kickFamilyId: form.kickFamilyId,
     priorKickFamilyId: form.priorKickFamilyId,
     kickFamilyMorph: form.kickFamilyMorph,
@@ -3022,6 +3068,7 @@ export function buildBarPlan({
     materialState,
     material: summarizeMaterialState(materialState),
     kick,
+    kickArticulation,
     kickTimbre,
     percussionTimbre,
     clap,

@@ -1,6 +1,7 @@
 # Acceptance Tests
 
-Current gate: deployed Infinite Techno `2.1.0` performance-control release;
+Current gate: local Infinite Techno `2.2.0` kick-phrase candidate; deployed
+`2.1.0` performance-control release evidence remains historical;
 public acceptance remains open
 
 Passing one gate does not imply another. Deterministic structure, rendered audio,
@@ -30,11 +31,22 @@ carried forward across the material-planner rewrite.
 - [x] clock identities remain resident for two to eight phrases.
 - [x] ordinary phrases mutate at most one structural lane; earned climax, release,
   or recall phrases mutate at most two.
-- [x] kick normally uses `E(4,16)`; excursions use only 12, 15, 17, 18, or 20 steps,
-  last one to four phrases, follow at least four anchored phrases, and force
-  re-anchoring.
-- [x] at least 75% of phrases retain the anchored four-floor kick across the fixed
-  long scan.
+- [x] kick always retains a bar-aligned `E(4,16)` foundation and never enters a
+  non-16 clock.
+- [x] anchor, turnaround-pickup, breathing, and rolling-pressure phrases retain
+  every bar downbeat, keep at least two sixteenth notes between onsets, and change
+  only at eight-bar boundaries.
+- [x] pickup and rolling articulations are quieter and shorter than foundation hits.
+- [x] Track DNA selects `off`, `short`, or `deep` rumble for the trajectory; `off`
+  produces zero rumble send and feedback.
+- [x] pickup and rolling collisions relocate bass to an adjacent safe step; only
+  foundation-kick collisions remove bass material.
+- [x] secondary kick ducking is shallower and recovers within 55–75 ms; foundation
+  bass ducking recovers in 105 ms, before the next sixteenth near the target tempo.
+- [x] Sub remains the restrained density intent, while Rolling and Acid sometimes
+  reach at least seven and eight hits per 20-step-equivalent clock respectively.
+- [x] bass voice gain and Bass Presence change only the bass path; dense bass
+  reduces deep-rumble send, feedback, and cutoff without boosting global Low EQ.
 - [x] bass uses a persistent 12–32-step clock plus resident modal motif lineage,
   rather than a fixed two-bar cell.
 - [x] the six named ensemble scenes contain semantic roles, register constraints,
@@ -54,7 +66,7 @@ carried forward across the material-planner rewrite.
 - [x] each phrase boundary constructs exactly twelve complete symbolic candidates
   from seed, Track DNA, form snapshot, phrase-entry profile, tonality, and previous
   material state.
-- [x] density, voice, pitch, collision, excursion, silence, and DSP-safety rejection
+- [x] density, voice, pitch, collision, kick-anchor/articulation, silence, and DSP-safety rejection
   rules are deterministic and bounded.
 - [x] normalized candidate weights are 22% groove continuity, 18% macro/profile fit,
   16% kick/bass separation, 14% motif conversation, 12% novelty, 10% orchestration,
@@ -90,14 +102,14 @@ carried forward across the material-planner rewrite.
 - [x] the hardware scheduler retains audio-clock lookahead, missed-step recovery,
   finite source cleanup, bounded voices, and separate kick, bass, rumble, and music
   buses.
-- [x] all 130 deterministic, DSP, worklet, lifecycle, transition, trajectory,
-  performance-control, taste, and syntax tests pass together on the current local
-  `2.1.0` source state.
+- [x] the complete deterministic, DSP, worklet, lifecycle, transition, trajectory,
+  performance-control, taste, and syntax suite passes together on the current local
+  `2.2.0` source state.
 
 ## Gate 4 — Deterministic population evidence
 
-- [x] at least 128 seeds pass a 384-bar scan covering kick-anchor share, excursion
-  duration/cooldown, persistent non-16 polymeter, no global lane reset, gesture
+- [x] at least 128 seeds pass a 384-bar scan covering the four bar-aligned kick
+  phrases, safe spacing and residency, persistent non-16 secondary-lane polymeter, no global lane reset, gesture
   reachability, answer obligations, and attributable repetition.
 - [x] within the first 48 bars, every fixed-manifest cross-seed pair separates in
   rhythm and phrase grammar plus at least one additional musical domain.
@@ -126,17 +138,21 @@ least one of orchestration, timbre, or harmony for every pair.
 
 ## Gate 6 — Interface, browser, and soak
 
-- [x] `window.QuantumTechno` is versioned `2.1.0`, preserves `getSnapshot()`,
+- [x] `window.QuantumTechno` is versioned `2.2.0`, preserves `getSnapshot()`,
   `requestVibe()`, and `requestTonality()`, and adds bounded mix, direction, and
   bass-character methods.
 - [x] snapshots add a deeply frozen material section with gesture, motif lineage,
   lane-clock summaries, selected-candidate score, candidate count, temperature, and
-  kick-excursion status.
+  kick-phrase status.
 - [x] the performance console exposes bounded three-band EQ, next-beat Kick and
   Bassline cuts, nine phrase-direction controls, and five bassline characters while
   keeping onset masks and individual synthesis parameters private.
 - [x] beat-quantized kick cut suppresses kick synthesis, ducking, new rumble
   excitation, and its visual pulse; bass cut suppresses bass synthesis and pulse.
+- [x] same-seed real browser-engine WAV captures exist for seed 0 Rolling with
+  rumble off and seed 3 Acid with deep rumble, each as bass-solo and full mix. The
+  unnormalized bass-solo RMS is 8.84 dB and 10.03 dB below its corresponding full
+  mix; these measurements do not replace listener acceptance.
 - [x] performance gain stages remain independent of sidechain-bus restoration, and
   the Low/Mid/High filters receive finite bounded dB values.
 - [x] direction targets enter on the next eight-bar phrase, glide for eight bars,

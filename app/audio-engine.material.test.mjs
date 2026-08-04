@@ -395,7 +395,7 @@ test("snapshots expose the frozen material summary instead of mutable planner st
   const snapshot = engine.getSnapshot();
   const expected = summarizeMaterialState(engine.materialState);
 
-  assert.equal(snapshot.version, "2.1.0");
+  assert.equal(snapshot.version, "2.2.0");
   assert.equal(snapshot.material === engine.materialState, false);
   assert.deepEqual(snapshot.material, expected);
   assertDeepFrozen(snapshot, new Set(), "snapshot");
@@ -452,16 +452,15 @@ test("snapshots expose the frozen material summary instead of mutable planner st
     );
   }
   for (const field of [
-    "active",
-    "remainingPhrases",
-    "durationPhrases",
-    "anchoredPhrasesSince",
-    "requiredAnchoredPhrases",
-    "forcedReanchor",
+    "id",
+    "priorId",
+    "agePhrases",
+    "holdPhrases",
+    "changed",
   ]) {
     assert.equal(
-      snapshot.material.kickExcursion[field],
-      engine.materialState.kickExcursion[field],
+      snapshot.material.kickPhrase[field],
+      engine.materialState.kickPhrase[field],
     );
   }
   assert.equal("phraseMemory" in snapshot.material, false);
