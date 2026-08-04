@@ -2139,6 +2139,16 @@ function kickFamilyParameters(seed, familyId) {
   });
 }
 
+function hasDenseBassIdentity(profile, trackDNA) {
+  const bassCharacter = profile.performanceBassCharacter || "auto";
+  return (
+    ["rolling", "acid", "syncopated"].includes(bassCharacter) ||
+    ["rolling-cell", "acid-serpent", "syncopated-stabs"].includes(
+      trackDNA?.bassBehavior,
+    )
+  );
+}
+
 function buildKickTimbre(
   seed,
   phraseIndex,
@@ -2152,14 +2162,12 @@ function buildKickTimbre(
     movement.trackDNA?.kickArchitecture || "deep-round";
   const rumbleMode =
     movement.trackDNA?.kickRumbleMode || "off";
-  const bassCharacter = profile.performanceBassCharacter || "auto";
-  const bassBehavior = movement.trackDNA?.bassBehavior;
-  const denseBass =
-    ["rolling", "acid", "syncopated"].includes(bassCharacter) ||
-    ["rolling-cell", "acid-serpent", "syncopated-stabs"].includes(
-      bassBehavior,
-    );
-  const rumbleBassProtection = denseBass ? 0.64 : 1;
+  const denseBass = hasDenseBassIdentity(profile, movement.trackDNA);
+  const rumbleBassProtection = denseBass
+    ? rumbleMode === "deep"
+      ? 0.46
+      : 0.64
+    : 1;
   const architecture = {
     "short-punch": {
       bodyHz: 51,
@@ -2313,7 +2321,7 @@ function buildKickTimbre(
         profile.rumble * 29 +
         form.space * 12,
       84,
-      denseBass ? 124 : 176,
+      denseBass ? 112 : 176,
     ),
     rumbleFeedback:
       rumbleMode === "off"
@@ -2325,7 +2333,7 @@ function buildKickTimbre(
               form.space * 0.04 +
               climaxDepth * 0.055) *
               (rumbleMode === "short" ? 0.5 : 1) *
-              (denseBass ? 0.82 : 1),
+              (denseBass ? 0.7 : 1),
             0.06,
             rumbleMode === "short" ? 0.29 : 0.58,
           ),
@@ -2354,17 +2362,40 @@ function buildBassLine({
     materialState.phrase.degrees.bass,
     barInPhrase,
   );
+  const vacatedOnsetSlice = materialBarSlice(
+    materialState.phrase.patterns.bassVacatedByAnchor,
+    barInPhrase,
+  );
+  const vacatedDegreeSlice = materialBarSlice(
+    materialState.phrase.degrees.bassVacatedByAnchor,
+    barInPhrase,
+  );
   const phraseOffset = barInPhrase * STEPS_PER_BAR;
-  const candidates = onsetSlice.flatMap((active, step) => {
+  const residentCandidates = onsetSlice.flatMap((active, step) => {
     if (!active || kick[step] || form.intentionalRest) return [];
     return [
       {
         step,
         cellStep: phraseOffset + step,
         degree: degreeSlice[step] ?? 0,
+        provenance: "resident",
       },
     ];
   });
+  const restoredCandidates = vacatedOnsetSlice.flatMap((active, step) => {
+    if (!active || kick[step] || form.intentionalRest) return [];
+    return [
+      {
+        step,
+        cellStep: phraseOffset + step,
+        degree: vacatedDegreeSlice[step] ?? 0,
+        provenance: "restored-vacated-anchor",
+      },
+    ];
+  });
+  const candidates = [...residentCandidates, ...restoredCandidates].sort(
+    (left, right) => left.step - right.step,
+  );
   const clockLength = materialState.clocks.bass.loopLength;
   const canonicalCell = Object.freeze(
     materialState.phrase.patterns.bass
@@ -2447,6 +2478,12 @@ function buildBassLine({
   return {
     bass,
     count: candidates.length,
+    materialCount: onsetSlice.filter(Boolean).length,
+    vacatedCount: vacatedOnsetSlice.filter(Boolean).length,
+    restoredCount: restoredCandidates.length,
+    blockedVacatedCount: vacatedOnsetSlice.filter(
+      (active, step) => active && Boolean(kick[step]),
+    ).length,
     cell: canonicalCell,
     cellSignature: `${materialState.clocks.bass.id}:${canonicalCell
       .map((event) => `${event.step}:${event.degree}`)
@@ -3001,6 +3038,10 @@ export function buildBarPlan({
       ? clamp(phraseProgress, 0, 1)
       : 1,
     bassDensity: bassCount,
+    materialBassDensity: bassLine.materialCount,
+    vacatedBassDensity: bassLine.vacatedCount,
+    restoredBassDensity: bassLine.restoredCount,
+    blockedVacatedBassDensity: bassLine.blockedVacatedCount,
     bassBehavior: trackDNA.bassBehavior,
     bassCharacter: profile.performanceBassCharacter ?? "auto",
     bassCell: bassLine.cell,
@@ -3024,6 +3065,16 @@ export function buildBarPlan({
       0.8,
     ),
     rumbleSend: kickTimbre.rumbleSend,
+    rumbleBassDuckDepth:
+      trackDNA.kickRumbleMode === "off"
+        ? 0
+        : trackDNA.kickRumbleMode === "deep"
+          ? hasDenseBassIdentity(profile, trackDNA)
+            ? 0.62
+            : 0.44
+          : hasDenseBassIdentity(profile, trackDNA)
+            ? 0.34
+            : 0.22,
   });
   const instrumentation = buildInstrumentation({
     kick,

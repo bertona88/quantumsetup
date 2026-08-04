@@ -51,6 +51,23 @@ test("track DNA is deterministic, flat, frozen, and uses compatible engine field
   }
 });
 
+test("schema 1.1 adds rumble identity while legacy DNA rehydrates from its seed", () => {
+  assert.equal(TRACK_DNA_VERSION, "1.1.0");
+  const current = createTrackDNA("0123456789abcdeffedcba9876543210");
+  const { kickRumbleMode: _removedRumbleMode, ...legacyFields } = current;
+  const legacy = Object.freeze({
+    ...legacyFields,
+    version: "1.0.0",
+  });
+
+  assert.equal("kickRumbleMode" in legacy, false);
+  assert.equal(trackDNADistance(legacy, current), 0);
+  assert.equal(
+    createTrackDNA(legacy.seedKey).kickRumbleMode,
+    current.kickRumbleMode,
+  );
+});
+
 test("every categorical domain is reached with a balanced deterministic distribution", () => {
   const sampleCount = 8192;
   const counts = Object.fromEntries(

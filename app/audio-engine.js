@@ -1710,6 +1710,7 @@ export class InfiniteTechnoEngine {
     }
     if (plan.tom[step]) this.tom(eventTime, plan.tom[step], step, plan.profile.drive);
     if (plan.bass[step] && !this.mixControls.bassCut) {
+      this.duckRumbleForBass(eventTime, plan.lowEnd, stepDuration);
       this.bass(
         eventTime,
         plan.bass[step],
@@ -1977,6 +1978,22 @@ export class InfiniteTechnoEngine {
     this.bassBus.gain.exponentialRampToValueAtTime(
       BASS_BUS_LEVEL,
       time + bassRecovery,
+    );
+  }
+
+  duckRumbleForBass(time, lowEnd = null, stepDuration = 0.12) {
+    if (!this.rumbleBus?.gain) return;
+    const depth = clamp(Number(lowEnd?.rumbleBassDuckDepth) || 0, 0, 0.68);
+    if (depth <= 0) return;
+    const recovery = clamp(Number(stepDuration) * 0.82, 0.06, 0.11);
+    holdParamAtTime(this.rumbleBus.gain, time, RUMBLE_BUS_LEVEL);
+    this.rumbleBus.gain.exponentialRampToValueAtTime(
+      RUMBLE_BUS_LEVEL * Math.max(0.24, 1 - depth),
+      time + 0.005,
+    );
+    this.rumbleBus.gain.exponentialRampToValueAtTime(
+      RUMBLE_BUS_LEVEL,
+      time + recovery,
     );
   }
 

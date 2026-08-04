@@ -87,11 +87,86 @@ test("trajectory DNA makes kick rumble absent, short, or deep for the whole trac
   assert.ok(plans.short.kickTimbre.rumbleFeedback <= 0.29);
   assert.ok(plans.deep.kickTimbre.rumbleSend > 0);
   assert.ok(plans.deep.kickTimbre.rumbleFeedback > 0.29);
-  const bassProtectedDeep = buildBarPlan({ seed: 3, bar: 0 });
+  const baseProfile = profileForVibe("hypnotic");
+  const unprotectedDeep = buildBarPlan({
+    seed: 2,
+    bar: 0,
+    profile: {
+      ...baseProfile,
+      performanceBassCharacter: "sub",
+    },
+  });
+  const bassProtectedDeep = buildBarPlan({
+    seed: 2,
+    bar: 0,
+    profile: {
+      ...baseProfile,
+      performanceBassCharacter: "acid",
+    },
+  });
+  assert.deepEqual(unprotectedDeep.trackDNA, bassProtectedDeep.trackDNA);
   assert.equal(bassProtectedDeep.trackDNA.kickRumbleMode, "deep");
-  assert.equal(bassProtectedDeep.trackDNA.bassBehavior, "acid-serpent");
-  assert.ok(bassProtectedDeep.kickTimbre.rumbleCutoffHz <= 124);
-  assert.ok(bassProtectedDeep.kickTimbre.rumbleSend < plans.deep.kickTimbre.rumbleSend);
+  for (const field of [
+    "bodyHz",
+    "pitchStartHz",
+    "pitchDropSeconds",
+    "decaySeconds",
+    "clickHz",
+    "clickLevel",
+    "drive",
+  ]) {
+    assert.equal(
+      bassProtectedDeep.kickTimbre[field],
+      unprotectedDeep.kickTimbre[field],
+      `${field} changed in the rumble-protection comparison`,
+    );
+  }
+  assert.ok(
+    Math.abs(
+      bassProtectedDeep.kickTimbre.rumbleSend /
+        unprotectedDeep.kickTimbre.rumbleSend -
+        0.46,
+    ) <= 1e-9,
+  );
+  assert.ok(
+    bassProtectedDeep.kickTimbre.rumbleFeedback <
+      unprotectedDeep.kickTimbre.rumbleFeedback,
+  );
+  assert.ok(bassProtectedDeep.kickTimbre.rumbleCutoffHz <= 112);
+  assert.equal(bassProtectedDeep.lowEnd.rumbleBassDuckDepth, 0.62);
+});
+
+test("final kick thinning and withdrawal never vacate resident bass events", () => {
+  let reducedKickBars = 0;
+  let restoredVacatedEvents = 0;
+  for (let seed = 0; seed < 16; seed += 1) {
+    for (let bar = 0; bar < 384; bar += 1) {
+      const plan = buildBarPlan({ seed, bar });
+      if (["thin", "withdraw"].includes(plan.form.kickPolicy)) {
+        reducedKickBars += 1;
+      }
+      if (plan.form.intentionalRest) {
+        assert.equal(plan.lowEnd.bassDensity, 0);
+        assert.equal(plan.lowEnd.restoredBassDensity, 0);
+      } else {
+        assert.equal(
+          plan.lowEnd.bassDensity,
+          plan.lowEnd.materialBassDensity +
+            plan.lowEnd.restoredBassDensity,
+          `seed ${seed} bar ${bar} emitted an unaccounted bass density`,
+        );
+        assert.equal(
+          plan.lowEnd.vacatedBassDensity,
+          plan.lowEnd.restoredBassDensity +
+            plan.lowEnd.blockedVacatedBassDensity,
+          `seed ${seed} bar ${bar} lost vacated-anchor provenance`,
+        );
+        restoredVacatedEvents += plan.lowEnd.restoredBassDensity;
+      }
+    }
+  }
+  assert.ok(reducedKickBars > 0);
+  assert.ok(restoredVacatedEvents > 0);
 });
 
 test("hash and random stream are deterministic", () => {

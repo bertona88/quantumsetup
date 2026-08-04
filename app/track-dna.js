@@ -1,6 +1,7 @@
 import { hash32 } from "./generative-utils.js";
 
-export const TRACK_DNA_VERSION = "1.0.0";
+export const TRACK_DNA_VERSION = "1.1.0";
+const TRACK_DNA_SELECTION_VERSION = "1.0.0";
 
 const freezeValues = (values) => Object.freeze([...values]);
 
@@ -131,7 +132,7 @@ function seedKeyFor(seed) {
 function selectValue(seedKey, field) {
   const values = TRACK_DNA_VALUES[field];
   return values[
-    hash32(TRACK_DNA_VERSION, seedKey, field, "track-phenotype") %
+    hash32(TRACK_DNA_SELECTION_VERSION, seedKey, field, "track-phenotype") %
       values.length
   ];
 }
@@ -149,7 +150,15 @@ function isTrackDNA(value) {
 }
 
 function asTrackDNA(value) {
-  return isTrackDNA(value) ? value : createTrackDNA(value);
+  if (isTrackDNA(value)) return value;
+  if (
+    value &&
+    typeof value === "object" &&
+    typeof value.seedKey === "string"
+  ) {
+    return createTrackDNA(value.seedKey);
+  }
+  return createTrackDNA(value);
 }
 
 function differenceSummary(left, right) {

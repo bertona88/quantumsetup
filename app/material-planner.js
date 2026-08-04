@@ -1,6 +1,6 @@
 import { clamp, hash32 } from "./generative-utils.js";
 
-export const MATERIAL_VERSION = "2.1.0";
+export const MATERIAL_VERSION = "2.2.0";
 export const MATERIAL_CANDIDATE_COUNT = 12;
 export const MATERIAL_SCORE_FLOOR = 0.55;
 export const MATERIAL_SCORE_BAND = 0.2;
@@ -316,7 +316,7 @@ function hitsForClock(
     const rhythmicLift =
       unitHash(seed, phraseIndex, mutationCount, "bass-density-lift") *
       (character === "rolling" || character === "acid" ? 0.035 : 0.018);
-    return clamp(
+    const hits = clamp(
       Math.round(
         loopLength *
           ((characterDensity ?? behaviorDensity) +
@@ -328,6 +328,10 @@ function hitsForClock(
       2,
       10,
     );
+    return (character === "syncopated" || behavior === "syncopated-stabs") &&
+      hits * 4 === loopLength
+      ? clamp(hits + 1, 2, Math.min(10, loopLength))
+      : hits;
   }
   return clamp(Math.round(loopLength * (0.07 + density * 0.07)), 1, 5);
 }
@@ -925,6 +929,40 @@ function assignDegrees(pattern, motif, offset = 0, reverse = false) {
   return degrees;
 }
 
+function relocateBassAroundKick(bass, kick, articulations) {
+  const vacatedByAnchor = Array(STEPS_PER_PHRASE).fill(false);
+  const collisions = bass.flatMap((active, offset) =>
+    active && kick[offset]
+      ? [{ offset, articulation: articulations[offset] || "anchor" }]
+      : [],
+  );
+  for (const { offset } of collisions) bass[offset] = false;
+  for (const { offset, articulation } of collisions) {
+    if (articulation === "anchor") {
+      vacatedByAnchor[offset] = true;
+      continue;
+    }
+    const barStart = Math.floor(offset / STEPS_PER_BAR) * STEPS_PER_BAR;
+    const barEnd = barStart + STEPS_PER_BAR;
+    const direction = articulation === "anchor" ? 1 : -1;
+    const relativeCandidates = [];
+    for (let distance = 1; distance < STEPS_PER_BAR; distance += 1) {
+      relativeCandidates.push(direction * distance, -direction * distance);
+    }
+    const destination = relativeCandidates
+      .map((delta) => offset + delta)
+      .find(
+        (candidate) =>
+          candidate >= barStart &&
+          candidate < barEnd &&
+          !kick[candidate] &&
+          !bass[candidate],
+    );
+    if (destination !== undefined) bass[destination] = true;
+  }
+  return vacatedByAnchor;
+}
+
 function materializePhrase(
   clocks,
   kickPhrase,
@@ -939,22 +977,12 @@ function materializePhrase(
   const hats = renderClock(clocks.hats, input.phraseIndex);
   const percussion = renderClock(clocks.percussion, input.phraseIndex);
   const bass = renderClock(clocks.bass, input.phraseIndex);
-  for (let offset = 0; offset < bass.length; offset += 1) {
-    if (!bass[offset] || !kick[offset]) continue;
-    const articulation = materializedKick.articulations[offset];
-    bass[offset] = false;
-    if (articulation === "anchor") continue;
-    const barStart = Math.floor(offset / STEPS_PER_BAR) * STEPS_PER_BAR;
-    const barEnd = barStart + STEPS_PER_BAR;
-    const destination = [offset + 1, offset - 1, offset + 2].find(
-      (candidate) =>
-        candidate >= barStart &&
-        candidate < barEnd &&
-        !kick[candidate] &&
-        !bass[candidate],
-    );
-    if (destination !== undefined) bass[destination] = true;
-  }
+  const bassSourceDegrees = assignDegrees(bass, motif, 0, false);
+  const bassVacatedByAnchor = relocateBassAroundKick(
+    bass,
+    kick,
+    materializedKick.articulations,
+  );
   const synth = Object.fromEntries(
     Object.entries(SYNTH_LANES).map(([engine, lane]) => [
       engine,
@@ -1008,10 +1036,14 @@ function materializePhrase(
       percussion,
       percussionVoices,
       bass,
+      bassVacatedByAnchor,
       synth,
     },
     degrees: {
       bass: assignDegrees(bass, motif, 0, false),
+      bassVacatedByAnchor: bassVacatedByAnchor.map(
+        (active, offset) => (active ? bassSourceDegrees[offset] : null),
+      ),
       synth: {
         fm: assignDegrees(synth.fm, motif, 0, false),
         modal: assignDegrees(synth.modal, motif, 4, false),
@@ -1046,6 +1078,7 @@ export function materialPhraseFingerprint(phrase) {
     phrase.patterns.openHats,
     phrase.patterns.percussion,
     phrase.patterns.bass,
+    phrase.patterns.bassVacatedByAnchor,
     phrase.patterns.synth.fm,
     phrase.patterns.synth.modal,
     phrase.patterns.synth.string,
@@ -1055,6 +1088,7 @@ export function materialPhraseFingerprint(phrase) {
   const voiceSignature = encodeValues(phrase.patterns.percussionVoices);
   const degreeSignature = [
     phrase.degrees.bass,
+    phrase.degrees.bassVacatedByAnchor,
     phrase.degrees.synth.fm,
     phrase.degrees.synth.modal,
     phrase.degrees.synth.string,
@@ -1238,6 +1272,26 @@ export function validateMaterialCandidate(candidate, previousState = null) {
     reasons.push("kick-bass-collision");
   }
   if (
+    !Array.isArray(patterns.bassVacatedByAnchor) ||
+    patterns.bassVacatedByAnchor.length !== STEPS_PER_PHRASE ||
+    !Array.isArray(candidate.phrase.degrees.bassVacatedByAnchor) ||
+    candidate.phrase.degrees.bassVacatedByAnchor.length !== STEPS_PER_PHRASE ||
+    patterns.bassVacatedByAnchor.some(
+      (active, index) =>
+        active !==
+          Boolean(
+            patterns.kick[index] &&
+              candidate.phrase.kickArticulations[index] === "anchor" &&
+              !patterns.bass[index] &&
+              Number.isFinite(
+                candidate.phrase.degrees.bassVacatedByAnchor[index],
+              ),
+          ),
+    )
+  ) {
+    reasons.push("bass-anchor-provenance");
+  }
+  if (
     patterns.kick.some(
       (active, index) =>
         active &&
@@ -1322,6 +1376,7 @@ export function validateMaterialCandidate(candidate, previousState = null) {
   }
   const emittedDegrees = [
     ...candidate.phrase.degrees.bass.filter(Number.isFinite),
+    ...candidate.phrase.degrees.bassVacatedByAnchor.filter(Number.isFinite),
     ...Object.values(candidate.phrase.degrees.synth).flatMap((degrees) =>
       degrees.filter(Number.isFinite),
     ),

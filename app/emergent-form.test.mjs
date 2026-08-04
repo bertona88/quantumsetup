@@ -460,12 +460,36 @@ test("bar plans consume one frozen sequential material phrase instead of form-ow
             phraseOffset,
             phraseOffset + STEPS_PER_BAR,
           );
+        const sourceVacatedBass =
+          materialState.phrase.patterns.bassVacatedByAnchor.slice(
+            phraseOffset,
+            phraseOffset + STEPS_PER_BAR,
+          );
+        const sourceBassDegrees =
+          materialState.phrase.degrees.bass.slice(
+            phraseOffset,
+            phraseOffset + STEPS_PER_BAR,
+          );
+        const sourceVacatedBassDegrees =
+          materialState.phrase.degrees.bassVacatedByAnchor.slice(
+            phraseOffset,
+            phraseOffset + STEPS_PER_BAR,
+          );
         for (let step = 0; step < STEPS_PER_BAR; step += 1) {
           if (plan.kick[step]) assert.equal(sourceKick[step], true);
           const note = plan.bass[step];
           if (!note) continue;
           bassNotes += 1;
-          assert.equal(sourceBass[step], true);
+          assert.equal(
+            Boolean(sourceBass[step] || sourceVacatedBass[step]),
+            true,
+          );
+          assert.equal(
+            note.degree,
+            sourceBass[step]
+              ? sourceBassDegrees[step]
+              : sourceVacatedBassDegrees[step],
+          );
           assert.equal(Boolean(plan.kick[step]), false);
           assert.equal(note.lineageId, materialState.motif.lineageId);
           assert.ok(note.velocity >= 0.42 && note.velocity <= 0.9);

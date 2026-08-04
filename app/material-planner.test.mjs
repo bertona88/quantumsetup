@@ -205,6 +205,7 @@ function assertPhraseSafety(candidate) {
     patterns.openHats,
     patterns.percussion,
     patterns.bass,
+    patterns.bassVacatedByAnchor,
     ...Object.values(patterns.synth),
   ]) {
     assert.equal(lane.length, STEPS_PER_PHRASE);
@@ -295,7 +296,7 @@ test("canonical Euclidean patterns are immutable, even, rotated, and validated",
 });
 
 test("gesture grammar and candidate score weights preserve the authored contract", () => {
-  assert.equal(MATERIAL_VERSION, "2.1.0");
+  assert.equal(MATERIAL_VERSION, "2.2.0");
   assert.equal(MATERIAL_CANDIDATE_COUNT, 12);
   assert.equal(MATERIAL_SCORE_FLOOR, 0.55);
   assert.equal(MATERIAL_SCORE_BAND, 0.2);
@@ -429,8 +430,26 @@ test("kick phrases stay bar-aligned and realize the approved curated vocabulary"
       rawBass.filter(Boolean).length -
         state.phrase.patterns.bass.filter(Boolean).length,
       anchorCollisions,
-      `${id} allowed a pickup or rolling kick to erase bass material`,
+      `${id} allowed a secondary kick to erase bass material`,
     );
+    assert.equal(
+      state.phrase.patterns.bassVacatedByAnchor.filter(Boolean).length,
+      anchorCollisions,
+    );
+    let sourceCursor = 0;
+    rawBass.forEach((active, offset) => {
+      if (!active) return;
+      const expectedDegree =
+        state.motif.events[sourceCursor % state.motif.events.length].degree;
+      if (state.phrase.patterns.bassVacatedByAnchor[offset]) {
+        assert.equal(
+          state.phrase.degrees.bassVacatedByAnchor[offset],
+          expectedDegree,
+          `${id} changed the source motif degree for anchor vacancy ${offset}`,
+        );
+      }
+      sourceCursor += 1;
+    });
   }
 });
 
@@ -465,6 +484,76 @@ test("bass character biases density without exposing or fixing note masks", () =
   assert.ok(mean(densities.rolling) < mean(densities.acid));
   assert.ok(Math.max(...densities.rolling) >= 0.35);
   assert.ok(Math.max(...densities.acid) >= 0.4);
+});
+
+test("syncopated bass remains resident after authoritative kick collision relocation", () => {
+  let nonRestPhrases = 0;
+  let zeroBassPhrases = 0;
+  let maximumZeroRun = 0;
+  for (let seed = 0; seed < 64; seed += 1) {
+    const trackDNA = createTrackDNA(seed);
+    const trace = traceMaterial({
+      seed,
+      trackDNA,
+      phraseCount: 48,
+      formForPhrase: (phraseIndex) => derivePhraseState(seed, phraseIndex),
+      profile: {
+        ...PROFILE,
+        performanceBassCharacter: "syncopated",
+      },
+      tonality: "minor",
+    });
+    let zeroRun = 0;
+    for (const state of trace) {
+      const rawBass = expectedClockPattern(state, "bass");
+      const emittedBass = state.phrase.patterns.bass;
+      assert.equal(
+        rawBass.filter(Boolean).length - emittedBass.filter(Boolean).length,
+        state.phrase.patterns.bassVacatedByAnchor.filter(Boolean).length,
+        `seed ${seed} phrase ${state.phraseIndex} lost bass without anchor provenance`,
+      );
+      if (state.gesture === "rest" || state.form?.intentionalRest) {
+        zeroRun = 0;
+        continue;
+      }
+      nonRestPhrases += 1;
+      if (emittedBass.some(Boolean)) {
+        zeroRun = 0;
+      } else {
+        zeroBassPhrases += 1;
+        zeroRun += 1;
+        maximumZeroRun = Math.max(maximumZeroRun, zeroRun);
+      }
+    }
+  }
+  assert.ok(nonRestPhrases > 0);
+  assert.equal(zeroBassPhrases, 0);
+  assert.equal(maximumZeroRun, 0);
+});
+
+test("syncopated Track DNA also avoids kick-isomorphic bass clocks", () => {
+  let matchingSeeds = 0;
+  for (let seed = 0; seed < 256; seed += 1) {
+    const trackDNA = createTrackDNA(seed);
+    if (trackDNA.bassBehavior !== "syncopated-stabs") continue;
+    matchingSeeds += 1;
+    const trace = traceMaterial({
+      seed,
+      trackDNA,
+      phraseCount: 16,
+      formForPhrase: (phraseIndex) => derivePhraseState(seed, phraseIndex),
+      profile: PROFILE,
+      tonality: "minor",
+    });
+    for (const state of trace) {
+      assert.notEqual(
+        state.clocks.bass.hits * 4,
+        state.clocks.bass.loopLength,
+        `seed ${seed} phrase ${state.phraseIndex} entered a quarter-grid attractor`,
+      );
+    }
+  }
+  assert.ok(matchingSeeds >= 32);
 });
 
 test("candidate generation is deterministic, order-independent, bounded, and collision-safe", () => {

@@ -3,7 +3,7 @@
 Status: local `2.2.0` kick-phrase candidate; deterministic and browser/audio
 validation remain separate from the deployed `2.1.0` release and from listening,
 soak, deployment, and public-acceptance gates
-Generator version: `2.2.0` (`2.1.0` material-state schema)
+Generator version: `2.2.0` (`2.2.0` material-state schema)
 Primary product: music  
 Quantum role: visual and poetic contour only
 
@@ -111,7 +111,7 @@ observation window about six minutes.
 
 ## Phrase-sequential generative material
 
-The `2.1.0` material planner is a second recurrent layer downstream of emergent
+The `2.2.0` material planner is a second recurrent layer downstream of emergent
 form. At every eight-bar boundary it accepts the trajectory seed, Track DNA, current
 form snapshot, Vibe profile settled for that phrase boundary, tonality, and previous
 material state. It plans and freezes the complete eight-bar symbolic phrase once.
@@ -273,13 +273,18 @@ The kick and bass are planned as a relationship rather than independent lanes.
   32-bar clock or reset when a motif gesture changes.
 - Candidate validation scores kick/bass separation and rejects unsafe overlap before
   the phrase is frozen.
-- Breathing kick phrases expose two additional quarter-note positions per phrase.
+- Breathing kick phrases expose two additional quarter-note positions in each
+  sparse bar.
   When a quiet pickup or rolling kick collides with planned bass, the bass onset is
-  moved to an adjacent safe step inside the same bar; foundation kicks remain the
-  authoritative collision mask.
+  moved to a safe step inside the same bar. Foundation collisions create real
+  breathing space, but their source event and degree remain in frozen provenance so
+  form-level kick thinning or withdrawal can restore the note when that exact kick
+  is not ultimately emitted.
 - Bass-character intent biases clock density without supplying a note mask. Sub
   remains restrained, while Rolling and Acid can occasionally reach seven or eight
-  onsets in a 20-step clock; intentional rests and recurrent density still apply.
+  onsets in a 20-step clock. Syncopated intent and Track DNA avoid exact quarter-grid
+  clocks that could be annihilated by the foundation; intentional rests and
+  recurrent density still apply.
 - The planner emits a dedicated low-end contract containing motif lineage, clock
   summary, kick-phrase state, bass density and voice, track-level rumble mode, and separate
   duck depths.
@@ -296,7 +301,9 @@ Track DNA independently selects `off`, `short`, or `deep` kick rumble for the wh
 trajectory. `off` sets both rumble send and feedback to zero; the other identities
 remain bounded and do not toggle probabilistically from hit to hit. Dense Rolling,
 Acid, and Syncopated bass material lowers the rumble cutoff, send, and feedback to
-protect bass definition. Foundation kicks retain the normal bass duck; pickup and
+protect bass definition. Bass onsets also duck only the rumble bus with a bounded
+60–110 ms recovery, returning to its declared level. Foundation kicks retain the
+normal bass duck; pickup and
 rolling articulations duck substantially less and recover in 55–75 ms. Foundation
 bass ducking recovers in 105 ms so a note one sixteenth later is not held under the
 prior 190 ms envelope. Bass voices carry stronger local gain and harmonic definition,
@@ -320,7 +327,7 @@ synthetic two-seed, five-Vibe motif-event scan that constructed all 208 structur
 selected at least 200 through the causally authorized handoff-candidate path, and
 reached more than 170 candidate parameter genomes. It does not establish that every
 architecture becomes note-bearing or audible inside a real trajectory window, and
-it does not validate the current `2.1.0` material planner.
+it does not validate the current `2.2.0` material planner.
 
 ### Council-edited conversation grammar
 

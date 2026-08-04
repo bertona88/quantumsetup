@@ -474,6 +474,7 @@ test("music and bass duck independently and restore their declared bus levels", 
   approximatelyEqual(bassRamps[0].time, 3.006);
   assert.equal(bassRamps[1].value, 0.96);
   approximatelyEqual(bassRamps[1].time, 3.105);
+  assert.ok(0.105 < 60 / 140 / 4);
   assert.ok(musicRamps[0].value > 0);
   assert.ok(bassRamps[0].value > 0);
   assert.notEqual(musicRamps[0].value, bassRamps[0].value);
@@ -492,10 +493,53 @@ test("music and bass duck independently and restore their declared bus levels", 
   const pickupBassRamps = engine.bassBus.gain.events.filter(
     (event) => event.type === "ramp",
   );
-  assert.ok(pickupMusicRamps[0].value > musicRamps[0].value);
-  assert.ok(pickupBassRamps[0].value > bassRamps[0].value);
+  approximatelyEqual(pickupMusicRamps[0].value, 1 - 0.5 * 0.32 * 0.9);
+  approximatelyEqual(
+    pickupBassRamps[0].value,
+    0.96 * (1 - 0.72 * 0.32 * 0.9),
+  );
   approximatelyEqual(pickupMusicRamps[1].time, 4.065);
   approximatelyEqual(pickupBassRamps[1].time, 4.055);
+
+  engine.musicBus.gain.events.length = 0;
+  engine.bassBus.gain.events.length = 0;
+  engine.duck(
+    5,
+    0.9,
+    { musicDuckDepth: 0.5, bassDuckDepth: 0.72 },
+    "roll",
+  );
+  const rollMusicRamps = engine.musicBus.gain.events.filter(
+    (event) => event.type === "ramp",
+  );
+  const rollBassRamps = engine.bassBus.gain.events.filter(
+    (event) => event.type === "ramp",
+  );
+  approximatelyEqual(rollMusicRamps[0].value, 1 - 0.5 * 0.5 * 0.9);
+  approximatelyEqual(
+    rollBassRamps[0].value,
+    0.96 * (1 - 0.72 * 0.5 * 0.9),
+  );
+  approximatelyEqual(rollMusicRamps[1].time, 5.085);
+  approximatelyEqual(rollBassRamps[1].time, 5.075);
+});
+
+test("dense bass dynamically opens bounded space in the rumble bus", () => {
+  const { context, engine } = makeEngine();
+  engine.rumbleBus = context.createGain();
+
+  engine.duckRumbleForBass(2, { rumbleBassDuckDepth: 0.62 }, 0.12);
+  const ramps = engine.rumbleBus.gain.events.filter(
+    (event) => event.type === "ramp",
+  );
+  approximatelyEqual(ramps[0].value, 0.92 * 0.38);
+  approximatelyEqual(ramps[0].time, 2.005);
+  approximatelyEqual(ramps[1].value, 0.92);
+  approximatelyEqual(ramps[1].time, 2 + 0.12 * 0.82);
+
+  engine.rumbleBus.gain.events.length = 0;
+  engine.duckRumbleForBass(3, { rumbleBassDuckDepth: 0 }, 0.12);
+  assert.equal(engine.rumbleBus.gain.events.length, 0);
 });
 
 test("acid, pulse, and both sub oscillators share bounded slide timing", () => {
