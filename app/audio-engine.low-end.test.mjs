@@ -229,6 +229,19 @@ test("the graph keeps kick, bass, rumble, and music on distinct bounded buses", 
   assert.deepEqual(connectionTargets(engine.rumbleBus), [engine.preMaster]);
   assert.deepEqual(connectionTargets(engine.musicBus), [engine.toneFilter]);
   assert.deepEqual(connectionTargets(engine.rumbleWet), [engine.rumbleBus]);
+  assert.deepEqual(connectionTargets(engine.echoAscentIn), [
+    engine.echoAscentHighpass,
+  ]);
+  assert.deepEqual(connectionTargets(engine.echoAscentHighpass), [
+    engine.echoAscentLeftDelay,
+  ]);
+  assert.deepEqual(connectionTargets(engine.echoAscentLeftFeedback), [
+    engine.echoAscentRightDelay,
+  ]);
+  assert.deepEqual(connectionTargets(engine.echoAscentRightFeedback), [
+    engine.echoAscentLeftDelay,
+  ]);
+  assert.deepEqual(connectionTargets(engine.echoAscentWet), [engine.musicBus]);
   assert.deepEqual(connectionTargets(engine.highpass), [engine.lowEq]);
   assert.deepEqual(connectionTargets(engine.lowEq), [engine.midEq]);
   assert.deepEqual(connectionTargets(engine.midEq), [engine.highEq]);
@@ -258,6 +271,36 @@ test("the graph keeps kick, bass, rumble, and music on distinct bounded buses", 
   assert.equal(lastEvent(engine.rumbleSendGain.gain, "target").value, 0.14);
   assert.equal(lastEvent(engine.rumbleFilter.frequency, "target").value, 176);
   assert.equal(lastEvent(engine.rumbleFeedback.gain, "target").value, 0.58);
+
+  engine.syncEffects(
+    { space: 0.5, rumble: 0.7, warmth: 0.5 },
+    {
+      filterOpen: 0.7,
+      echoAscent: {
+        delaySteps: 3,
+        feedback: 9,
+        wet: 9,
+      },
+    },
+    true,
+  );
+  assert.equal(
+    lastEvent(engine.echoAscentLeftDelay.delayTime, "target").value,
+    (60 / engine.currentTempo) * 0.75,
+  );
+  assert.equal(
+    lastEvent(engine.echoAscentRightDelay.delayTime, "target").value,
+    (60 / engine.currentTempo) * 0.75,
+  );
+  assert.equal(
+    lastEvent(engine.echoAscentLeftFeedback.gain, "target").value,
+    0.55,
+  );
+  assert.equal(
+    lastEvent(engine.echoAscentRightFeedback.gain, "target").value,
+    0.55,
+  );
+  assert.equal(lastEvent(engine.echoAscentWet.gain, "target").value, 0.74);
 
   engine.syncEffects(
     { space: 0.5, rumble: 0.7, warmth: 0.5 },
@@ -587,7 +630,7 @@ test("acid, pulse, and both sub oscillators share bounded slide timing", () => {
   }
 });
 
-test("routing clamps dry, delay, and reverb gains before connecting", () => {
+test("routing clamps dry, shared effects, and echo-ascent sends before connecting", () => {
   const { context, engine } = makeEngine();
   engine.bassBus = context.createGain();
   engine.musicBus = context.createGain();
@@ -595,18 +638,80 @@ test("routing clamps dry, delay, and reverb gains before connecting", () => {
   engine.rumbleBus = context.createGain();
   engine.delayIn = context.createGain();
   engine.reverbIn = context.createGain();
+  engine.echoAscentIn = context.createGain();
   const output = context.createGain();
 
-  const routes = engine.route(output, 4, 3, 2, "bass");
+  const routes = engine.route(output, 4, 3, 2, "bass", 9);
 
-  assert.equal(routes.length, 3);
+  assert.equal(routes.length, 4);
   assert.deepEqual(
     routes.map((route) => route.gain.value),
-    [1, 0.42, 0.55],
+    [1, 0.42, 0.55, 0.6],
   );
   assert.deepEqual(connectionTargets(routes[0]), [engine.bassBus]);
   assert.deepEqual(connectionTargets(routes[1]), [engine.delayIn]);
   assert.deepEqual(connectionTargets(routes[2]), [engine.reverbIn]);
+  assert.deepEqual(connectionTargets(routes[3]), [engine.echoAscentIn]);
+});
+
+test("echo-ascent percussion is bright, finitely stopped, and routed only to its transition bus", () => {
+  const { context, engine } = makeEngine();
+  engine.musicBus = context.createGain();
+  engine.delayIn = context.createGain();
+  engine.reverbIn = context.createGain();
+  engine.echoAscentIn = context.createGain();
+  engine.noiseBuffer = context.createBuffer(1, 16_000);
+  const registrations = [];
+  engine.registerVoice = (sources, nodes) => {
+    registrations.push({ sources, nodes });
+    return true;
+  };
+
+  engine.echoAscentHit(2, {
+    voice: "metallic",
+    velocity: 0.28,
+    brightness: 0.94,
+    send: 4,
+    pan: 0.48,
+  });
+  engine.echoAscentHit(3, {
+    voice: "shaker",
+    velocity: 0.12,
+    brightness: 0.88,
+    send: 0.3,
+    pan: -0.58,
+  });
+
+  assert.equal(registrations.length, 2);
+  assert.equal(registrations[0].sources.length, 4);
+  assert.equal(registrations[1].sources.length, 1);
+  assert.ok(
+    registrations.flatMap((entry) => entry.sources).every((source) =>
+      source.stops.flat().every(Number.isFinite)
+    ),
+  );
+  assert.ok(
+    registrations[1].sources[0].starts[0].every(Number.isFinite),
+    "noise voices should receive finite start parameters",
+  );
+  assert.ok(
+    registrations[1].sources[0].starts[0][2] > 0,
+    "noise voices should have a finite positive playback duration",
+  );
+  const echoSends = registrations.flatMap((entry) =>
+    entry.nodes.filter((node) =>
+      connectionTargets(node).includes(engine.echoAscentIn)
+    ),
+  );
+  assert.deepEqual(
+    echoSends.map((node) => node.gain.value),
+    [0.6, 0.3],
+  );
+  assert.ok(
+    context.oscillators.every(
+      (oscillator) => oscillator.frequency.value >= 2_000,
+    ),
+  );
 });
 
 test("advanced notes retain a small worklet message lead after scheduler stalls", () => {

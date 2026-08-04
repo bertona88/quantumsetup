@@ -55,6 +55,7 @@ export function createVisualForecast({
   for (let barOffset = 0; barOffset < availableBars; barOffset += 1) {
     const plan = phrasePlans[firstOffset + barOffset];
     for (let step = 0; step < 16; step += 1) {
+      const echoAscentHit = plan.echoAscent?.hits?.[step] || null;
       const channels = {
         kick: kickCut ? 0 : valueAt(plan.kick, step),
         bass: bassCut
@@ -64,6 +65,7 @@ export function createVisualForecast({
           valueAt(plan.hat, step),
           valueAt(plan.openHat, step),
           valueAt(plan.ride, step),
+          echoAscentHit?.voice === "ride" ? echoAscentHit.velocity : 0,
         ),
         chord: valueAt(plan.chord, step, (note) => note.velocity),
         synth: Math.max(
@@ -78,6 +80,7 @@ export function createVisualForecast({
           valueAt(plan.rim, step),
           valueAt(plan.metallic, step),
           valueAt(plan.tom, step),
+          echoAscentHit ? echoAscentHit.velocity : 0,
         ),
       };
       const weight = Math.max(...Object.values(channels));

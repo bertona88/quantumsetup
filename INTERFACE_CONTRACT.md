@@ -25,6 +25,11 @@ Tempo, note masks, effect sends, fades, bridges, fills, detailed arrangement, an
 individual synthesis parameters remain generator-owned. Signal Deck feedback is an
 indirect timbre preference, not an instrument selector or mixer.
 
+Echo Ascent is likewise generator-owned. It may appear only after an emergent
+phrase-state authorization and consists of a coordinated bright-percussion density
+contour plus bounded stereo motion. It introduces no new mode, button, effect-send
+control, or scheduled section type.
+
 The opening viewport is an immersive visual field. Its only visible interaction is
 the icon-only transport gesture required to start browser audio; readouts and music
 controls begin below the fold and appear through ordinary scrolling. Once audio is
@@ -121,6 +126,9 @@ recurrent phrase state justify dialogue. It never exposes all three together.
 Persistent Euclidean secondary-lane clocks, polymetric phase, material gestures, candidate
 selection, curated kick-phrase state, bass lineage, independent kick-family timbre,
 physical kick parameters, duck depths, and rumble settings remain generator-owned.
+Cooldown-earned Echo Ascent variant, high-percussion articulations, and stereo
+cross-feedback parameters also remain generator-owned and appear in the passive
+phrase instrumentation union when active.
 The performance layer can trim rendered buses or bias future phrases, but never
 edits a frozen onset mask. The kick clock is always bar-aligned four-on-the-floor;
 its anchor, turnaround-pickup, breathing, and rolling-pressure phrase families are

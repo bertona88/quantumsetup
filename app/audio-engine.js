@@ -187,6 +187,7 @@ function summarizeCouncilVerdict(verdict) {
     activeSynthEngines: verdict.activeSynthEngines,
     optionalLayerBudget: verdict.optionalLayerBudget,
     maxAdvancedStarts: verdict.maxAdvancedStarts,
+    echoAscent: verdict.echoAscent,
   });
 }
 
@@ -949,6 +950,47 @@ export class InfiniteTechnoEngine {
     this.delay.connect(this.delayWet);
     this.delayWet.connect(this.musicBus);
 
+    this.echoAscentIn = context.createGain();
+    this.echoAscentHighpass = context.createBiquadFilter();
+    this.echoAscentLeftDelay = context.createDelay(1);
+    this.echoAscentRightDelay = context.createDelay(1);
+    this.echoAscentLeftFilter = context.createBiquadFilter();
+    this.echoAscentRightFilter = context.createBiquadFilter();
+    this.echoAscentLeftFeedback = context.createGain();
+    this.echoAscentRightFeedback = context.createGain();
+    const echoAscentLeftPan = this.createPanStage(-1);
+    const echoAscentRightPan = this.createPanStage(1);
+    this.echoAscentLeftPan = echoAscentLeftPan.node;
+    this.echoAscentRightPan = echoAscentRightPan.node;
+    this.echoAscentWet = context.createGain();
+    this.echoAscentHighpass.type = "highpass";
+    this.echoAscentHighpass.frequency.value = 1850;
+    this.echoAscentHighpass.Q.value = 0.72;
+    this.echoAscentLeftFilter.type = "lowpass";
+    this.echoAscentRightFilter.type = "lowpass";
+    this.echoAscentLeftFilter.frequency.value = 8400;
+    this.echoAscentRightFilter.frequency.value = 8400;
+    this.echoAscentLeftFilter.Q.value = 0.64;
+    this.echoAscentRightFilter.Q.value = 0.64;
+    this.echoAscentLeftDelay.delayTime.value = 0.35;
+    this.echoAscentRightDelay.delayTime.value = 0.35;
+    this.echoAscentLeftFeedback.gain.value = 0.0001;
+    this.echoAscentRightFeedback.gain.value = 0.0001;
+    this.echoAscentWet.gain.value = 0.0001;
+    this.echoAscentIn.connect(this.echoAscentHighpass);
+    this.echoAscentHighpass.connect(this.echoAscentLeftDelay);
+    this.echoAscentLeftDelay.connect(this.echoAscentLeftFilter);
+    this.echoAscentLeftFilter.connect(this.echoAscentLeftPan);
+    this.echoAscentLeftPan.connect(this.echoAscentWet);
+    this.echoAscentLeftFilter.connect(this.echoAscentLeftFeedback);
+    this.echoAscentLeftFeedback.connect(this.echoAscentRightDelay);
+    this.echoAscentRightDelay.connect(this.echoAscentRightFilter);
+    this.echoAscentRightFilter.connect(this.echoAscentRightPan);
+    this.echoAscentRightPan.connect(this.echoAscentWet);
+    this.echoAscentRightFilter.connect(this.echoAscentRightFeedback);
+    this.echoAscentRightFeedback.connect(this.echoAscentLeftDelay);
+    this.echoAscentWet.connect(this.musicBus);
+
     this.reverbIn = context.createGain();
     this.reverbHighpass = context.createBiquadFilter();
     this.reverbLowpass = context.createBiquadFilter();
@@ -1205,6 +1247,31 @@ export class InfiniteTechnoEngine {
     this.delayFeedback.gain.setTargetAtTime(clamp(0.2 + profile.space * 0.42, 0, 0.72), now, constant);
     this.delayWet.gain.setTargetAtTime(0.08 + profile.space * 0.2, now, constant);
     this.reverbWet.gain.setTargetAtTime(0.055 + profile.space * 0.22, now, constant);
+    const echoAscent = plan?.echoAscent;
+    const echoDelay = beat * clamp((echoAscent?.delaySteps ?? 3) / 4, 0.5, 0.75);
+    const echoFeedback = clamp(echoAscent?.feedback ?? 0.0001, 0.0001, 0.55);
+    const echoWet = clamp(echoAscent?.wet ?? 0.0001, 0.0001, 0.74);
+    this.echoAscentLeftDelay.delayTime.setTargetAtTime(
+      echoDelay,
+      now,
+      constant,
+    );
+    this.echoAscentRightDelay.delayTime.setTargetAtTime(
+      echoDelay,
+      now,
+      constant,
+    );
+    this.echoAscentLeftFeedback.gain.setTargetAtTime(
+      echoFeedback,
+      now,
+      constant,
+    );
+    this.echoAscentRightFeedback.gain.setTargetAtTime(
+      echoFeedback,
+      now,
+      constant,
+    );
+    this.echoAscentWet.gain.setTargetAtTime(echoWet, now, constant);
     this.rumbleDelay.delayTime.setTargetAtTime(beat * 0.5, now, constant);
     this.rumbleSendGain.gain.setTargetAtTime(rumbleSend, now, constant);
     this.rumbleFilter.frequency.setTargetAtTime(rumbleCutoff, now, constant);
@@ -1709,6 +1776,11 @@ export class InfiniteTechnoEngine {
       this.metallic(eventTime, plan.metallic[step], plan.profile.metallic, stepDuration);
     }
     if (plan.tom[step]) this.tom(eventTime, plan.tom[step], step, plan.profile.drive);
+    const echoAscentHit = plan.echoAscent?.hits?.[step];
+    if (echoAscentHit) {
+      this.echoAscentHit(eventTime, echoAscentHit);
+      hatPulse = Math.max(hatPulse, echoAscentHit.velocity);
+    }
     if (plan.bass[step] && !this.mixControls.bassCut) {
       this.duckRumbleForBass(eventTime, plan.lowEnd, stepDuration);
       this.bass(
@@ -1884,7 +1956,14 @@ export class InfiniteTechnoEngine {
     return { node, pan };
   }
 
-  route(output, dry = 1, delay = 0, reverb = 0, destination = "music") {
+  route(
+    output,
+    dry = 1,
+    delay = 0,
+    reverb = 0,
+    destination = "music",
+    echoAscent = 0,
+  ) {
     const context = this.ctx;
     const nodes = [];
     const dryGain = context.createGain();
@@ -1914,6 +1993,14 @@ export class InfiniteTechnoEngine {
       send.gain.value = reverbAmount;
       output.connect(send);
       send.connect(this.reverbIn);
+      nodes.push(send);
+    }
+    const echoAscentAmount = clamp(Number(echoAscent) || 0, 0, 0.6);
+    if (echoAscentAmount > 0 && this.echoAscentIn) {
+      const send = context.createGain();
+      send.gain.value = echoAscentAmount;
+      output.connect(send);
+      send.connect(this.echoAscentIn);
       nodes.push(send);
     }
     return nodes;
@@ -2339,6 +2426,121 @@ export class InfiniteTechnoEngine {
     modulator.start(time);
     carrier.stop(time + duration + 0.02);
     modulator.stop(time + duration + 0.02);
+  }
+
+  echoAscentHit(time, event) {
+    const context = this.ctx;
+    if (!context || !event) return;
+    const voice = event.voice;
+    const velocity = clamp(Number(event.velocity) || 0, 0.06, 0.42);
+    const brightness = clamp(Number(event.brightness) || 0.78, 0, 1);
+    const send = clamp(Number(event.send) || 0, 0, 0.6);
+    const panStage = this.createPanStage(
+      clamp(Number(event.pan) || 0, -0.68, 0.68),
+    );
+
+    if (voice === "shaker" || voice === "ride") {
+      const source = context.createBufferSource();
+      const highpass = context.createBiquadFilter();
+      const bandpass = context.createBiquadFilter();
+      const gain = context.createGain();
+      const isRide = voice === "ride";
+      const duration = isRide ? 0.46 + brightness * 0.18 : 0.07;
+      source.buffer = this.noiseBuffer;
+      source.playbackRate.value = isRide
+        ? 1.28 + brightness * 0.34
+        : 1.46 + brightness * 0.38;
+      highpass.type = "highpass";
+      highpass.frequency.value = isRide ? 4800 : 3900;
+      bandpass.type = "bandpass";
+      bandpass.frequency.value = isRide
+        ? 6900 + brightness * 2600
+        : 5200 + brightness * 2200;
+      bandpass.Q.value = isRide ? 1.8 : 1.35;
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.exponentialRampToValueAtTime(
+        velocity * (isRide ? 0.52 : 0.68),
+        time + (isRide ? 0.002 : 0.0035),
+      );
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+      source.connect(highpass);
+      highpass.connect(bandpass);
+      bandpass.connect(gain);
+      gain.connect(panStage.node);
+      const routes = this.route(
+        panStage.node,
+        isRide ? 0.56 : 0.68,
+        0,
+        isRide ? 0.08 : 0.025,
+        "music",
+        send,
+      );
+      if (
+        !this.registerVoice(
+          [source],
+          [highpass, bandpass, gain, panStage.node, ...routes],
+        )
+      ) {
+        return;
+      }
+      const offset =
+        (hash32(this.seed, this.bar, this.step, voice, "echo-source") % 900) /
+        1000;
+      source.start(time, offset, duration + 0.03);
+      return;
+    }
+
+    const frequencies =
+      voice === "rim"
+        ? [980, 1570]
+        : [2320, 3517, 5173, 7310];
+    const oscillators = frequencies.map((frequency, index) => {
+      const oscillator = context.createOscillator();
+      oscillator.type = index % 2 ? "triangle" : "sine";
+      oscillator.frequency.value =
+        frequency * (0.9 + brightness * 0.2);
+      return oscillator;
+    });
+    const highpass = context.createBiquadFilter();
+    const lowpass = context.createBiquadFilter();
+    const gain = context.createGain();
+    const duration = voice === "rim" ? 0.085 : 0.17;
+    highpass.type = "highpass";
+    highpass.frequency.value = voice === "rim" ? 720 : 1750;
+    highpass.Q.value = 0.68;
+    lowpass.type = "lowpass";
+    lowpass.frequency.value = 7600 + brightness * 1800;
+    lowpass.Q.value = 0.7;
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(
+      velocity * (voice === "rim" ? 0.38 : 0.15),
+      time + 0.0015,
+    );
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+    oscillators.forEach((oscillator) => oscillator.connect(highpass));
+    highpass.connect(lowpass);
+    lowpass.connect(gain);
+    gain.connect(panStage.node);
+    const routes = this.route(
+      panStage.node,
+      voice === "rim" ? 0.7 : 0.62,
+      0,
+      voice === "rim" ? 0.025 : 0.06,
+      "music",
+      send,
+    );
+    if (
+      !this.registerVoice(
+        oscillators,
+        [highpass, lowpass, gain, panStage.node, ...routes],
+      )
+    ) {
+      return;
+    }
+    oscillators.forEach((oscillator) => {
+      oscillator.start(time);
+      oscillator.stop(time + duration + 0.025);
+    });
   }
 
   tom(time, velocity, step, drive) {

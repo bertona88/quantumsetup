@@ -54,7 +54,10 @@ The winning chair does not average four suggestions:
 5. allow a second advanced voice only when the current phenotype and recurrent
    phrase state justify dialogue;
 6. allow a fill only when recurrent state grants permission;
-7. keep equal-priority foregrounds resident until a causal lineage event authorizes
+7. when recurrent state authorizes Echo Ascent, treat its complete bright-percussion
+   contour as the foreground, admit at most one other optional layer, and remove
+   competing high-register advanced roles;
+8. keep equal-priority foregrounds resident until a causal lineage event authorizes
    a handoff.
 
 Section names are run-length readouts derived after the decision. They describe
@@ -87,6 +90,9 @@ control surface.
   quarter-note anchor while the kick clock is anchored.
 - Never relocate more than one priority lead to solve a collision.
 - Never make a dramatic fill routine.
+- Never trigger Echo Ascent from phrase modulo, a display label, or an effect-only
+  random gate; its density, timbre, and stereo motion must remain one cooled-down
+  phrase gesture.
 - Never mistake more instruments for more musical information.
 - Never treat a derived section label as an arrangement schedule.
 - Never let a 192-bar observation/cache boundary change musical identity.

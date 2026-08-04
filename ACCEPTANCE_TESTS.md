@@ -85,6 +85,12 @@ carried forward across the material-planner rewrite.
 
 - [x] recurrent form remains the macro-intent provider and contains no fixed
   movement, energy, chair, or material-onset schedule.
+- [x] Echo Ascent is earned from rising recurrent state, deterministic, mutually
+  exclusive with a riser, and protected by an eight-phrase cooldown rather than a
+  bar-modulo schedule.
+- [x] restrained, widening, and late-throw variants freeze complete bounded
+  high-percussion contours; their council verdict limits optional competition and
+  excludes high-register advanced parts.
 - [x] derived labels and section RLE remain diagnostic and cannot reset material
   clocks, motif memory, or call obligations.
 - [x] only an accepted New Trajectory resets material memory; a rejected trajectory
@@ -102,6 +108,10 @@ carried forward across the material-planner rewrite.
 - [x] the hardware scheduler retains audio-clock lookahead, missed-step recovery,
   finite source cleanup, bounded voices, and separate kick, bass, rumble, and music
   buses.
+- [x] the dedicated Echo Ascent path high-passes its input, alternates left/right
+  through true cross-feedback capped at `0.55`, accepts sends capped at `0.60`, and
+  leaves the ordinary shared delay plus kick/bass buses unchanged.
+- [x] every audible Echo Ascent hit enters the frozen read-only visual forecast.
 - [x] the complete deterministic, DSP, worklet, lifecycle, transition, trajectory,
   performance-control, taste, and syntax suite passes together on the current local
   `2.2.0` source state.
@@ -118,13 +128,16 @@ carried forward across the material-planner rewrite.
 - [x] settled Vibe endpoints change future phrases without rewriting an already
   frozen phrase.
 
-Current local evidence: `npm --prefix app run check` passes all 130 tests. The
+Current local evidence: `npm --prefix app run check` passes all 148 tests. The
 13-trajectory first-48-bar manifest passes all 78 pairs; the minimum observed
 composite distance is `0.252146`, with rhythm and phrase-grammar separation plus at
 least one of orchestration, timbre, or harmony for every pair.
 
 ## Gate 5 — Render and listening evidence
 
+- [ ] fixed-seed real-engine Echo Ascent captures confirm the intended density rise,
+  bright articulation, audible left/right motion, finite tail, and acceptable mix
+  balance against nearby non-event phrases.
 - [ ] eight fixed 96-bar trajectories plus stems are rendered in a foreground
   browser harness from the final tested bytes.
 - [ ] render hashes, peak, RMS, DC, clipping, silence, discontinuity, kick/bass

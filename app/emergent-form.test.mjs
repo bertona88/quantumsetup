@@ -199,6 +199,7 @@ test("the recurrent form earns variable arcs, cooldowns, and independent materia
     climaxOnset: 0,
     fill: 0,
     riser: 0,
+    echoAscent: 0,
     dialogue: 0,
     kickFamily: 0,
     withdrawal: 0,
@@ -211,6 +212,7 @@ test("the recurrent form earns variable arcs, cooldowns, and independent materia
   const labels = new Set();
   const harmonyResidues = new Set();
   const harmonyGaps = new Set();
+  const echoAscentVariants = new Set();
   const values = {
     energy: [],
     tension: [],
@@ -232,6 +234,7 @@ test("the recurrent form earns variable arcs, cooldowns, and independent materia
     const lastAt = {
       fill: -Infinity,
       riser: -Infinity,
+      echoAscent: -Infinity,
       dialogue: -Infinity,
       kickFamily: -Infinity,
       mutation: -Infinity,
@@ -254,12 +257,14 @@ test("the recurrent form earns variable arcs, cooldowns, and independent materia
       const permissions = {
         fill: state.allowFill,
         riser: state.allowRiser,
+        echoAscent: state.allowEchoAscent,
         dialogue: state.earnedDialogue,
         kickFamily: state.kickFamilyMorph,
       };
       const cooldowns = {
         fill: FORM_RULES.fill.cooldownPhrases,
         riser: FORM_RULES.riser.cooldownPhrases,
+        echoAscent: FORM_RULES.echoAscent.cooldownPhrases,
         dialogue: FORM_RULES.dialogue.cooldownPhrases,
         kickFamily: FORM_RULES.kickFamily.cooldownPhrases,
       };
@@ -271,6 +276,13 @@ test("the recurrent form earns variable arcs, cooldowns, and independent materia
         );
         lastAt[event] = state.phraseIndex;
         eventCounts[event] += 1;
+      }
+      if (state.allowEchoAscent) {
+        echoAscentVariants.add(state.echoAscentVariant);
+        assert.equal(state.allowRiser, false);
+        assert.ok(state.echoAscentReadiness >= 0.39);
+      } else {
+        assert.equal(state.echoAscentVariant, null);
       }
 
       if (state.climaxOnset) {
@@ -382,6 +394,11 @@ test("the recurrent form earns variable arcs, cooldowns, and independent materia
     "radical-reduction",
   ]);
   assert.ok(labels.size >= 10);
+  assert.deepEqual([...echoAscentVariants].sort(), [
+    "late-throw",
+    "restrained",
+    "widening",
+  ]);
   assert.equal(harmonyResidues.size, 16);
   assert.ok(harmonyGaps.size > 12);
   for (const [event, count] of Object.entries(eventCounts)) {

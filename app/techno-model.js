@@ -38,6 +38,32 @@ export const GENERATOR_VERSION = "2.2.0";
 export const STEPS_PER_BAR = 16;
 export const PHRASE_BARS = 8;
 export const MOVEMENT_BARS = 192;
+export const ECHO_ASCENT_VARIANTS = Object.freeze({
+  restrained: Object.freeze({
+    label: "RESTRAINED ECHO ASCENT",
+    startBar: 4,
+    delaySteps: 3,
+    feedback: 0.32,
+    wet: 0.64,
+    maxSend: 0.46,
+  }),
+  widening: Object.freeze({
+    label: "WIDENING ECHO ASCENT",
+    startBar: 4,
+    delaySteps: 2,
+    feedback: 0.43,
+    wet: 0.7,
+    maxSend: 0.54,
+  }),
+  "late-throw": Object.freeze({
+    label: "LATE ECHO THROW",
+    startBar: 6,
+    delaySteps: 3,
+    feedback: 0.55,
+    wet: 0.74,
+    maxSend: 0.6,
+  }),
+});
 const MOVEMENT_CACHE_LIMIT = 64;
 const movementCache = new Map();
 const MATERIAL_CACHE_LIMIT = 256;
@@ -1188,9 +1214,12 @@ export function conveneCouncil({
     ["detroit", "peak"].includes(profile.id) &&
     form.density > 0.48 &&
     !sparse;
+  const foregroundEngines = form.allowEchoAscent
+    ? rankedEngines.filter((engine) => roles[engine]?.register !== "high")
+    : rankedEngines;
   const activeSynthEngines = intentionalRest
     ? []
-    : rankedEngines.slice(
+    : foregroundEngines.slice(
         0,
         profile.id === "dub"
           ? 1
@@ -1204,8 +1233,9 @@ export function conveneCouncil({
     "detroit-voicings",
     "suspended-space",
   ].includes(trackDNA.harmonyBehavior);
-  const optionalLayerBudget =
-    chair === "radical-reduction"
+  const optionalLayerBudget = form.allowEchoAscent
+    ? 1
+    : chair === "radical-reduction"
       ? 1
       : earnedDialogue
         ? 2
@@ -1259,6 +1289,7 @@ export function conveneCouncil({
     optionalLayerPriority: COUNCIL_LAYER_PRIORITY[chair],
     maxAdvancedStarts,
     allowFill,
+    echoAscent: form.allowEchoAscent,
   });
 }
 
@@ -1945,6 +1976,127 @@ function hasLaneEvents(lane) {
   return lane.some(Boolean);
 }
 
+export function buildEchoAscentPlan({
+  seed,
+  phraseIndex,
+  barInPhrase,
+  form,
+}) {
+  const variant = form.allowEchoAscent
+    ? ECHO_ASCENT_VARIANTS[form.echoAscentVariant]
+    : null;
+  if (!variant) return null;
+
+  const active = barInPhrase >= variant.startBar;
+  const progress = active
+    ? smoothstep(
+        clamp(
+          (barInPhrase - variant.startBar + 1) /
+            (PHRASE_BARS - variant.startBar),
+          0,
+          1,
+        ),
+      )
+    : 0;
+  const hits = emptyPattern(null);
+  if (active) {
+    const relativeBar = barInPhrase - variant.startBar;
+    const occupied = new Set();
+    const add = (voice, step, velocity, sendScale, pan) => {
+      if (occupied.has(step)) return;
+      occupied.add(step);
+      hits[step] = Object.freeze({
+        voice,
+        velocity: clamp(velocity, 0.06, 0.42),
+        brightness: clamp(
+          0.72 +
+            progress * 0.22 +
+            unitHash(
+              seed,
+              phraseIndex,
+              barInPhrase,
+              step,
+              voice,
+              "echo-ascent-brightness",
+            ) *
+              0.06,
+          0,
+          1,
+        ),
+        send: clamp(variant.maxSend * progress * sendScale, 0, 0.6),
+        pan: clamp(pan, -0.68, 0.68),
+      });
+    };
+
+    const rimSteps =
+      form.echoAscentVariant === "restrained" && relativeBar === 0
+        ? [7, 14]
+        : form.echoAscentVariant === "restrained" && relativeBar === 1
+          ? [3, 11, 14]
+          : [3, 7, 11, 14];
+    rimSteps.forEach((step, index) =>
+      add(
+        "rim",
+        step,
+        0.18 + progress * 0.08,
+        0.82,
+        index % 2 ? 0.38 : -0.38,
+      ),
+    );
+
+    [6, 13].forEach((step, index) =>
+      add(
+        "metallic",
+        step,
+        0.17 + progress * 0.1,
+        1,
+        index % 2 ? -0.48 : 0.48,
+      ),
+    );
+
+    const shakerSteps = progress > 0.5 ? [1, 5, 9] : [1, 9];
+    shakerSteps.forEach((step, index) =>
+      add(
+        "shaker",
+        step,
+        0.08 + progress * 0.04,
+        0.52,
+        index % 2 ? 0.58 : -0.58,
+      ),
+    );
+
+    const admitsRide =
+      barInPhrase >= 6 &&
+      (form.echoAscentVariant !== "restrained" || barInPhrase === 7);
+    if (admitsRide) {
+      [2, 10].forEach((step, index) =>
+        add(
+          "ride",
+          step,
+          0.085 + progress * 0.05,
+          0.72,
+          index % 2 ? -0.24 : 0.24,
+        ),
+      );
+    }
+  }
+
+  return Object.freeze({
+    id: "echo-ascent",
+    label: variant.label,
+    variant: form.echoAscentVariant,
+    authorized: true,
+    active,
+    progress,
+    startBar: variant.startBar,
+    delaySteps: variant.delaySteps,
+    feedback: variant.feedback,
+    wet: variant.wet,
+    maxSend: variant.maxSend,
+    hits: Object.freeze(hits),
+  });
+}
+
 function editOptionalLayers({
   councilVerdict,
   trackDNA,
@@ -2032,6 +2184,7 @@ function buildInstrumentation({
   texture,
   riser,
   downlifter,
+  echoAscent,
   synth,
   synthPalette,
   activeSynthEngines,
@@ -2078,6 +2231,9 @@ function buildInstrumentation({
   if (texture) add("atmosphere-texture", "atmosphere", "NOISE TEXTURE");
   if (riser) add("transition-riser", "transition", "EIGHT-BAR RISER");
   if (downlifter) add("transition-downlifter", "transition", "DOWNLIFTER");
+  if (echoAscent?.active && hasLaneEvents(echoAscent.hits)) {
+    add("transition-echo-ascent", "transition", echoAscent.label);
+  }
   return Object.freeze(items);
 }
 
@@ -2589,6 +2745,12 @@ export function buildBarPlan({
     profile,
   });
   const activeSynthEngines = councilVerdict.activeSynthEngines;
+  const echoAscent = buildEchoAscentPlan({
+    seed,
+    phraseIndex,
+    barInPhrase,
+    form,
+  });
 
   const phrasePatterns = materialState.phrase.patterns;
   const kick = emptyPattern();
@@ -3093,6 +3255,7 @@ export function buildBarPlan({
     texture,
     riser,
     downlifter,
+    echoAscent,
     synth,
     synthPalette,
     synthHandoff,
@@ -3151,6 +3314,7 @@ export function buildBarPlan({
     riserBars: 8,
     downlifter,
     downlifterBars: 4,
+    echoAscent,
     filterOpen: clamp(
       0.14 +
         form.brightness * 0.55 +

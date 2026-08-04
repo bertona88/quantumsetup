@@ -6,6 +6,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import {
   ARTISTIC_COUNCIL,
+  ECHO_ASCENT_VARIANTS,
   ENSEMBLE_SCENES,
   GENERATOR_VERSION,
   MOVEMENT_BARS,
@@ -229,6 +230,69 @@ test("bar plans are stable, bounded, and harmonically legal", () => {
   assert.equal(first.bass.length, 16);
   assert.ok(first.energy >= 0 && first.energy <= 1);
   assert.ok(planNotesBelongToMode(first));
+});
+
+test("earned echo ascents freeze a bounded bright-percussion phrase contour", () => {
+  const fixtures = [
+    { seed: 0, phraseIndex: 5, variant: "restrained" },
+    { seed: 1, phraseIndex: 40, variant: "widening" },
+    { seed: 0, phraseIndex: 46, variant: "late-throw" },
+  ];
+  for (const fixture of fixtures) {
+    const phraseStart = fixture.phraseIndex * 8;
+    const plans = Array.from({ length: 8 }, (_, barInPhrase) =>
+      buildBarPlan({
+        seed: fixture.seed,
+        bar: phraseStart + barInPhrase,
+      }),
+    );
+    const variant = ECHO_ASCENT_VARIANTS[fixture.variant];
+    const activeCounts = [];
+    const activeSends = [];
+    for (const plan of plans) {
+      assert.equal(plan.form.allowEchoAscent, true);
+      assert.equal(plan.form.echoAscentVariant, fixture.variant);
+      assert.equal(plan.councilVerdict.echoAscent, true);
+      assert.equal(plan.echoAscent.variant, fixture.variant);
+      assert.equal(plan.echoAscent.startBar, variant.startBar);
+      assert.ok(plan.echoAscent.feedback > 0);
+      assert.ok(plan.echoAscent.feedback <= 0.55);
+      assert.ok(plan.echoAscent.wet > 0 && plan.echoAscent.wet <= 0.74);
+      const hits = plan.echoAscent.hits.filter(Boolean);
+      if (plan.barInPhrase < variant.startBar) {
+        assert.equal(plan.echoAscent.active, false);
+        assert.deepEqual(hits, []);
+        continue;
+      }
+      assert.equal(plan.echoAscent.active, true);
+      assert.ok(hits.length >= 6 && hits.length <= 11);
+      assert.ok(
+        plan.instrumentation.some(
+          (item) => item.id === "transition-echo-ascent",
+        ),
+      );
+      assert.ok(
+        plan.activeSynthEngines.every(
+          (engine) => plan.ensembleScene.roles[engine].register !== "high",
+        ),
+      );
+      for (const hit of hits) {
+        assert.ok(["rim", "metallic", "shaker", "ride"].includes(hit.voice));
+        assert.ok(hit.velocity >= 0.06 && hit.velocity <= 0.42);
+        assert.ok(hit.brightness >= 0 && hit.brightness <= 1);
+        assert.ok(hit.send >= 0 && hit.send <= 0.6);
+        assert.ok(hit.pan >= -0.68 && hit.pan <= 0.68);
+      }
+      activeCounts.push(hits.length);
+      activeSends.push(Math.max(...hits.map((hit) => hit.send)));
+    }
+    assert.ok(activeCounts.every((count, index) => index === 0 || count >= activeCounts[index - 1]));
+    assert.ok(activeSends.every((send, index) => index === 0 || send >= activeSends[index - 1]));
+  }
+
+  const ordinary = buildBarPlan({ seed: 0, bar: 0 });
+  assert.equal(ordinary.form.allowEchoAscent, false);
+  assert.equal(ordinary.echoAscent, null);
 });
 
 test("rendered bar lanes preserve their selected material provenance", () => {

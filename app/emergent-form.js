@@ -35,6 +35,9 @@ export const FORM_RULES = Object.freeze({
   riser: Object.freeze({
     cooldownPhrases: 8,
   }),
+  echoAscent: Object.freeze({
+    cooldownPhrases: 8,
+  }),
   dialogue: Object.freeze({
     cooldownPhrases: 2,
   }),
@@ -381,6 +384,9 @@ function initialState(seed) {
     ),
     fillCooldown: Math.floor(coordinate(seed, 0, "origin-fill-cooldown") * 3),
     riserCooldown: Math.floor(coordinate(seed, 0, "origin-riser-cooldown") * 5),
+    echoAscentCooldown: Math.floor(
+      coordinate(seed, 0, "origin-echo-ascent-cooldown") * 7,
+    ),
     dialogueCooldown: 0,
     lastEnergyDelta: 0,
     lastTensionDelta: 0,
@@ -1035,6 +1041,44 @@ function advanceState(state, seed, phraseIndex) {
     ? FORM_RULES.fill.cooldownPhrases
     : availableFillCooldown;
 
+  const availableEchoAscentCooldown = Math.max(
+    0,
+    state.echoAscentCooldown - 1,
+  );
+  const echoAscentReadiness = bounded(
+    anticipation * 0.38 +
+      Math.max(0, tensionDelta) * 2.4 +
+      Math.max(0, energyDelta) * 1.4 +
+      density * 0.12 +
+      floorTrust * 0.12 -
+      fatigue * 0.1,
+  );
+  const allowEchoAscent =
+    !climax &&
+    !release &&
+    !intentionalRest &&
+    availableEchoAscentCooldown === 0 &&
+    anticipation > 0.48 &&
+    tensionDelta > 0.004 &&
+    density > 0.45 &&
+    echoAscentReadiness > 0.39 &&
+    coordinate(seed, phraseIndex, "echo-ascent-permission") > 0.4;
+  const echoAscentVariantCoordinate = coordinate(
+    seed,
+    phraseIndex,
+    "echo-ascent-variant",
+  );
+  const echoAscentVariant = !allowEchoAscent
+    ? null
+    : echoAscentVariantCoordinate < 0.7
+      ? "restrained"
+      : echoAscentVariantCoordinate < 0.93
+        ? "widening"
+        : "late-throw";
+  const echoAscentCooldown = allowEchoAscent
+    ? FORM_RULES.echoAscent.cooldownPhrases
+    : availableEchoAscentCooldown;
+
   const availableRiserCooldown = Math.max(0, state.riserCooldown - 1);
   const riserReadiness = bounded(
     anticipation * 0.48 +
@@ -1047,6 +1091,7 @@ function advanceState(state, seed, phraseIndex) {
     !climax &&
     !release &&
     !intentionalRest &&
+    !allowEchoAscent &&
     availableRiserCooldown === 0 &&
     anticipation > 0.58 &&
     tensionDelta > 0.008 &&
@@ -1101,6 +1146,10 @@ function advanceState(state, seed, phraseIndex) {
     allowRiser,
     riserReadiness,
     riserCooldown,
+    allowEchoAscent,
+    echoAscentVariant,
+    echoAscentReadiness,
+    echoAscentCooldown,
     kickPolicy,
     kickReason,
     kickCooldown,
@@ -1183,6 +1232,7 @@ function advanceState(state, seed, phraseIndex) {
       bassVoiceCooldown,
       fillCooldown,
       riserCooldown,
+      echoAscentCooldown,
       dialogueCooldown,
       lastEnergyDelta: energyDelta,
       lastTensionDelta: tensionDelta,

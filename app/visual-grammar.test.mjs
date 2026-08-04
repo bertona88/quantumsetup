@@ -51,3 +51,29 @@ test("forecast exposes frozen musical events without mutating the plans", () => 
   assert.ok(forecast.events.every((event) => event.offsetSteps < 96));
   assert.equal(JSON.stringify(plans), before);
 });
+
+test("forecast includes every audible echo-ascent percussion hit", () => {
+  const phraseStart = 5 * 8;
+  const plans = Array.from({ length: 8 }, (_, barInPhrase) =>
+    buildBarPlan({ seed: 0, bar: phraseStart + barInPhrase }),
+  );
+  const forecast = createVisualForecast({
+    seed: 0,
+    phrasePlans: plans,
+    bar: phraseStart + 4,
+    stepDuration: 0.115,
+  });
+  let assertedHits = 0;
+  for (const plan of plans.slice(4)) {
+    for (const [step, hit] of plan.echoAscent.hits.entries()) {
+      if (!hit) continue;
+      const event = forecast.events.find(
+        (candidate) => candidate.bar === plan.bar && candidate.step === step,
+      );
+      assert.ok(event, `missing echo-ascent forecast at ${plan.bar}:${step}`);
+      assert.ok(event.channels.percussion >= hit.velocity);
+      assertedHits += 1;
+    }
+  }
+  assert.ok(assertedHits > 0);
+});

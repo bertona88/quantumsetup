@@ -212,6 +212,7 @@ each eight-bar phrase, a deterministic recurrent state carries:
 - contrast, payoff, and novelty debt;
 - motif salience and lineage memory;
 - climax appetite, readiness, age, and cooldown;
+- echo-ascent readiness, phrase variant, and cooldown;
 - kick policy and withdrawal cooldown;
 - independent kick-family identity, morph readiness, and cooldown;
 - current council chair and its residency.
@@ -366,6 +367,15 @@ earns them. The result is not a vote or an average: one foreground idea wins and
 the remaining instruments wait. See
 [ARTISTIC_COUNCIL.md](./ARTISTIC_COUNCIL.md).
 
+An earned **Echo Ascent** is a phrase-frozen transition foreground, not a global
+delay preset. Rising tension, anticipation, density, readiness, a named seed
+coordinate, and an eight-phrase cooldown authorize one of three weighted variants:
+restrained dotted-eighth ascent, widening eighth-note ascent, or a rare late
+dotted-eighth throw. The selected variant adds a bounded four-bar or two-bar contour
+of bright rim, metallic, shaker, and late ride articulations. The council limits
+other optional layers to one and removes competing high-register advanced parts for
+that phrase. Persistent percussion clocks are not mutated by the transition part.
+
 Ordinary council phrases use one advanced engine and at most two advanced starts per
 bar. Sparse phrases use at most one. Intentional rests use none. A developed
 climax or recalled lineage may use two engines and at most four starts per bar.
@@ -410,7 +420,7 @@ timbre-candidate pool.
 
 The deterministic and focused-browser evidence does not establish persuasive
 long-form musical quality, audible trajectory separation, long-duration
-foreground-browser reliability, or multi-day performance. All 130 deterministic
+foreground-browser reliability, or multi-day performance. All 148 deterministic
 tests pass. Focused local and public performance smokes cover Start/Stop, EQ,
 quantized cuts, direction targeting, bass character, persistence, responsive
 widths, and console cleanliness. The exact 18-file Pages bundle byte-matches
@@ -466,6 +476,9 @@ Effects respond to musical state:
 - filter motion follows bounded brightness, energy, and space;
 - risers require high anticipation and rising tension, so they can become false
   builds rather than announcements of a scheduled Peak;
+- earned Echo Ascents coordinate a temporary bright-percussion density rise with a
+  dedicated high-passed stereo cross-feedback delay; they are mutually exclusive
+  with risers and do not change kick, bass, or the ordinary shared-delay vocabulary;
 - downlifters mark an emergent release;
 - long pads and texture washes respond to space, release, and motif salience;
 - master gain remains stable; energy comes primarily from orchestration.
@@ -473,7 +486,8 @@ Effects respond to musical state:
 The performance EQ is a listener-owned contour after the generator buses. It does
 not replace generator-owned voice filters, sends, or arrangement motion.
 
-Feedback is bounded below 0.72 for the main delay and below 0.58 for rumble.
+Feedback is bounded below 0.72 for the main delay, at or below 0.55 for Echo
+Ascent cross-feedback, and below 0.58 for rumble.
 
 ## Claims and limitations
 
@@ -491,6 +505,8 @@ Allowed:
 - rule-earned, bounded climax, curated kick-phrase, and motif-lineage behavior;
 - lineage-authored tonal material and one-engine causal synthesis handoffs;
 - separate kick, bass, rumble, and music buses with bounded low-end routing;
+- deterministic, cooldown-earned Echo Ascent transitions with finite bright
+  percussion voices and bounded stereo cross-feedback;
 - gradual, phrase-quantized high-level direction changes;
 - analyser-driven quantum-inspired visual contour.
 

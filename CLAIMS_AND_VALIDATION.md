@@ -84,6 +84,12 @@ The application may claim that it:
   together;
 - changes harmony position through state-earned, cooled-down turns rather than
   lineage age, elapsed bars, or the 192-bar observation clock;
+- authorizes an occasional phrase-frozen Echo Ascent only after rising tension,
+  anticipation, density, readiness, a deterministic permission coordinate, and an
+  eight-phrase cooldown converge;
+- realizes that authorization as one of three weighted bright-percussion contours
+  through a separate high-passed stereo cross-feedback path capped at `0.55`, while
+  excluding a simultaneous riser and competing high-register advanced parts;
 - emits bounded physical kick-timbre and low-end routing contracts;
 - routes kick, bass, rumble, and remaining music through separate buses before the
   shared master chain;
@@ -164,6 +170,7 @@ The application does not claim:
 | candidate-selection tests | twelve-candidate construction, rejection bounds, normalized scoring, threshold and near-best filtering, deterministic softmax, and cross-seed choice diversity | that the selected candidate is musically best |
 | model tests | frozen phrase materialization, legal structure, bounded lanes and pitch families | subjective groove quality |
 | emergent-form distribution tests | bounded recurrent state, removal of fixed schedules, varied/absent and materially long climax windows, operative gates, causal gesture cooldowns, honest recall labels, non-causal derived sections, and safe replay bounds | whether the resulting long arc feels earned to a listener |
+| Echo Ascent planner and graph tests | all three phrase-frozen variants, rising density/send contours, eight-phrase cooldown, no simultaneous riser, high-register foreground exclusion, finite bright voices, bounded cross-feedback topology, and forecast visibility | whether frequency, timbre, stereo translation, and payoff feel right in long listening |
 | 128-seed, 384-bar material scan | kick clock remains bar-aligned in every phrase, all four curated kick families are reached with safe spacing and phrase-boundary transitions, secondary lanes retain persistent non-16 polymeter, no global lane reset, and exact repetition remains attributable | club-system translation or perceived low-end authority |
 | low-end planner tests | independent kick-family cooldown and phrase morph, track-level off/short/deep rumble, secondary-kick bass survival, character-dependent bass density, articulation-aware duck bounds, bounded physical fields, persistent clock/lineage continuity, and routing-contract bounds | club-system translation or perceived low-end authority |
 | same-seed real-engine captures | unnormalized browser-engine bass-solo and full-mix WAVs for rolling/off-rumble and acid/deep-rumble trajectories; bass RMS remains within 8.84–10.03 dB of the corresponding full mix | subjective audibility on the user's system, club translation, or parity with illustrative reference renders |

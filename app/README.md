@@ -69,6 +69,8 @@ contrast/payoff/novelty debt, and gesture cooldowns. The winning lens applies
 bounded phrase deltas. There is no movement template, fixed section energy curve,
 or section-to-chair lookup. Climax entry requires accumulated threshold state and
 a seed-specific appetite; it can remain absent or sustain for a bounded 16–64 bars.
+The same state may occasionally authorize an Echo Ascent after rising tension and
+anticipation converge, then enforces an eight-phrase cooldown.
 
 `material-planner.js` owns phrase-sequential rhythmic and motif material. Persistent
 Euclidean clocks follow the absolute sixteenth-note stream, an authored gesture
@@ -135,7 +137,10 @@ master chain. Bass and music receive independent kick ducking; rumble has bounde
 send, cutoff, and feedback. Separate performance gains preserve cuts and bass
 presence without being overwritten by duck recovery. A bounded Low/Mid/High EQ
 chain precedes soft clipping and compression. Filtered delay, generated convolution
-reverb, voice filters, and effect sends remain generator-owned.
+reverb, voice filters, and effect sends remain generator-owned. Echo Ascent adds a
+separate high-passed left/right cross-feedback path and a phrase-frozen bright rim,
+metallic, shaker, and ride contour; it does not raise ordinary shared-delay sends or
+touch kick and bass routing.
 Native temporary voices are capped at 72 and the advanced bank at 24, preserving a
 combined ceiling of 96. Every voice has a finite hard end.
 
