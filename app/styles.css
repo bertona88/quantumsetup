@@ -1244,10 +1244,53 @@ summary:focus-visible {
   background: rgba(7, 6, 9, 0.76);
 }
 
-.footer > div:first-child {
+.trajectory-identity {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.share-moment-button {
+  min-height: 34px;
+  padding: 7px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  background: transparent;
+  font-family: var(--data);
+  font-size: 0.54rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.share-moment-button:hover,
+.share-moment-button:focus-visible {
+  color: var(--text);
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.035);
+  outline: none;
+}
+
+.share-moment-button[data-state="copied"] {
+  color: var(--acid);
+  border-color: color-mix(in srgb, var(--acid) 48%, transparent);
+}
+
+.share-moment-button[data-state="error"] {
+  color: #ff8f77;
+}
+
+.share-moment-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .footer p {
@@ -1613,6 +1656,16 @@ kbd {
     min-height: 62px;
     border-top: 1px solid var(--line) !important;
     border-left: 0 !important;
+  }
+
+  .trajectory-identity {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+  }
+
+  .share-moment-button {
+    min-height: 32px;
+    padding: 6px 8px;
   }
 
   .control-heading {

@@ -14,6 +14,13 @@ import {
   parseTrajectoryId,
   trajectoryIdForUrl,
 } from "./trajectory-identity.js";
+import {
+  MOMENT_QUERY_PARAM,
+  createShareMomentUrl,
+  decodeMomentCapsule,
+  normalizeMomentCapsule,
+  restoreMomentEngine,
+} from "./moment-share.js";
 import { QuantumPremonitionVisual } from "./quantum-visual.js";
 
 const app = document.querySelector("#app");
@@ -27,6 +34,8 @@ const keyReadout = document.querySelector("#key-readout");
 const bpmReadout = document.querySelector("#bpm-readout");
 const barReadout = document.querySelector("#bar-readout");
 const seedReadout = document.querySelector("#seed-readout");
+const shareMomentButton = document.querySelector("#share-moment-button");
+const shareMomentLabel = document.querySelector("#share-moment-label");
 const transitionCopy = document.querySelector("#transition-copy");
 const transitionFill = document.querySelector("#transition-fill");
 const liveRegion = document.querySelector("#live-region");
@@ -77,13 +86,30 @@ function loadPerformancePreferences() {
   }
 }
 
-const performancePreferences = loadPerformancePreferences();
+const storedPerformancePreferences = loadPerformancePreferences();
 
 const params = new URLSearchParams(window.location.search);
 const seedText = params.get("seed");
 const parsedSeed = parseTrajectoryId(seedText);
-const initialSeed = parsedSeed ?? freshTrajectoryId(window.crypto);
-const initialDirection = deriveInitialDirection(initialSeed);
+const decodedMoment = decodeMomentCapsule(params.get(MOMENT_QUERY_PARAM));
+const replayMoment =
+  decodedMoment?.generatorVersion === GENERATOR_VERSION
+    ? decodedMoment
+    : null;
+const initialSeed =
+  replayMoment?.initial.seed ?? parsedSeed ?? freshTrajectoryId(window.crypto);
+const derivedInitialDirection = deriveInitialDirection(initialSeed);
+const initialDirection = replayMoment
+  ? {
+      vibe: replayMoment.initial.vibe,
+      tonality: replayMoment.initial.tonality,
+    }
+  : derivedInitialDirection;
+const performancePreferences = {
+  mix: replayMoment?.current.mix ?? storedPerformancePreferences.mix,
+  direction:
+    replayMoment?.initial.direction ?? storedPerformancePreferences.direction,
+};
 
 const visualState = {
   kick: 0,
@@ -101,20 +127,49 @@ const visualState = {
   running: false,
 };
 
-const signalDeck = new SignalDeckModel();
+function ephemeralSignalStorage(signalState) {
+  let text = JSON.stringify(signalState);
+  return {
+    getItem: () => text,
+    setItem: (_key, value) => {
+      text = String(value);
+    },
+  };
+}
+
+const signalDeck = replayMoment
+  ? new SignalDeckModel({
+      storage: ephemeralSignalStorage(replayMoment.signal),
+      sessionStorage: null,
+    })
+  : new SignalDeckModel();
 const signalAuditioner = new InstrumentAuditioner();
+let restoringMoment = Boolean(replayMoment);
+let momentEvents = replayMoment ? [...replayMoment.events] : [];
+let momentHistoryOverflow = false;
 const engine = new InfiniteTechnoEngine(handleEngineEvent, {
   seed: initialSeed,
   vibe: initialDirection.vibe,
   tonality: initialDirection.tonality,
-  tasteProfile: signalDeck.tasteProfile,
+  tasteProfile: replayMoment?.initial.tasteProfile ?? signalDeck.tasteProfile,
   mixControls: performancePreferences.mix,
   directionControls: performancePreferences.direction,
 });
+const restoredSnapshot = replayMoment
+  ? restoreMomentEngine(engine, replayMoment)
+  : null;
+restoringMoment = false;
+const momentInitial = replayMoment?.initial ?? {
+  seed: initialSeed,
+  vibe: initialDirection.vibe,
+  tonality: initialDirection.tonality,
+  direction: performancePreferences.direction,
+  tasteProfile: signalDeck.tasteProfile,
+};
 
 let uiBusy = false;
-let targetVibe = initialDirection.vibe;
-let targetTonality = initialDirection.tonality;
+let targetVibe = restoredSnapshot?.vibe ?? initialDirection.vibe;
+let targetTonality = restoredSnapshot?.tonality ?? initialDirection.tonality;
 let instrumentationSignature = "";
 let displayedInstrumentCount = 0;
 let advancedSynthAvailable = null;
@@ -124,8 +179,11 @@ let currentSignal = signalDeck.currentSpecimen;
 let signalDecisionLocked = false;
 let signalPointer = null;
 let signalAuditionTimer = null;
-let targetDirectionControls = performancePreferences.direction;
+let targetDirectionControls =
+  restoredSnapshot?.performance?.directionTarget ??
+  performancePreferences.direction;
 let premonitionVisual = null;
+let shareButtonResetTimer = null;
 
 function titleCase(text) {
   return String(text)
@@ -223,16 +281,21 @@ function initializePerformanceControls() {
   for (const input of directionInputs) {
     input.value = String(
       Math.round(
-        performancePreferences.direction[input.dataset.directionParam] * 100,
+        targetDirectionControls[input.dataset.directionParam] * 100,
       ),
     );
     setRangePresentation(input);
   }
-  for (const button of cutButtons) renderCutButton(button, false);
+  for (const button of cutButtons) {
+    renderCutButton(
+      button,
+      engine.mixControls[`${button.dataset.cutTarget}Cut`] === true,
+    );
+  }
   selectTarget(
     bassCharacterButtons,
     "basslineCharacter",
-    performancePreferences.direction.bassCharacter,
+    targetDirectionControls.bassCharacter,
   );
   renderDirectionTarget();
 }
@@ -251,6 +314,146 @@ function updateSeed(seed, { writeUrl = true } = {}) {
   const url = new URL(window.location.href);
   url.searchParams.set("seed", trajectoryIdForUrl(seed));
   window.history.replaceState(null, "", url);
+}
+
+function invalidateSharedMomentUrl() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has(MOMENT_QUERY_PARAM)) return;
+  url.searchParams.delete(MOMENT_QUERY_PARAM);
+  window.history.replaceState(null, "", url);
+}
+
+function recordMomentEvent(event) {
+  if (restoringMoment) return;
+  let entry = null;
+  const position = {
+    bar: engine.bar,
+    step: engine.step,
+    planned:
+      engine.phrasePlansPhraseIndex === Math.floor(Math.max(0, engine.bar) / 8),
+  };
+  if (event.type === "intent" && event.kind === "vibe") {
+    entry = {
+      ...position,
+      type: "vibe",
+      immediate: event.immediate === true,
+      value: event.active ?? event.to,
+    };
+  }
+  if (event.type === "intent" && event.kind === "tonality") {
+    entry = {
+      ...position,
+      type: "tonality",
+      immediate: event.immediate === true,
+      value: event.active ?? event.to,
+    };
+  }
+  if (event.type === "performance-direction") {
+    entry = {
+      ...position,
+      type: "direction",
+      immediate: event.immediate === true,
+      value: event.direction,
+    };
+  }
+  if (event.type === "taste") {
+    entry = {
+      ...position,
+      type: "taste",
+      value: engine.tasteProfile,
+    };
+  }
+  if (event.type === "seed") {
+    entry = {
+      type: "seed",
+      bar: event.bar,
+      step: engine.step,
+      planned: false,
+      value: event.seed,
+    };
+  }
+  if (!entry) return;
+  invalidateSharedMomentUrl();
+  if (momentEvents.length >= 1_024) {
+    momentHistoryOverflow = true;
+    return;
+  }
+  momentEvents.push(entry);
+}
+
+function createCurrentMomentCapsule() {
+  if (momentHistoryOverflow) {
+    throw new RangeError("This session has too many direction changes to fit in one replay URL.");
+  }
+  const snapshot = engine.getSnapshot();
+  const signal = signalDeck.getSnapshot();
+  return normalizeMomentCapsule({
+    generatorVersion: GENERATOR_VERSION,
+    initial: momentInitial,
+    events: momentEvents,
+    current: {
+      seed: snapshot.seed,
+      bar: snapshot.bar,
+      step: snapshot.step,
+      bpm: snapshot.bpm,
+      vibe: snapshot.vibe,
+      tonality: snapshot.tonality,
+      mix: snapshot.performance.mix,
+      section: snapshot.section,
+      materialFingerprint: snapshot.material?.phraseFingerprint,
+      materialGesture: snapshot.material?.gesture,
+      ensembleScene: snapshot.ensembleScene?.id,
+      tasteFingerprint: snapshot.taste.fingerprint,
+      tasteProfile: engine.tasteProfile,
+    },
+    signal: {
+      ...signal,
+      tasteProfile: engine.tasteProfile,
+    },
+  });
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const field = document.createElement("textarea");
+  field.value = text;
+  field.setAttribute("readonly", "");
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  document.body.append(field);
+  field.select();
+  const copied = document.execCommand?.("copy") === true;
+  field.remove();
+  if (!copied) throw new Error("Clipboard access is unavailable.");
+}
+
+async function shareCurrentMoment() {
+  if (!shareMomentButton || shareMomentButton.disabled) return;
+  shareMomentButton.disabled = true;
+  try {
+    const capsule = createCurrentMomentCapsule();
+    if (!capsule) throw new Error("The current musical moment is incomplete.");
+    const url = createShareMomentUrl(window.location.href, capsule);
+    await copyText(url);
+    shareMomentButton.dataset.state = "copied";
+    shareMomentLabel.textContent = "COPIED";
+    liveRegion.textContent = `Replay link copied for bar ${capsule.current.bar + 1}, step ${capsule.current.step + 1}.`;
+    if (shareButtonResetTimer) window.clearTimeout(shareButtonResetTimer);
+    shareButtonResetTimer = window.setTimeout(() => {
+      shareMomentButton.dataset.state = "idle";
+      shareMomentLabel.textContent = "SHARE MOMENT";
+      shareButtonResetTimer = null;
+    }, 1_600);
+  } catch (error) {
+    shareMomentButton.dataset.state = "error";
+    shareMomentLabel.textContent = "COPY FAILED";
+    liveRegion.textContent = error?.message || "The replay link could not be copied.";
+  } finally {
+    shareMomentButton.disabled = false;
+  }
 }
 
 function selectTarget(buttons, attribute, value) {
@@ -507,6 +710,8 @@ function describeIntent(event) {
 }
 
 function handleEngineEvent(event) {
+  if (restoringMoment) return;
+  recordMomentEvent(event);
   if (event.type === "state") {
     transportButton.querySelector(".transport-icon").textContent = event.running ? "■" : "▶";
     transportButton.querySelector("strong").textContent = event.running
@@ -766,6 +971,7 @@ for (const button of bassCharacterButtons) {
 signalPassButton.addEventListener("click", () => decideSignal("pass"));
 signalAuditionButton.addEventListener("click", auditionSignal);
 signalKeepButton.addEventListener("click", () => decideSignal("like"));
+shareMomentButton.addEventListener("click", shareCurrentMoment);
 
 signalCard.addEventListener("pointerdown", (event) => {
   if (
@@ -885,6 +1091,7 @@ document.addEventListener("visibilitychange", () => {
 
 window.addEventListener("pagehide", () => {
   void stopSignalAudition();
+  if (shareButtonResetTimer) window.clearTimeout(shareButtonResetTimer);
   engine.stop();
 });
 
@@ -897,14 +1104,30 @@ window.QuantumTechno = Object.freeze({
   setDirectionControl: (name, value) =>
     engine.requestDirectionControl(name, value),
   setBassCharacter: (character) => engine.requestBassCharacter(character),
+  getShareUrl: () =>
+    createShareMomentUrl(window.location.href, createCurrentMomentCapsule()),
 });
 
-updateSeed(engine.seed, { writeUrl: parsedSeed !== undefined });
-nowVibe.textContent = profileForVibe(initialDirection.vibe).label.toUpperCase();
-selectTarget(vibeButtons, "vibe", initialDirection.vibe);
-selectTarget(tonalityButtons, "tonality", initialDirection.tonality);
+const startupSnapshot = restoredSnapshot ?? engine.getSnapshot();
+updateSeed(engine.seed, {
+  writeUrl: parsedSeed !== undefined || replayMoment !== null,
+});
+nowVibe.textContent = profileForVibe(startupSnapshot.vibe).label.toUpperCase();
+selectTarget(vibeButtons, "vibe", targetVibe);
+selectTarget(tonalityButtons, "tonality", targetTonality);
 initializePerformanceControls();
-bpmReadout.textContent = engine.currentTempo.toFixed(1);
+bpmReadout.textContent = startupSnapshot.bpm.toFixed(1);
+barReadout.textContent = String(startupSnapshot.bar + 1).padStart(5, "0");
+sectionReadout.textContent = replayMoment ? startupSnapshot.section : "DORMANT";
+if (replayMoment && engine.plan?.movement) {
+  keyReadout.textContent = `${engine.plan.movement.rootName} · ${engine.plan.movement.mode.label.toUpperCase()}`;
+}
+if (replayMoment) {
+  renderEnsemble(startupSnapshot.ensembleScene, startupSnapshot.instrumentation);
+  liveRegion.textContent = `Shared moment loaded at bar ${startupSnapshot.bar + 1}, step ${startupSnapshot.step + 1}. Tap Start to continue.`;
+} else if (decodedMoment) {
+  liveRegion.textContent = `This replay link was made with generator ${decodedMoment.generatorVersion}; the current generator is ${GENERATOR_VERSION}. The trajectory ID was loaded without the incompatible moment state.`;
+}
 renderSignalSpecimen(currentSignal);
 
 const canvas = document.querySelector("#quantum-contour");

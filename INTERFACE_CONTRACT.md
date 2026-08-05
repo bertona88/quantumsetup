@@ -154,6 +154,21 @@ playback, rhythm, arrangement, harmony, energy, material gesture, lane clocks, o
 scene selection. The interface makes no account, cloud-sync, machine-learning, or
 artist-imitation claim.
 
+## Share Moment
+
+The footer keeps the trajectory ID visually abbreviated and provides one `Share
+Moment` action. It copies a versioned replay URL containing the full trajectory
+identity, captured bar and step, generator version, initial direction, subsequent
+Vibe/Harmonic Gravity/phrase-direction/taste/trajectory events, current live-mix
+state, and the current ephemeral Signal Deck state. Opening a compatible link
+reconstructs the deterministic planner and timbre history, then remains stopped at
+the captured coordinate until the listener explicitly starts audio.
+
+The replay capsule is URL-visible data, not a private or cloud-synced record. A
+generator-version mismatch falls back to the full trajectory ID without claiming an
+exact moment replay. Matching planner state does not promise sample-identical output
+across browsers, audio devices, sample rates, or later generator versions.
+
 ## Global object
 
 After startup:
@@ -167,6 +182,7 @@ window.QuantumTechno = Object.freeze({
   setMixControl,
   setDirectionControl,
   setBassCharacter,
+  getShareUrl,
 });
 ```
 

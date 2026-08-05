@@ -36,6 +36,11 @@ quantum-random.
   queues only one that crosses the macro-distance gate at a 16-bar seed-change
   boundary. If none qualifies, the current trajectory continues. This is not a
   synth-mutation clock.
+- **Share moment** copies a versioned replay URL with the full trajectory ID,
+  bar/step coordinate, intent history, performance state, and local Signal Deck
+  state. A compatible link reconstructs that deterministic history and waits for a
+  fresh user gesture before continuing audio. The visible trajectory label remains
+  abbreviated; the full ID stays in the URL.
 - **Signal Deck** previews one stopped-transport timbre and records an explicit
   local Pass/Keep preference by button, keyboard, or swipe.
 

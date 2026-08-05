@@ -9,7 +9,7 @@
     />
     <meta name="theme-color" content="#070609" />
     <title>Infinite Techno — QuantumSetup</title>
-    <link rel="stylesheet" href="./styles.css?v=2.1.0-causal-world" />
+    <link rel="stylesheet" href="./styles.css?v=2.2.0-moment-share-1" />
   </head>
   <body>
     <main class="instrument" id="app" aria-labelledby="product-name">
@@ -323,9 +323,19 @@
       </section>
 
       <footer class="footer">
-        <div>
+        <div class="trajectory-identity">
           <span class="label">TRAJECTORY</span>
           <strong id="seed-readout">0000-0000</strong>
+          <button
+            class="share-moment-button"
+            id="share-moment-button"
+            type="button"
+            data-state="idle"
+            aria-label="Copy a replay link for this musical moment"
+          >
+            <span aria-hidden="true">↗</span>
+            <span id="share-moment-label">SHARE MOMENT</span>
+          </button>
         </div>
         <p>
           SYNTHESIZED LOCALLY IN YOUR BROWSER · START WITH DEVICE VOLUME LOW ·
@@ -339,6 +349,6 @@
 
       <div class="sr-only" id="live-region" aria-live="polite"></div>
     </main>
-    <script type="module" src="./main.js?v=2.1.0-causal-world"></script>
+    <script type="module" src="./main.js?v=2.2.0-moment-share-1"></script>
   </body>
 </html>
