@@ -3,7 +3,7 @@ import {
   SYNTH_VOICE_LIMIT,
   createSynthVoice,
   renderSynthVoice,
-} from "./synth-dsp.js";
+} from "./synth-dsp.js?v=2.3.1-square-timbre-1";
 import { validateSynthGenome } from "./synth-genomes.js";
 
 const GENOME_CACHE_LIMIT = 128;

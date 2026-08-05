@@ -50,7 +50,7 @@ test("canonical supplied generator remains byte-identical", () => {
 });
 
 test("the versioned high-level browser API remains source-compatible", () => {
-  assert.equal(GENERATOR_VERSION, "2.3.0");
+  assert.equal(GENERATOR_VERSION, "2.3.1");
   const source = readFileSync(
     new URL("./main.js", import.meta.url),
     "utf8",
@@ -174,6 +174,93 @@ test("acid climax phrases authorize one bounded ultra-long decay", () => {
   });
   assert.equal(ordinary.form.climax, false);
   assert.equal(ordinary.lowEnd.acidClimaxTailSeconds, 0);
+});
+
+test("pulse bass stays below the lead register while preserving modal pitch classes", () => {
+  const profile = {
+    ...profileForVibe("acid"),
+    performanceBassCharacter: "syncopated",
+  };
+  let noteCount = 0;
+  for (const seed of [
+    ...Array.from({ length: 12 }, (_, index) => index),
+    "aea7f054715ef84575f0efba069b1ec1",
+  ]) {
+    const bars = typeof seed === "string"
+      ? Array.from({ length: 8 }, (_, offset) => 40 + offset)
+      : Array.from({ length: 16 }, (_, bar) => bar);
+    for (const bar of bars) {
+      const plan = buildBarPlan({
+        seed,
+        bar,
+        vibeId: "acid",
+        tonality: "neutral",
+        profile,
+        instrumentProfile: profile,
+      });
+      assert.equal(plan.bassVoice, "pulse");
+      assert.equal(planNotesBelongToMode(plan), true);
+      for (const note of plan.bass.filter(Boolean)) {
+        noteCount += 1;
+        assert.ok(note.midi >= 34);
+        assert.ok(note.midi <= 47);
+        if (Number.isFinite(note.slideTo)) {
+          assert.ok(note.slideTo >= 34);
+          assert.ok(note.slideTo <= 47);
+        }
+      }
+    }
+  }
+  assert.ok(noteCount > 300);
+});
+
+test("pulse timbre is frozen with resident material and reaches every uniform variant", () => {
+  const profile = {
+    ...profileForVibe("acid"),
+    performanceBassCharacter: "syncopated",
+  };
+  const reached = new Set();
+
+  for (let seed = 0; seed < 64; seed += 1) {
+    const first = buildBarPlan({
+      seed,
+      bar: 0,
+      vibeId: "acid",
+      tonality: "neutral",
+      profile,
+      instrumentProfile: profile,
+    });
+    const last = buildBarPlan({
+      seed,
+      bar: 7,
+      vibeId: "acid",
+      tonality: "neutral",
+      profile,
+      instrumentProfile: profile,
+    });
+    assert.equal(first.bassVoice, "pulse");
+    assert.equal(first.form.bassVoiceMaterialId, last.form.bassVoiceMaterialId);
+    assert.equal(first.pulseBassTimbre, last.pulseBassTimbre);
+    assert.equal(first.lowEnd.pulseBassTimbre, first.pulseBassTimbre);
+    assert.equal(first.lowEnd.pulseBassTimbreId, first.pulseBassTimbre.id);
+    assert.equal(Object.isFrozen(first.pulseBassTimbre), true);
+    assert.ok(
+      first.instrumentation.some(
+        (item) =>
+          item.id === "bass-pulse" &&
+          item.detail === first.pulseBassTimbre.label,
+      ),
+    );
+    reached.add(first.pulseBassTimbre.id);
+  }
+
+  assert.deepEqual([...reached].sort(), [
+    "all-layer-hybrid",
+    "filtered",
+    "neuro-reese",
+    "raw-square",
+    "wobble-growl",
+  ]);
 });
 
 test("final kick thinning and withdrawal never vacate resident bass events", () => {
@@ -392,12 +479,13 @@ test("earned echo ascents freeze a bounded bright-percussion phrase contour", ()
 test("rendered bar lanes preserve their selected material provenance", () => {
   const fixtures = [
     { seed: 0, bar: 2, vibeId: "peak" },
-    { seed: 0, bar: 47, vibeId: "peak" },
+    { seed: 0, bar: 46, vibeId: "peak" },
     { seed: 0, bar: 0, vibeId: "detroit" },
-    { seed: 1, bar: 178, vibeId: "detroit" },
+    { seed: 0, bar: 297, vibeId: "peak" },
     { seed: 0, bar: 543, vibeId: "detroit" },
     { seed: 2, bar: 0, vibeId: "peak" },
     { seed: 0, bar: 1, vibeId: "hypnotic" },
+    { seed: 0, bar: 103, vibeId: "hypnotic" },
     { seed: 33, bar: 55, vibeId: "hypnotic" },
   ];
   const directLanes = {
@@ -820,6 +908,53 @@ test("ensemble phrases are pure scored conversations with bounded placements", (
     }
   }
   assert.deepEqual([...reachedEngines].sort(), ["fm", "modal", "string"]);
+});
+
+test("resonator spatial gestures are occasional, bounded, and never back to back", () => {
+  const seed = 0x5d051e19;
+  const profile = profileForVibe("hypnotic");
+  const effectPhrases = [];
+  const effects = new Set();
+
+  for (let phrase = 0; phrase < 40; phrase += 1) {
+    const treated = [];
+    for (let barOffset = 0; barOffset < 8; barOffset += 1) {
+      const plan = buildBarPlan({
+        seed,
+        bar: phrase * 8 + barOffset,
+        vibeId: "hypnotic",
+        tonality: "minor",
+        profile,
+      });
+      for (const engine of ["fm", "modal", "string"]) {
+        for (const note of plan.synth[engine].filter(Boolean)) {
+          if (!note.effect) continue;
+          assert.equal(engine, "modal");
+          assert.ok(
+            ["resonator-halo", "resonator-echo"].includes(note.effect),
+          );
+          assert.ok(note.delaySend >= 0 && note.delaySend <= 0.42);
+          assert.ok(note.reverbSend >= 0 && note.reverbSend <= 0.55);
+          if (note.effect === "resonator-halo") {
+            assert.ok(note.reverbSend >= 0.4);
+          } else {
+            assert.ok(note.delaySend >= 0.25);
+          }
+          effects.add(note.effect);
+          treated.push(note);
+        }
+      }
+    }
+    assert.ok(treated.length <= 1);
+    if (treated.length === 1) effectPhrases.push(phrase);
+  }
+
+  assert.ok(effectPhrases.length >= 4 && effectPhrases.length <= 16);
+  assert.ok(!effectPhrases.includes(0));
+  for (let index = 1; index < effectPhrases.length; index += 1) {
+    assert.ok(effectPhrases[index] - effectPhrases[index - 1] > 1);
+  }
+  assert.deepEqual([...effects].sort(), ["resonator-echo", "resonator-halo"]);
 });
 
 test("ensemble roles obey the same causal one-engine handoff as timbre", () => {

@@ -81,8 +81,10 @@ anticipation converge, then enforces an eight-phrase cooldown.
 `material-planner.js` owns phrase-sequential rhythmic and motif material. Persistent
 clocks follow the absolute sixteenth-note stream, while kick, clap, hats,
 percussion, bass, and the three foreground engines use different onset grammars.
-Kick, backbeat clap, and classic offbeat open hat provide the trustworthy bed. Each
-eight-bar boundary evaluates twelve core-distinct candidates through bounded
+Kick and backbeat clap provide the fixed trustworthy bed. The open hat uses a
+multi-phrase resident vocabulary of full offbeats, paired offbeats, alternating
+bars, sparse tails, or closed-only space instead of watermarking almost every bar.
+Each eight-bar boundary evaluates twelve core-distinct candidates through bounded
 rejection, weighted scoring, structural near-duplicate pruning, and seeded softmax
 selection. The chosen phrase is frozen before the scheduler consumes its bars.
 Observation windows and derived form labels do not reset its clocks or memory; only
@@ -139,6 +141,10 @@ Bass voice identity,
 material motif and clocks, tonal state, harmony position, and semantic scene remain
 separate domains. A motif operation cannot reset them together, and a 192-bar
 observation boundary cannot restart form or material residency.
+Pulse bass adds five equally likely resident timbres: raw square, filtered,
+wobble-growl, neuro-reese, and an all-layer hybrid. Their complete bounded DSP
+parameters are frozen in the bar plan and remain generator-owned rather than
+becoming note-level randomness or extra interface controls.
 
 `taste-model.js`, `signal-deck.js`, and `instrument-preview.js` implement the local
 explicit-feedback loop. Pass/Keep decisions rank up to eight deterministic genomes
@@ -159,14 +165,15 @@ Native temporary voices are capped at 72 and the advanced bank at 24, preserving
 combined ceiling of 96. Every voice has a finite hard end.
 
 `main.js` owns the single audio-first interface. `spectrum-mountain.js` resamples
-the live analyser into a log-frequency height profile, advances those profiles
-through a continuous history texture, and displaces one dense WebGL2 terrain mesh.
-The shader derives smooth surface normals from that height field, ray-marches
-terrain self-shadow, and projects changing rainbow light onto a white mineral
-material. Kick and bass shape relief and light intensity; hat, chord, synth,
-spectral centroid, flux, and five broad frequency bands steer roughness, color,
-camera drift, and illumination. `quantum-visual.js` owns that renderer and its
-Canvas2D fallback. The visual reads the music and never drives or rewrites it.
+fast-transient and detailed-frequency analysers into one log-frequency height
+profile, advances those profiles through a continuous history texture, and
+displaces one dense WebGL2 terrain mesh. The shader derives smooth surface normals,
+ray-marches terrain self-shadow, and projects a phrase-resident vocabulary of eleven
+structured-light families through ten palettes onto a white mineral material. Kick
+and bass shape relief and light intensity; hat, chord, synth, spectral centroid,
+flux, and five broad frequency bands steer roughness, color, camera drift, and
+illumination. `quantum-visual.js` owns that renderer, adaptive bounded quality, and
+its Canvas2D fallback. The visual reads the music and never drives or rewrites it.
 
 See [`../MUSICAL_SYSTEM.md`](../MUSICAL_SYSTEM.md) for the arrangement grammar,
 transition design, and research sources.

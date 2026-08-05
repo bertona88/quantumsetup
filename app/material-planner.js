@@ -1,6 +1,9 @@
 import { clamp, hash32 } from "./generative-utils.js";
 
-export const MATERIAL_VERSION = "2.3.0";
+export const MATERIAL_VERSION = "2.3.1";
+// Schema releases must not silently reroll every established lane grammar.
+// Advance this coordinate only when a full material reset is intentional.
+const MATERIAL_RANDOMNESS_REVISION = "2.3.0";
 export const MATERIAL_CANDIDATE_COUNT = 12;
 export const MATERIAL_SCORE_FLOOR = 0.55;
 export const MATERIAL_SCORE_BAND = 0.2;
@@ -94,6 +97,22 @@ export const LANE_GRAMMARS = Object.freeze({
     "string-counterline",
     "string-swell",
   ]),
+});
+
+export const OPEN_HAT_MODES = Object.freeze([
+  "offbeat-full",
+  "offbeat-pair",
+  "offbeat-alternating",
+  "offbeat-tail",
+  "closed-only",
+]);
+
+const OPEN_HAT_MODE_WEIGHTS = Object.freeze({
+  "sixteenth-motor": Object.freeze([0.24, 0.25, 0.2, 0.14, 0.17]),
+  "eighth-engine": Object.freeze([0.42, 0.22, 0.18, 0.1, 0.08]),
+  "swing-pairs": Object.freeze([0.12, 0.3, 0.18, 0.2, 0.2]),
+  "triplet-weave": Object.freeze([0.08, 0.12, 0.18, 0.18, 0.44]),
+  "broken-chatter": Object.freeze([0.1, 0.2, 0.22, 0.2, 0.28]),
 });
 
 export const KICK_PHRASE_IDS = Object.freeze([
@@ -426,6 +445,20 @@ function hitsForClock(
   return clamp(Math.round(loopLength * (0.07 + density * 0.07)), 1, 5);
 }
 
+function openHatIdentity(grammarId, grammarSeed) {
+  const weights = OPEN_HAT_MODE_WEIGHTS[grammarId] ||
+    OPEN_HAT_MODES.map(() => 1);
+  return {
+    mode: coordinateChoice(
+      OPEN_HAT_MODES,
+      weights,
+      grammarSeed,
+      "resident-open-hat-mode",
+    ),
+    variant: hash32(grammarSeed, "resident-open-hat-variant") % 4,
+  };
+}
+
 function createClock({
   lane,
   seed,
@@ -505,13 +538,16 @@ function createClock({
     "lane-grammar-variant",
   ) % 8;
   const grammarSeed = hash32(
-    MATERIAL_VERSION,
+    MATERIAL_RANDOMNESS_REVISION,
     seed,
     lane,
     candidateIndex,
     mutationCount,
     "lane-grammar-seed",
   );
+  const openHat = lane === "hats"
+    ? openHatIdentity(grammarId, grammarSeed)
+    : { mode: null, variant: null };
   return {
     id: hash32(
       MATERIAL_VERSION,
@@ -536,6 +572,8 @@ function createClock({
     grammarId,
     grammarVariant,
     grammarSeed,
+    openHatMode: openHat.mode,
+    openHatVariant: openHat.variant,
     agePhrases: 0,
     holdPhrases: clockHoldPhrases(
       trackDNA,
@@ -573,7 +611,9 @@ function mutateClock(clock, input, candidateIndex) {
     next.hits === clock.hits &&
     next.rotation === clock.rotation &&
     next.grammarId === clock.grammarId &&
-    next.grammarVariant === clock.grammarVariant
+    next.grammarVariant === clock.grammarVariant &&
+    next.openHatMode === clock.openHatMode &&
+    next.openHatVariant === clock.openHatVariant
   ) {
     next = {
       ...next,
@@ -772,6 +812,41 @@ export function renderMaterialClock(clock, phraseIndex) {
     return Boolean(
       cycle[positiveModulo(absoluteStep - clock.phaseOrigin, clock.loopLength)],
     );
+  });
+}
+
+export function renderOpenHatPattern(
+  clock,
+  phraseIndex,
+  intentionalRest = false,
+) {
+  if (clock?.lane !== "hats" || !OPEN_HAT_MODES.includes(clock.openHatMode)) {
+    throw new TypeError("renderOpenHatPattern requires a resident hats clock");
+  }
+  if (!Number.isSafeInteger(phraseIndex) || phraseIndex < 0) {
+    throw new RangeError("open-hat phraseIndex must be a non-negative integer");
+  }
+  if (intentionalRest || clock.openHatMode === "closed-only") {
+    return Array(STEPS_PER_PHRASE).fill(false);
+  }
+  const pairSteps = clock.openHatVariant % 2 === 0
+    ? [2, 10]
+    : [6, 14];
+  const tailSteps = [
+    [14],
+    [10, 14],
+    [6, 14],
+    [2, 14],
+  ][clock.openHatVariant];
+  return Array.from({ length: STEPS_PER_PHRASE }, (_, offset) => {
+    const step = offset % STEPS_PER_BAR;
+    const absoluteBar = phraseIndex * PHRASE_BARS +
+      Math.floor(offset / STEPS_PER_BAR);
+    if (![2, 6, 10, 14].includes(step)) return false;
+    if (clock.openHatMode === "offbeat-full") return true;
+    if (clock.openHatMode === "offbeat-pair") return pairSteps.includes(step);
+    if (clock.openHatMode === "offbeat-tail") return tailSteps.includes(step);
+    return absoluteBar % 2 === clock.openHatVariant % 2;
   });
 }
 
@@ -1300,10 +1375,10 @@ function materializePhrase(
     ]),
   );
   capSynthPatterns(synth, kick, input.seed, input.phraseIndex);
-  const openHats = Array.from(
-    { length: STEPS_PER_PHRASE },
-    (_, offset) =>
-      !input.form?.intentionalRest && offset % STEPS_PER_BAR % 4 === 2,
+  const openHats = renderOpenHatPattern(
+    clocks.hats,
+    input.phraseIndex,
+    input.form?.intentionalRest === true,
   );
   const closedHats = hats.map(
     (active, offset) => active && !openHats[offset],
@@ -1329,6 +1404,7 @@ function materializePhrase(
   return {
     kickPhraseId: kickPhrase.id,
     bassKickRelation,
+    openHatMode: clocks.hats.openHatMode,
     kickArticulations: materializedKick.articulations,
     patterns: {
       kick,
@@ -1419,6 +1495,7 @@ export function materialStructuralProfile(phrase) {
   }
   return deepFreeze({
     hats: patternStructure(phrase.patterns.hats),
+    openHats: patternStructure(phrase.patterns.openHats),
     percussion: patternStructure(phrase.patterns.percussion),
     bass: patternStructure(phrase.patterns.bass),
     synth: patternStructure(combinePatterns(Object.values(phrase.patterns.synth))),
@@ -1481,8 +1558,14 @@ export function materialStructuralDistance(leftPhrase, rightPhrase) {
     0,
     1,
   );
+  const hatLayer = clamp(
+    structureLaneDistance(left.hats, right.hats) * 0.62 +
+      structureLaneDistance(left.openHats, right.openHats) * 0.38,
+    0,
+    1,
+  );
   return clamp(
-    structureLaneDistance(left.hats, right.hats) * 0.18 +
+    hatLayer * 0.18 +
       structureLaneDistance(left.percussion, right.percussion) * 0.22 +
       bass * 0.36 +
       synth * 0.24,
@@ -1495,6 +1578,7 @@ export function materialCoreSignature(phrase) {
   const encode = (pattern) => pattern.map((active) => active ? "1" : "0").join("");
   return hash32(
     encode(phrase.patterns.hats),
+    encode(phrase.patterns.openHats),
     encode(phrase.patterns.percussion),
     encode(phrase.patterns.bass),
     ...Object.values(phrase.patterns.synth).map(encode),
@@ -1765,6 +1849,19 @@ export function validateMaterialCandidate(candidate, previousState = null) {
     )
   ) {
     reasons.push("hat-collision");
+  }
+  const expectedOpenHats = renderOpenHatPattern(
+    candidate.clocks.hats,
+    candidate.phraseIndex,
+    candidate.form?.intentionalRest === true,
+  );
+  if (
+    candidate.phrase.openHatMode !== candidate.clocks.hats.openHatMode ||
+    patterns.openHats.some(
+      (active, index) => Boolean(active) !== expectedOpenHats[index],
+    )
+  ) {
+    reasons.push("open-hat-vocabulary");
   }
   const densityCeilings = {
     kick: 64,
@@ -2326,6 +2423,7 @@ export function summarizeMaterialState(state) {
     phraseFingerprint: state.phrase.fingerprint,
     coreSignature: state.coreSignature,
     bassKickRelation: state.phrase.bassKickRelation,
+    openHatMode: state.phrase.openHatMode,
     laneClocks: Object.fromEntries(
       LANE_IDS.map((lane) => {
         const clock = state.clocks[lane];
@@ -2338,6 +2436,8 @@ export function summarizeMaterialState(state) {
             phaseOrigin: clock.phaseOrigin,
             grammarId: clock.grammarId,
             grammarVariant: clock.grammarVariant,
+            openHatMode: clock.openHatMode,
+            openHatVariant: clock.openHatVariant,
             agePhrases: clock.agePhrases,
             mutationCount: clock.mutationCount,
           },

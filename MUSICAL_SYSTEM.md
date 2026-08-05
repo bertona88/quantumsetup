@@ -1,9 +1,10 @@
 # Infinite Techno Musical System
 
-Status: `2.3.0` rhythm-topology implementation candidate; deterministic and browser/audio
+Status: `2.3.1` resident-open-hat, pulse-timbre, and structured-light implementation
+candidate; deterministic and browser/audio
 validation remain separate from listening, soak, deployment, and
 public-acceptance gates
-Generator version: `2.3.0` (`2.3.0` material-state schema)
+Generator version: `2.3.1` (`2.3.1` material-state schema)
 Primary product: music  
 Quantum role: visual and poetic contour only
 
@@ -114,7 +115,7 @@ observation window about six minutes.
 
 ## Phrase-sequential generative material
 
-The `2.3.0` material planner is a second recurrent layer downstream of emergent
+The `2.3.1` material planner is a second recurrent layer downstream of emergent
 form. At every eight-bar boundary it accepts the trajectory seed, Track DNA, current
 form snapshot, Vibe profile settled for that phrase boundary, tonality, and previous
 material state. It plans and freezes the complete eight-bar symbolic phrase once.
@@ -144,7 +145,7 @@ The bounded loop domains are:
 | --- | --- |
 | Kick | bar-aligned `E(4,16)` foundation plus curated eight-bar anchor, turnaround-pickup, breathing, or rolling-pressure phrasing |
 | Clap | fixed 16-step backbeat at beats two and four |
-| Hats | 5–29-step motor, eighth, swing-pair, triplet-weave, or broken-chatter grammar plus the classic offbeat open hat |
+| Hats | 5–29-step motor, eighth, swing-pair, triplet-weave, or broken-chatter closed-hat grammar plus a resident full-offbeat, paired, alternating-bar, tail, or closed-only open-hat mode |
 | Secondary percussion | 5–29-step gap-call, offbeat-answer, clave-walk, burst-tail, or dust-point grammar |
 | Bass | 12, 15, 16, 18, 20, 24, 28, or 32 steps |
 | Advanced-synth gestures | 7, 9, 11, 13, 15, 17, 19, 23, 29, or 31 steps |
@@ -153,6 +154,12 @@ Straight Track DNA prefers near-16 clocks; triplet families prefer 6/9/12/18
 relationships; broken families prefer prime lengths; swung families prefer odd
 lengths; patient phenotypes hold material longer. These are weighted dialects, not
 fixed patterns.
+
+The open hat is trustworthy vocabulary, not a permanent watermark. Its mode and
+variant belong to the resident hats-clock identity, so a full classic offbeat,
+one of two offbeat pairs, alternating full-offbeat bars, a sparse bar tail, or no
+open hat at all holds across multiple phrases and changes only when that clock
+identity changes. Intentional-rest phrases suppress it regardless of resident mode.
 
 The phrase memory contains a resident motif, previous gesture, unresolved call,
 recent phrase fingerprints, and archived motifs. Its ordered gesture states are
@@ -270,6 +277,10 @@ instead of restarting with the cache window.
   trajectory's stable filter color. Resonance remains at or below `Q 8`, including
   accents. A climax phrase may authorize one deterministic acid note with a bounded
   `1.4–3.2` second decay; ordinary acid notes retain their short step-derived decay.
+- Pulse bass selects uniformly among raw square, filtered, wobble-growl,
+  neuro-reese, and an all-layer hybrid. The deterministic choice belongs to the
+  resident bass-voice material ID, exposes a frozen bounded parameter contract,
+  and cannot change note by note or at a display/cache boundary.
 
 No phrase regenerates every lane at once. Persistent clocks continue through display
 labels and observation windows; only an accepted New Trajectory resets material
@@ -287,6 +298,10 @@ The kick and bass are planned as a relationship rather than independent lanes.
   octave, and slides are bounded and coordinate-addressed.
 - Bass voice identity has its own resident material ID. It does not rotate on a
   32-bar clock or reset when a motif gesture changes.
+- When that resident voice is Pulse, the same material ID freezes its timbre
+  variant. Each of the five variants has a 20% selection share; oscillator mix,
+  sub reinforcement, filter motion, folding, formants, comb timing, envelope,
+  routing, and hybrid layer gains remain generator-owned and finite.
 - Track DNA declares the kick/bass relationship: counterpoint removes anchor
   overlap, hybrid material retains a bounded subset, and layered sub material may
   intentionally reinforce the kick. Candidate validation scores and bounds the
@@ -374,6 +389,13 @@ behavior; non-overlapping registers; note length; velocity bias; priority; and
 bounded delay/reverb sends. Persistent synth clocks and the selected phrase gesture
 decide onsets.
 
+The Resonator may give one surviving attack in a phrase a deterministic spatial
+gesture. A **halo** leans into the shared reverb, while an **echo** throws into the
+shared delay. Calls, answers, recalls, spacious profiles, and high-register roles
+raise readiness, but never authorize more than one treated attack per phrase or
+treated phrases back to back. Both gestures preserve the emitted pitch, onset,
+voice, and genome and remain inside the ordinary delay/reverb send ceilings.
+
 Candidate validation prevents same-step advanced collisions, protects current kick
 attacks, makes low-register parts yield to bass onsets, makes harmonic parts yield
 around chord attacks, and makes Resonator parts yield around metallic or ride
@@ -442,12 +464,14 @@ timbre-candidate pool.
 
 The deterministic and focused-browser evidence does not establish persuasive
 long-form musical quality, audible trajectory separation, long-duration
-foreground-browser reliability, or multi-day performance. All 161 deterministic
-tests pass. Focused local and public performance smokes cover Start/Stop, EQ,
-quantized cuts, direction targeting, bass character, persistence, responsive
-widths, and console cleanliness. The exact 18-file Pages bundle byte-matches
-`b16c5dc`. Eight fixed 96-bar renders and stems, blinded listening, the full browser
-matrix, a 30–60-minute soak, and public acceptance remain separate gates.
+foreground-browser reliability, or multi-day performance. The current local suite
+passes all 190 deterministic tests. Focused local smokes cover Start/Stop, the
+cache-busted module graph, and WebGL2 structured projection; earlier local and public
+performance smokes cover EQ, quantized cuts, direction targeting, bass character,
+persistence, responsive widths, and console cleanliness. The historical exact
+18-file `2.1.0` Pages bundle byte-matches `b16c5dc`. Eight fixed 96-bar renders and
+stems, blinded listening, the full browser matrix, a 30–60-minute soak, and public
+acceptance remain separate gates.
 
 ## Vibe vocabularies
 

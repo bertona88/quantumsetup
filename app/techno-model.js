@@ -9,11 +9,12 @@ import {
   createSynthPalette,
   synthHandoffForForm,
 } from "./synth-genomes.js";
+import { selectPulseBassTimbre } from "./pulse-bass-timbres.js?v=1.0.0";
 import {
   FORM_RULES,
   derivePhraseState,
   traceEmergentForm,
-} from "./emergent-form.js?v=2.3.0-rhythm-topology-1";
+} from "./emergent-form.js?v=2.3.1-resident-open-hat-1";
 import {
   advanceMaterialState,
   createMaterialState,
@@ -21,8 +22,8 @@ import {
   materialStructuralDistance,
   materialStructuralProfile,
   summarizeMaterialState,
-} from "./material-planner.js?v=2.3.0-rhythm-topology-1";
-import { createTrackDNA } from "./track-dna.js?v=2.3.0-rhythm-topology-1";
+} from "./material-planner.js?v=2.3.1-resident-open-hat-1";
+import { createTrackDNA } from "./track-dna.js?v=2.3.1-resident-open-hat-1";
 
 export {
   FORM_RULES,
@@ -40,7 +41,7 @@ export {
   summarizeMaterialState,
 };
 
-export const GENERATOR_VERSION = "2.3.0";
+export const GENERATOR_VERSION = "2.3.1";
 export const STEPS_PER_BAR = 16;
 export const PHRASE_BARS = 8;
 export const MOVEMENT_BARS = 192;
@@ -1628,6 +1629,16 @@ function fitMidiToRange(midi, minimum, maximum) {
   return result;
 }
 
+function constrainPulseBassRegister(pattern, ceiling = 47) {
+  for (const note of pattern) {
+    if (!note) continue;
+    note.midi = fitMidiToRange(note.midi, 34, ceiling);
+    if (Number.isFinite(note.slideTo)) {
+      note.slideTo = fitMidiToRange(note.slideTo, 34, ceiling);
+    }
+  }
+}
+
 function advancedStartsPerBar(councilVerdict = null) {
   if (Number.isFinite(councilVerdict?.maxAdvancedStarts)) {
     return clamp(Math.floor(councilVerdict.maxAdvancedStarts), 0, 4);
@@ -1709,6 +1720,84 @@ function enforceEnsembleStartBudget(
     if (!keep.has(`${attack.engine}:${attack.step}`)) {
       lanes[attack.engine][barOffset][attack.step] = null;
     }
+  }
+}
+
+function applyResonatorEffectGesture({
+  lanes,
+  seed,
+  phraseIndex,
+  profile,
+  role,
+  materialState,
+}) {
+  if (!role || phraseIndex === 0) return;
+  const candidates = [];
+  for (let barOffset = 0; barOffset < PHRASE_BARS; barOffset += 1) {
+    for (let step = 0; step < STEPS_PER_BAR; step += 1) {
+      const note = lanes.modal[barOffset][step];
+      if (note) candidates.push({ barOffset, step, note });
+    }
+  }
+  if (candidates.length === 0) return;
+
+  const gesture = materialState?.gesture || "repeat";
+  const conversational = ["call", "answer", "recall"].includes(gesture);
+  const threshold = clamp(
+    0.08 +
+      profile.space * 0.12 +
+      (role.register === "high" ? 0.07 : 0) +
+      (conversational ? 0.22 : 0),
+    0.08,
+    0.46,
+  );
+  const readiness = unitHash(seed, phraseIndex, "resonator-effect-readiness");
+  const previousReadiness =
+    phraseIndex > 0
+      ? unitHash(seed, phraseIndex - 1, "resonator-effect-readiness")
+      : 1;
+  const nextReadiness = unitHash(
+    seed,
+    phraseIndex + 1,
+    "resonator-effect-readiness",
+  );
+  if (
+    readiness >= threshold ||
+    readiness >= previousReadiness ||
+    readiness >= nextReadiness
+  ) {
+    return;
+  }
+
+  const selected =
+    candidates[
+      hash32(
+        seed,
+        phraseIndex,
+        materialState?.motif?.lineageId,
+        role.sourceSceneId,
+        "resonator-effect-note",
+      ) % candidates.length
+    ];
+  const effect =
+    unitHash(
+      seed,
+      phraseIndex,
+      materialState?.motif?.lineageId,
+      role.id,
+      "resonator-effect-kind",
+    ) <
+    0.5 + profile.space * 0.18
+      ? "resonator-halo"
+      : "resonator-echo";
+
+  selected.note.effect = effect;
+  if (effect === "resonator-halo") {
+    selected.note.delaySend = clamp(selected.note.delaySend + 0.06, 0, 0.42);
+    selected.note.reverbSend = clamp(selected.note.reverbSend + 0.18, 0, 0.55);
+  } else {
+    selected.note.delaySend = clamp(selected.note.delaySend + 0.24, 0, 0.42);
+    selected.note.reverbSend = clamp(selected.note.reverbSend + 0.07, 0, 0.55);
   }
 }
 
@@ -1842,6 +1931,14 @@ export function buildEnsemblePhrase({
       advancedStartsPerBar(councilVerdict),
     );
   }
+  applyResonatorEffectGesture({
+    lanes,
+    seed,
+    phraseIndex,
+    profile,
+    role: roles.modal,
+    materialState: phraseMaterial,
+  });
   return lanes;
 }
 
@@ -2185,6 +2282,7 @@ function buildInstrumentation({
   tom,
   bass,
   bassVoice,
+  pulseBassTimbre,
   chord,
   pad,
   texture,
@@ -2205,7 +2303,12 @@ function buildInstrumentation({
   };
   if (hasLaneEvents(kick)) add("foundation-kick", "foundation", "FOUR-FLOOR KICK");
   if (hasLaneEvents(bass)) {
-    add(`bass-${bassVoice}`, "low-end", `${bassVoice.toUpperCase()} BASS`);
+    add(
+      `bass-${bassVoice}`,
+      "low-end",
+      `${bassVoice.toUpperCase()} BASS`,
+      pulseBassTimbre?.label || "",
+    );
   }
   for (const engine of activeSynthEngines) {
     if (!hasLaneEvents(synth[engine])) continue;
@@ -3198,6 +3301,14 @@ export function buildBarPlan({
   }
 
   const bassVoice = selectBassVoice(seed, movement, form, profile);
+  if (bassVoice === "pulse") constrainPulseBassRegister(bass);
+  const pulseBassTimbre =
+    bassVoice === "pulse"
+      ? selectPulseBassTimbre(
+          seed,
+          form.bassVoiceMaterialId ?? form.motifLineageId,
+        )
+      : null;
   const acidClimaxTail = applyAcidClimaxTail({
     seed,
     phraseIndex,
@@ -3343,6 +3454,8 @@ export function buildBarPlan({
     bassCellSignature: bassLine.cellSignature,
     canonicalBassDensity: bassLine.cell.length,
     bassVoice,
+    pulseBassTimbreId: pulseBassTimbre?.id ?? null,
+    pulseBassTimbre,
     acidClimaxTailStep: acidClimaxTail?.step ?? null,
     acidClimaxTailSeconds: acidClimaxTail?.durationSeconds ?? 0,
     musicDuckDepth: clamp(
@@ -3385,6 +3498,7 @@ export function buildBarPlan({
     tom,
     bass,
     bassVoice,
+    pulseBassTimbre,
     chord,
     pad,
     texture,
@@ -3430,6 +3544,7 @@ export function buildBarPlan({
     tom,
     bass,
     bassVoice,
+    pulseBassTimbre,
     lowEnd,
     harmonyDegree: progressionDegree,
     harmonyPosition,
@@ -3478,7 +3593,7 @@ export function buildBarPlan({
       0.14,
       1,
     ),
-    fingerprint: `${trackDNA.grooveFamily}:${trackDNA.kickArchitecture}:${trackDNA.formPhenotype}:${movement.index}:${form.label}:${form.chair}:${form.motifLineageId}:${phraseIndex}:${bassCount}:${bassVoice}:${ensembleScene.id}:${activeSynthEngines
+    fingerprint: `${trackDNA.grooveFamily}:${trackDNA.kickArchitecture}:${trackDNA.formPhenotype}:${movement.index}:${form.label}:${form.chair}:${form.motifLineageId}:${phraseIndex}:${bassCount}:${bassVoice}:${pulseBassTimbre?.id ?? "none"}:${ensembleScene.id}:${activeSynthEngines
       .map(
         (engine) =>
           `${engine}:${effectiveEnsembleRoles[engine].sourceSceneId}:${effectiveEnsembleRoles[engine].id}`,

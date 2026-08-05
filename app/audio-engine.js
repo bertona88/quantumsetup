@@ -18,9 +18,13 @@ import {
   summarizeMaterialState,
   transitionDurationFor,
   transitionProgress,
-} from "./techno-model.js?v=2.3.0-rhythm-topology-1";
-import { SYNTH_VOICE_LIMIT } from "./synth-dsp.js";
+} from "./techno-model.js?v=2.3.1-pulse-timbres-1";
+import { SYNTH_VOICE_LIMIT } from "./synth-dsp.js?v=2.3.1-square-timbre-1";
 import { stageSynthPalette } from "./synth-genomes.js";
+import {
+  PULSE_BASS_PROCESSORS,
+  PULSE_BASS_TIMBRE_BY_ID,
+} from "./pulse-bass-timbres.js?v=1.0.0";
 import {
   normalizeTasteProfile,
   tasteFingerprint,
@@ -42,7 +46,7 @@ import {
 import {
   createTrackDNA,
   rankDistinctTrajectorySeeds,
-} from "./track-dna.js?v=2.3.0-rhythm-topology-1";
+} from "./track-dna.js?v=2.3.1-resident-open-hat-1";
 import {
   formatTrajectoryId,
   freshTrajectoryId,
@@ -144,13 +148,14 @@ function scheduleBassPitch(
   time,
   stepDuration,
   transpose = 0,
+  durationScale = 0.9,
 ) {
   const startMidi = clamp(
     (Number(note?.midi) || 36) + transpose,
     0,
     127,
   );
-  const timing = bassNoteTiming(note, stepDuration);
+  const timing = bassNoteTiming(note, stepDuration, durationScale);
   const startHz = midiToHz(startMidi);
   frequency.setValueAtTime(startHz, time);
   if (!timing.hasSlide) return timing;
@@ -239,6 +244,7 @@ export class InfiniteTechnoEngine {
     this.lastOpenHatEnd = 0;
     this.plannedLowEndMuted = false;
     this.analyser = null;
+    this.transientAnalyser = null;
     this.cachedCurves = new Map();
     this.synthBank = null;
     this.synthWorkletReady = false;
@@ -885,6 +891,7 @@ export class InfiniteTechnoEngine {
     this.activeSourceCount = 0;
     this.ctx = null;
     this.analyser = null;
+    this.transientAnalyser = null;
     this.synthBank = null;
     this.synthWorkletReady = false;
     this.phraseInstrumentation = Object.freeze([]);
@@ -955,6 +962,7 @@ export class InfiniteTechnoEngine {
     this.highEq = context.createBiquadFilter();
     this.softClip = context.createWaveShaper();
     this.compressor = context.createDynamicsCompressor();
+    this.transientAnalyser = context.createAnalyser();
     this.analyser = context.createAnalyser();
     this.masterGain = context.createGain();
 
@@ -990,8 +998,10 @@ export class InfiniteTechnoEngine {
     this.compressor.ratio.value = 6;
     this.compressor.attack.value = 0.003;
     this.compressor.release.value = 0.2;
-    this.analyser.fftSize = 1024;
-    this.analyser.smoothingTimeConstant = 0.8;
+    this.transientAnalyser.fftSize = 1024;
+    this.transientAnalyser.smoothingTimeConstant = 0.35;
+    this.analyser.fftSize = 4096;
+    this.analyser.smoothingTimeConstant = 0.72;
     this.masterGain.gain.value = 0.0001;
 
     this.kickBus.connect(this.kickPerformanceGain);
@@ -1008,7 +1018,8 @@ export class InfiniteTechnoEngine {
     this.midEq.connect(this.highEq);
     this.highEq.connect(this.softClip);
     this.softClip.connect(this.compressor);
-    this.compressor.connect(this.analyser);
+    this.compressor.connect(this.transientAnalyser);
+    this.transientAnalyser.connect(this.analyser);
     this.analyser.connect(this.masterGain);
     this.masterGain.connect(context.destination);
 
@@ -1124,7 +1135,10 @@ export class InfiniteTechnoEngine {
       return;
     }
     try {
-      const workletUrl = new URL("./synth-worklet.js", import.meta.url);
+      const workletUrl = new URL(
+        "./synth-worklet.js?v=2.3.1-square-timbre-1",
+        import.meta.url,
+      );
       workletUrl.searchParams.set("v", GENERATOR_VERSION);
       await context.audioWorklet.addModule(workletUrl.href);
       if (this.ctx !== context || context.state === "closed") return;
@@ -1886,6 +1900,7 @@ export class InfiniteTechnoEngine {
         plan.movement.timbre.filterBias,
         plan.bassVoice,
         plan.profile,
+        plan.pulseBassTimbre,
       );
       bassPulse = plan.bass[step].accent ? 1 : 0.62;
     }
@@ -2643,6 +2658,7 @@ export class InfiniteTechnoEngine {
     const context = this.ctx;
     if (!context) return;
     const oscillator = context.createOscillator();
+    const filter = context.createBiquadFilter();
     const gain = context.createGain();
     const panStage = this.createPanStage();
     const frequency = 92 + (step % 4) * 26 + drive * 18;
@@ -2653,10 +2669,24 @@ export class InfiniteTechnoEngine {
     gain.gain.exponentialRampToValueAtTime(0.16 * velocity, time + 0.003);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.19);
     panStage.pan.value = (step % 2 ? 1 : -1) * 0.22;
-    oscillator.connect(gain);
+    // High-drive toms use a square source for weight, but never expose its raw
+    // textbook edge to the mix. The low ceiling leaves the fundamental and a
+    // little bark while removing the brittle upper harmonic ladder.
+    filter.type = "lowpass";
+    filter.frequency.value = clamp(520 + drive * 220, 520, 740);
+    filter.Q.value = 0.82;
+    oscillator.connect(filter);
+    filter.connect(gain);
     gain.connect(panStage.node);
     const routes = this.route(panStage.node, 0.76, 0.06, 0.05);
-    if (!this.registerVoice([oscillator], [gain, panStage.node, ...routes])) return;
+    if (
+      !this.registerVoice(
+        [oscillator],
+        [filter, gain, panStage.node, ...routes],
+      )
+    ) {
+      return;
+    }
     oscillator.start(time);
     oscillator.stop(time + 0.22);
   }
@@ -2669,11 +2699,209 @@ export class InfiniteTechnoEngine {
     return this.cachedCurves.get(key);
   }
 
-  bass(time, note, stepDuration, filterBias, voice, profile) {
+  curveForPulseProcessor(shaper, drive) {
+    if (shaper.kind === "bass") return this.curveForBass(drive);
+    const driveStep = Math.round(clamp(drive, 0, 1) * 8);
+    const key = `pulse:${shaper.kind}:${driveStep}`;
+    if (this.cachedCurves.has(key)) return this.cachedCurves.get(key);
+
+    const amount = shaper.amount + (driveStep / 8) * shaper.amountDrive;
+    const curve = new Float32Array(512);
+    let maximum = 0;
+    for (let index = 0; index < curve.length; index += 1) {
+      const value = (index / (curve.length - 1)) * 2 - 1;
+      const folded =
+        value +
+        Math.sin(value * Math.PI * shaper.foldHarmonics) * shaper.foldMix +
+        (value * value - 0.5) * shaper.asymmetry;
+      curve[index] = Math.tanh(folded * amount);
+      maximum = Math.max(maximum, Math.abs(curve[index]));
+    }
+    const normalization = maximum > 0 ? 1 / maximum : 1;
+    for (let index = 0; index < curve.length; index += 1) {
+      curve[index] *= normalization;
+    }
+    this.cachedCurves.set(key, curve);
+    return curve;
+  }
+
+  connectPulseModulation(source, target, depth, nodes) {
+    if (!Number.isFinite(depth) || depth === 0) return;
+    const depthGain = this.ctx.createGain();
+    depthGain.gain.value = depth;
+    source.connect(depthGain);
+    depthGain.connect(target);
+    nodes.push(depthGain);
+  }
+
+  createPulseProcessorBranch({
+    input,
+    output,
+    processorEntry,
+    time,
+    duration,
+    profile,
+    sources,
+    nodes,
+  }) {
+    const context = this.ctx;
+    const processor = PULSE_BASS_PROCESSORS[processorEntry.id];
+    if (!context || !processor) return;
+    let current = input;
+
+    if (processor.comb) {
+      const comb = processor.comb;
+      const delay = context.createDelay(comb.maximumDelaySeconds);
+      const dryGain = context.createGain();
+      const delayedGain = context.createGain();
+      const combSum = context.createGain();
+      const combLfo = context.createOscillator();
+      delay.delayTime.setValueAtTime(comb.delaySeconds, time);
+      dryGain.gain.value = comb.dryGain;
+      delayedGain.gain.value = comb.delayedGain;
+      combLfo.type = "sine";
+      combLfo.frequency.setValueAtTime(comb.modulationRateHz, time);
+      current.connect(dryGain);
+      dryGain.connect(combSum);
+      current.connect(delay);
+      delay.connect(delayedGain);
+      delayedGain.connect(combSum);
+      this.connectPulseModulation(
+        combLfo,
+        delay.delayTime,
+        comb.modulationSeconds,
+        nodes,
+      );
+      sources.push(combLfo);
+      nodes.push(delay, dryGain, delayedGain, combSum);
+      current = combSum;
+    }
+
+    const sweep = context.createBiquadFilter();
+    const sweepStart = processor.sweep.startHz + profile.drive * processor.sweep.startDriveHz;
+    const sweepPeak = processor.sweep.peakHz + profile.drive * processor.sweep.peakDriveHz;
+    sweep.type = "lowpass";
+    sweep.Q.value = processor.sweep.q + profile.drive * processor.sweep.qDrive;
+    sweep.frequency.setValueAtTime(sweepStart, time);
+    sweep.frequency.exponentialRampToValueAtTime(
+      sweepPeak,
+      time + processor.sweep.openSeconds,
+    );
+    sweep.frequency.exponentialRampToValueAtTime(
+      processor.sweep.closeHz,
+      time + duration,
+    );
+    current.connect(sweep);
+
+    const shaper = context.createWaveShaper();
+    shaper.curve = this.curveForPulseProcessor(processor.shaper, profile.drive);
+    shaper.oversample = processor.shaper.oversample;
+    sweep.connect(shaper);
+    let shaped = shaper;
+    nodes.push(sweep, shaper);
+
+    if (processor.shaper.dcBlockHz > 0) {
+      const dcBlock = context.createBiquadFilter();
+      dcBlock.type = "highpass";
+      dcBlock.frequency.value = processor.shaper.dcBlockHz;
+      dcBlock.Q.value = 0.54;
+      shaped.connect(dcBlock);
+      shaped = dcBlock;
+      nodes.push(dcBlock);
+    }
+
+    const branchSum = context.createGain();
+    const bodyGain = context.createGain();
+    let bodyModulationTarget = null;
+    bodyGain.gain.value = processor.bodyGain;
+    if (processor.body) {
+      const body = context.createBiquadFilter();
+      body.type = processor.body.type;
+      body.frequency.value = clamp(
+        processor.body.cutoffHz +
+          profile.drive * processor.body.cutoffDriveHz +
+          profile.warmth * processor.body.cutoffWarmthHz,
+        processor.body.minimumHz,
+        processor.body.maximumHz,
+      );
+      body.Q.value = processor.body.q;
+      shaped.connect(body);
+      body.connect(bodyGain);
+      nodes.push(body);
+      if (processor.modulation?.bodyDepthHz) {
+        bodyModulationTarget = {
+          param: body.frequency,
+          depth: processor.modulation.bodyDepthHz,
+        };
+      }
+    } else {
+      shaped.connect(bodyGain);
+    }
+    bodyGain.connect(branchSum);
+    nodes.push(bodyGain, branchSum);
+
+    const modulatedParams = [
+      {
+        param: sweep.frequency,
+        depth: processor.modulation?.sweepDepthHz || 0,
+      },
+    ];
+    for (const formant of processor.formants) {
+      const filter = context.createBiquadFilter();
+      const formantGain = context.createGain();
+      const panStage = this.createPanStage(formant.pan);
+      filter.type = "bandpass";
+      filter.frequency.value = formant.frequencyHz;
+      filter.Q.value = formant.q;
+      formantGain.gain.value = formant.gain;
+      shaped.connect(filter);
+      filter.connect(formantGain);
+      formantGain.connect(panStage.node);
+      panStage.node.connect(branchSum);
+      modulatedParams.push({
+        param: filter.frequency,
+        depth: formant.modulationDepthHz,
+      });
+      nodes.push(filter, formantGain, panStage.node);
+    }
+
+    if (processor.modulation) {
+      const lfo = context.createOscillator();
+      lfo.type = processor.modulation.waveform;
+      lfo.frequency.setValueAtTime(
+        clamp(
+          (this.currentTempo / 60) * processor.modulation.tempoMultiplier,
+          0.1,
+          12,
+        ),
+        time,
+      );
+      for (const { param, depth } of modulatedParams) {
+        this.connectPulseModulation(lfo, param, depth, nodes);
+      }
+      if (bodyModulationTarget) {
+        this.connectPulseModulation(
+          lfo,
+          bodyModulationTarget.param,
+          bodyModulationTarget.depth,
+          nodes,
+        );
+      }
+      sources.push(lfo);
+    }
+
+    const branchGain = context.createGain();
+    branchGain.gain.value = processorEntry.gain;
+    branchSum.connect(branchGain);
+    branchGain.connect(output);
+    nodes.push(branchGain);
+  }
+
+  bass(time, note, stepDuration, filterBias, voice, profile, pulseTimbre = null) {
     if (voice === "sub") {
       this.subBass(time, note, stepDuration, profile);
     } else if (voice === "pulse") {
-      this.pulseBass(time, note, stepDuration, profile);
+      this.pulseBass(time, note, stepDuration, profile, pulseTimbre);
     } else {
       this.acidBass(time, note, stepDuration, filterBias, profile);
     }
@@ -2797,42 +3025,109 @@ export class InfiniteTechnoEngine {
     triangle.stop(time + duration + 0.025);
   }
 
-  pulseBass(time, note, stepDuration, profile) {
+  pulseBass(time, note, stepDuration, profile, timbre = null) {
     const context = this.ctx;
     if (!context) return;
-    const oscillator = context.createOscillator();
-    const filter = context.createBiquadFilter();
-    const shaper = context.createWaveShaper();
+    const selected =
+      PULSE_BASS_TIMBRE_BY_ID[timbre?.id] ||
+      PULSE_BASS_TIMBRE_BY_ID.filtered;
+    const safeProfile = {
+      drive: clamp(Number(profile?.drive) || 0, 0, 1),
+      warmth: clamp(Number(profile?.warmth) || 0, 0, 1),
+    };
+    const input = context.createGain();
+    const output = context.createGain();
     const gain = context.createGain();
-    const timing = scheduleBassPitch(
-      oscillator.frequency,
+    const sources = [];
+    const nodes = [input, output, gain];
+    let timing = null;
+
+    for (const oscillatorSpec of selected.oscillators) {
+      const oscillator = context.createOscillator();
+      const oscillatorGain = context.createGain();
+      oscillator.type = oscillatorSpec.waveform;
+      oscillator.detune.value = oscillatorSpec.detuneCents;
+      oscillatorGain.gain.value = oscillatorSpec.gain;
+      const oscillatorTiming = scheduleBassPitch(
+        oscillator.frequency,
+        note,
+        time,
+        stepDuration,
+        oscillatorSpec.octave * 12,
+        selected.envelope.durationScale,
+      );
+      timing ||= oscillatorTiming;
+      oscillator.connect(oscillatorGain);
+      oscillatorGain.connect(input);
+      sources.push(oscillator);
+      nodes.push(oscillatorGain);
+    }
+
+    if (selected.sub) {
+      const sub = context.createOscillator();
+      const subFilter = context.createBiquadFilter();
+      const subGain = context.createGain();
+      sub.type = selected.sub.waveform;
+      sub.detune.value = selected.sub.detuneCents;
+      subFilter.type = "lowpass";
+      subFilter.frequency.value = selected.sub.cutoffHz;
+      subFilter.Q.value = 0.62;
+      subGain.gain.value = selected.sub.gain;
+      scheduleBassPitch(
+        sub.frequency,
+        note,
+        time,
+        stepDuration,
+        selected.sub.octave * 12,
+        selected.envelope.durationScale,
+      );
+      sub.connect(subFilter);
+      subFilter.connect(subGain);
+      subGain.connect(output);
+      sources.push(sub);
+      nodes.push(subFilter, subGain);
+    }
+
+    timing ||= bassNoteTiming(
       note,
-      time,
       stepDuration,
+      selected.envelope.durationScale,
     );
     const duration = timing.duration;
     const velocity = clamp(Number(note.velocity) || 0.68, 0, 1);
-    oscillator.type = "square";
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(320 + profile.drive * 280, time);
-    filter.frequency.exponentialRampToValueAtTime(1100 + profile.drive * 1900, time + 0.016);
-    filter.frequency.exponentialRampToValueAtTime(260, time + duration);
-    filter.Q.value = 2.2 + profile.drive * 3;
-    shaper.curve = this.curveForBass(profile.drive);
-    shaper.oversample = "2x";
+    for (const processorEntry of selected.processors) {
+      this.createPulseProcessorBranch({
+        input,
+        output,
+        processorEntry,
+        time,
+        duration,
+        profile: safeProfile,
+        sources,
+        nodes,
+      });
+    }
+
     gain.gain.setValueAtTime(0.0001, time);
     gain.gain.exponentialRampToValueAtTime(
-      0.1 + velocity * 0.075 + (note.accent ? 0.03 : 0),
-      time + 0.004,
+      (0.1 + velocity * 0.075 + (note.accent ? 0.03 : 0)) *
+        selected.envelope.level,
+      time + selected.envelope.attackSeconds,
     );
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-    oscillator.connect(filter);
-    filter.connect(shaper);
-    shaper.connect(gain);
-    const routes = this.route(gain, 0.88, 0.035, 0.018, "bass");
-    if (!this.registerVoice([oscillator], [filter, shaper, gain, ...routes])) return;
-    oscillator.start(time);
-    oscillator.stop(time + duration + 0.025);
+    output.connect(gain);
+    const routes = this.route(
+      gain,
+      selected.routing.dry,
+      selected.routing.delay,
+      selected.routing.reverb,
+      "bass",
+    );
+    if (!this.registerVoice(sources, [...nodes, ...routes])) return;
+    sources.forEach((source) => {
+      source.start(time);
+      source.stop(time + duration + 0.03);
+    });
   }
 
   chord(time, event, profile) {
@@ -3062,12 +3357,14 @@ export class InfiniteTechnoEngine {
     oscillator.stop(time + duration + 0.03);
   }
 
-  fillSpectrum(array) {
-    if (!this.running || !this.analyser) {
-      array.fill(0);
+  fillSpectrum(transientArray, detailArray = null) {
+    if (!this.running || !this.analyser || !this.transientAnalyser) {
+      transientArray.fill(0);
+      detailArray?.fill(0);
       return false;
     }
-    this.analyser.getByteFrequencyData(array);
+    this.transientAnalyser.getByteFrequencyData(transientArray);
+    if (detailArray) this.analyser.getByteFrequencyData(detailArray);
     return true;
   }
 }

@@ -307,7 +307,7 @@ export async function renderCoreTrajectoryAudio({
     sampleRate,
   );
   const { InfiniteTechnoEngine } = await import(
-    "./audio-engine.js?v=2.3.0-rhythm-topology-1"
+    "./audio-engine.js?v=2.3.1-resident-open-hat-1"
   );
   const engine = new InfiniteTechnoEngine(() => {}, { seed, vibe, tonality });
   engine.ctx = context;

@@ -10,6 +10,9 @@ import {
   perspectiveMatrix,
   resampleMirroredSpectrum,
   SpectrumTerrainHistory,
+  STRUCTURED_ILLUMINATION_MODES,
+  STRUCTURED_ILLUMINATION_PALETTES,
+  structuredIlluminationForPhrase,
   visualSpectrumGain,
 } from "./spectrum-mountain.js";
 
@@ -28,6 +31,18 @@ test("musical spectral bands distinguish sub, body, and air energy", () => {
   assert.equal(body.indexOf(Math.max(...body)), 2);
   assert.equal(air.indexOf(Math.max(...air)), 4);
   assert.ok([...sub, ...body, ...air].every(Number.isFinite));
+});
+
+test("multi-resolution bands retain detailed lows and fast high transients", () => {
+  const bands = extractSpectralBands({
+    transient: isolatedTone(10000, 48000, 512),
+    detail: isolatedTone(70, 48000, 2048),
+  });
+  assert.ok(bands[0] > 0.2);
+  assert.ok(bands[4] > 0.03);
+  assert.ok(bands[0] > bands[1]);
+  assert.ok(bands[4] > bands[3]);
+  assert.ok(bands.slice(1, 4).every((value) => value < bands[0]));
 });
 
 test("perceptual mirrored resampling retains narrow peaks for mountain relief", () => {
@@ -55,6 +70,13 @@ test("continuous terrain grid is finite, indexed, and WebGL1-sized", () => {
   assert.equal(grid.vertices.length, (128 + 1) * (64 + 1) * 2);
   assert.equal(grid.indices.length, 128 * 64 * 6);
   assert.ok([...grid.vertices].every(Number.isFinite));
+  assert.ok(Math.max(...grid.indices) < 65536);
+});
+
+test("high-resolution terrain remains inside 16-bit index limits", () => {
+  const grid = buildTerrainGrid(192, 96);
+  assert.equal(grid.vertices.length, (192 + 1) * (96 + 1) * 2);
+  assert.equal(grid.indices.length, 192 * 96 * 6);
   assert.ok(Math.max(...grid.indices) < 65536);
 });
 
@@ -95,4 +117,44 @@ test("perspective camera matrices remain finite for the flyover", () => {
   assert.ok([...combined].every(Number.isFinite));
   assert.notEqual(combined[0], 0);
   assert.notEqual(combined[5], 0);
+});
+
+test("structured illumination is phrase-deterministic, bounded, and varied", () => {
+  const first = structuredIlluminationForPhrase("trajectory-a", 12, {
+    density: 0.7,
+    field: 0.5,
+    particles: 0.6,
+  });
+  assert.deepEqual(first, structuredIlluminationForPhrase("trajectory-a", 12, {
+    density: 0.7,
+    field: 0.5,
+    particles: 0.6,
+  }));
+  assert.ok(first.mode >= 0 && first.mode < STRUCTURED_ILLUMINATION_MODES.length);
+  assert.ok(first.palette >= 0 && first.palette < STRUCTURED_ILLUMINATION_PALETTES.length);
+  assert.ok(first.scale >= 0.8 && first.scale <= 8);
+  assert.ok(first.strength >= 0.42 && first.strength <= 0.9);
+  assert.ok(Math.abs(first.rotation) >= 0.08 && Math.abs(first.rotation) <= 0.48);
+
+  assert.ok(first.variant >= 0 && first.variant <= 1);
+  assert.ok(first.invert === 0 || first.invert === 1);
+
+  const phrases = Array.from({ length: 256 }, (_, phrase) =>
+    structuredIlluminationForPhrase("trajectory-a", phrase),
+  );
+  assert.ok(phrases.every(({ mode }) =>
+    mode >= 0 && mode < STRUCTURED_ILLUMINATION_MODES.length
+  ));
+  assert.ok(phrases.every(({ palette }) =>
+    palette >= 0 && palette < STRUCTURED_ILLUMINATION_PALETTES.length
+  ));
+  assert.equal(
+    new Set(phrases.map(({ mode }) => mode)).size,
+    STRUCTURED_ILLUMINATION_MODES.length,
+  );
+  assert.equal(
+    new Set(phrases.map(({ palette }) => palette)).size,
+    STRUCTURED_ILLUMINATION_PALETTES.length,
+  );
+  assert.ok(phrases.some((lighting, index) => index > 0 && lighting.mode !== phrases[index - 1].mode));
 });

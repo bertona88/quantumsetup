@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeMixControls } from "./performance-controls.js";
+import {
+  PULSE_BASS_PROCESSORS,
+  PULSE_BASS_TIMBRES,
+} from "./pulse-bass-timbres.js";
 
 class FakeAudioParam {
   constructor(value = 1) {
@@ -74,6 +78,10 @@ class FakeAudioNode {
 
   stop(...args) {
     this.stops.push(args);
+  }
+
+  getByteFrequencyData(array) {
+    array.fill(this.fftSize === 4096 ? 41 : 17);
   }
 }
 
@@ -256,6 +264,13 @@ test("the graph keeps kick, bass, rumble, and music on distinct bounded buses", 
   assert.deepEqual(connectionTargets(engine.lowEq), [engine.midEq]);
   assert.deepEqual(connectionTargets(engine.midEq), [engine.highEq]);
   assert.deepEqual(connectionTargets(engine.highEq), [engine.softClip]);
+  assert.deepEqual(connectionTargets(engine.compressor), [engine.transientAnalyser]);
+  assert.deepEqual(connectionTargets(engine.transientAnalyser), [engine.analyser]);
+  assert.deepEqual(connectionTargets(engine.analyser), [engine.masterGain]);
+  assert.equal(engine.transientAnalyser.fftSize, 1024);
+  assert.equal(engine.transientAnalyser.smoothingTimeConstant, 0.35);
+  assert.equal(engine.analyser.fftSize, 4096);
+  assert.equal(engine.analyser.smoothingTimeConstant, 0.72);
 
   const feedbackConnection = engine.rumbleFeedback.connections[0];
   assert.equal(feedbackConnection.node, engine.rumbleDelay);
@@ -326,6 +341,23 @@ test("the graph keeps kick, bass, rumble, and music on distinct bounded buses", 
   );
   assert.equal(lastEvent(engine.rumbleSendGain.gain, "target").value, 0);
   assert.equal(lastEvent(engine.rumbleFeedback.gain, "target").value, 0);
+});
+
+test("the visual analyser exposes fast transients and detailed frequencies separately", () => {
+  const { engine } = makeEngine();
+  engine.buildGraph();
+  engine.running = true;
+  const transient = new Uint8Array(512);
+  const detail = new Uint8Array(2048);
+
+  assert.equal(engine.fillSpectrum(transient, detail), true);
+  assert.ok(transient.every((value) => value === 17));
+  assert.ok(detail.every((value) => value === 41));
+
+  engine.running = false;
+  assert.equal(engine.fillSpectrum(transient, detail), false);
+  assert.ok(transient.every((value) => value === 0));
+  assert.ok(detail.every((value) => value === 0));
 });
 
 test("live EQ applies in dB and beat-quantized cuts preserve separate gain stages", () => {
@@ -520,6 +552,31 @@ test("kick synthesis consumes physical timbre fields and always stops finitely",
       (sample) => Number.isFinite(sample) && Math.abs(sample) <= 1,
     ),
   );
+});
+
+test("high-drive square toms are low-passed before reaching the mix", () => {
+  const { context, engine } = makeEngine();
+  engine.musicBus = context.createGain();
+  engine.delayIn = context.createGain();
+  engine.reverbIn = context.createGain();
+  let registration = null;
+  engine.registerVoice = (sources, nodes) => {
+    registration = { sources, nodes };
+    return true;
+  };
+
+  engine.tom(1, 0.8, 3, 0.9);
+
+  assert.ok(registration);
+  assert.equal(registration.sources[0].type, "square");
+  const filter = registration.nodes.find((node) => node.kind === "filter");
+  assert.ok(filter);
+  assert.equal(filter.type, "lowpass");
+  assert.equal(filter.frequency.value, 718);
+  assert.equal(filter.Q.value, 0.82);
+  assert.deepEqual(connectionTargets(registration.sources[0]), [filter]);
+  assert.ok(filter.frequency.value <= 740);
+  assert.deepEqual(registration.sources[0].stops, [[1.22]]);
 });
 
 test("pads use bounded fast modulation, varied envelopes, and finite cleanup", () => {
@@ -727,6 +784,129 @@ test("acid, pulse, and both sub oscillators share bounded slide timing", () => {
     assert.ok(Number.isFinite(stopTime));
     assert.ok(stopTime > ramp.time);
     assert.ok(stopTime <= startTimes[index] + 0.925);
+  }
+});
+
+test("pulse bass filters distortion harmonics back into the bass register", () => {
+  const { context, engine } = makeEngine();
+  engine.bassBus = context.createGain();
+  engine.musicBus = context.createGain();
+  engine.delayIn = context.createGain();
+  engine.reverbIn = context.createGain();
+  engine.registerVoice = () => true;
+  const filterStart = context.filters.length;
+  const shaperStart = context.shapers.length;
+
+  engine.pulseBass(
+    1,
+    {
+      midi: 41,
+      slideTo: null,
+      slideSteps: 0,
+      length: 1,
+      velocity: 0.8,
+      accent: false,
+    },
+    0.12,
+    { drive: 1, warmth: 1, space: 0.64 },
+  );
+
+  const [sweepFilter, bodyFilter] = context.filters.slice(filterStart);
+  const [shaper] = context.shapers.slice(shaperStart);
+  assert.equal(sweepFilter.type, "lowpass");
+  approximatelyEqual(sweepFilter.Q.value, 3.4);
+  assert.equal(
+    sweepFilter.frequency.events.find((event) => event.type === "ramp").value,
+    1_600,
+  );
+  assert.equal(bodyFilter.type, "lowpass");
+  assert.equal(bodyFilter.frequency.value, 1_150);
+  assert.equal(bodyFilter.Q.value, 0.6);
+  assert.deepEqual(connectionTargets(shaper), [bodyFilter]);
+  assert.equal(connectionTargets(bodyFilter).length, 1);
+});
+
+test("all pulse timbres build bounded finite live graphs including the hybrid", () => {
+  const expectedSourceCounts = {
+    "raw-square": 1,
+    filtered: 1,
+    "wobble-growl": 4,
+    "neuro-reese": 5,
+    "all-layer-hybrid": 6,
+  };
+
+  for (const timbre of PULSE_BASS_TIMBRES) {
+    const { context, engine } = makeEngine();
+    engine.bassBus = context.createGain();
+    engine.musicBus = context.createGain();
+    engine.delayIn = context.createGain();
+    engine.reverbIn = context.createGain();
+    engine.currentTempo = 134;
+    let registration = null;
+    engine.registerVoice = (sources, nodes) => {
+      registration = { sources, nodes };
+      return true;
+    };
+
+    engine.pulseBass(
+      2,
+      {
+        midi: 40,
+        slideTo: 43,
+        slideSteps: 2,
+        length: 2,
+        velocity: 0.82,
+        accent: true,
+      },
+      0.12,
+      { drive: 0.78, warmth: 0.62, space: 0.4 },
+      timbre,
+    );
+
+    assert.ok(registration, timbre.id);
+    assert.equal(registration.sources.length, expectedSourceCounts[timbre.id]);
+    assert.ok(registration.sources.length <= 6);
+    assert.ok(
+      registration.sources.every(
+        (source) =>
+          source.starts.length === 1 &&
+          source.stops.length === 1 &&
+          source.starts[0].every(Number.isFinite) &&
+          source.stops[0].every(Number.isFinite) &&
+          source.stops[0][0] > source.starts[0][0] &&
+          source.stops[0][0] <= 2.94,
+      ),
+      `${timbre.id} left a non-finite or overlong source`,
+    );
+    assert.equal(context.shapers.length, timbre.processors.length);
+    assert.ok(
+      context.shapers.every(
+        (shaper) =>
+          ["2x", "4x"].includes(shaper.oversample) &&
+          shaper.curve instanceof Float32Array &&
+          [...shaper.curve].every(
+            (sample) => Number.isFinite(sample) && Math.abs(sample) <= 1,
+          ),
+      ),
+    );
+    assert.ok(
+      context.filters.every(
+        (filter) =>
+          Number.isFinite(filter.frequency.value) &&
+          Number.isFinite(filter.Q.value) &&
+          filter.frequency.value > 0 &&
+          filter.frequency.value <= 3_000 &&
+          filter.Q.value >= 0 &&
+          filter.Q.value <= 5.5,
+      ),
+      `${timbre.id} exceeded a filter bound`,
+    );
+    assert.equal(
+      context.nodes.filter((node) => node.kind === "delay").length,
+      timbre.processors.filter(
+        ({ id }) => PULSE_BASS_PROCESSORS[id].comb,
+      ).length,
+    );
   }
 });
 

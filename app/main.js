@@ -1,7 +1,7 @@
-import { InfiniteTechnoEngine, formatSeed } from "./audio-engine.js?v=2.3.0-rhythm-topology-1";
-import { InstrumentAuditioner } from "./instrument-preview.js";
+import { InfiniteTechnoEngine, formatSeed } from "./audio-engine.js?v=2.3.1-pulse-timbres-1";
+import { InstrumentAuditioner } from "./instrument-preview.js?v=2.3.1-square-timbre-1";
 import { SignalDeckModel } from "./signal-deck.js";
-import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js?v=2.3.0-rhythm-topology-1";
+import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js?v=2.3.1-pulse-timbres-1";
 import {
   DEFAULT_DIRECTION_CONTROLS,
   DEFAULT_MIX_CONTROLS,
@@ -21,7 +21,10 @@ import {
   normalizeMomentCapsule,
   restoreMomentEngine,
 } from "./moment-share.js";
-import { QuantumPremonitionVisual } from "./quantum-visual.js?v=2.2.0-spectrum-mountain-7";
+import {
+  AdaptiveVisualQuality,
+  QuantumPremonitionVisual,
+} from "./quantum-visual.js?v=2.3.1-structured-light-3";
 
 const app = document.querySelector("#app");
 const transportButton = document.querySelector("#transport-button");
@@ -877,8 +880,10 @@ async function toggleTransport() {
   if (uiBusy) return;
   uiBusy = true;
   updateSignalAvailability();
-  transportButton.disabled = true;
-  transportButton.setAttribute("aria-busy", "true");
+  for (const button of [transportButton, portalTransportButton]) {
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+  }
   try {
     if (engine.running) {
       await engine.stop();
@@ -892,8 +897,10 @@ async function toggleTransport() {
   } finally {
     uiBusy = false;
     updateSignalAvailability();
-    transportButton.disabled = false;
-    transportButton.setAttribute("aria-busy", "false");
+    for (const button of [transportButton, portalTransportButton]) {
+      button.disabled = false;
+      button.setAttribute("aria-busy", "false");
+    }
   }
 }
 
@@ -1133,7 +1140,13 @@ if (replayMoment) {
 renderSignalSpecimen(currentSignal);
 
 const canvas = document.querySelector("#quantum-contour");
-const spectrum = new Uint8Array(512);
+const transientSpectrum = new Uint8Array(512);
+const detailedSpectrum = new Uint8Array(2048);
+const spectrum = Object.freeze({
+  transient: transientSpectrum,
+  detail: detailedSpectrum,
+});
+const adaptiveVisualQuality = new AdaptiveVisualQuality();
 const reducedMotion = window.matchMedia
   ? window.matchMedia("(prefers-reduced-motion: reduce)")
   : { matches: false };
@@ -1147,10 +1160,12 @@ function resizeCanvas() {
 
 function render(now) {
   if (!premonitionVisual?.context) return;
-  const delta = Math.min(0.05, (now - lastFrame) / 1000);
+  const frameIntervalMs = Math.max(0, now - lastFrame);
+  const delta = Math.min(0.05, frameIntervalMs / 1000);
   lastFrame = now;
-  const running = engine.fillSpectrum(spectrum);
-  premonitionVisual.render({
+  const running = engine.fillSpectrum(transientSpectrum, detailedSpectrum);
+  const renderStarted = performance.now();
+  const rendered = premonitionVisual.render({
     now,
     spectrum,
     sampleRate: engine.ctx?.sampleRate || 48000,
@@ -1162,7 +1177,22 @@ function render(now) {
       synth: visualState.synth,
     },
     energy: visualState.energy,
+    bar: visualState.bar,
+    step: visualState.step,
   });
+  const quality = adaptiveVisualQuality.observe({
+    now,
+    frameIntervalMs,
+    renderMs: performance.now() - renderStarted,
+    rendered,
+    active:
+      engine.running &&
+      !reducedMotion.matches &&
+      document.visibilityState === "visible",
+  });
+  if (quality && premonitionVisual.setQuality(quality)) {
+    app.dataset.visualQuality = quality.id;
+  }
 
   visualState.kick *= Math.exp(-delta * 8.8);
   visualState.bass *= Math.exp(-delta * 5.8);
@@ -1185,9 +1215,11 @@ function render(now) {
 
 premonitionVisual = new QuantumPremonitionVisual(canvas, {
   reducedMotion: reducedMotion.matches,
+  quality: adaptiveVisualQuality.quality,
 });
 premonitionVisual.setSeed(engine.seed);
 app.dataset.visualEngine = premonitionVisual.rendererName;
+app.dataset.visualQuality = adaptiveVisualQuality.quality.id;
 
 if (premonitionVisual.context) {
   if ("ResizeObserver" in window) {

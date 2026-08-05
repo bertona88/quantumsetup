@@ -1,4 +1,4 @@
-import { renderSynthNote } from "./synth-dsp.js";
+import { renderSynthNote } from "./synth-dsp.js?v=2.3.1-square-timbre-1";
 import { validateSynthGenome } from "./synth-genomes.js";
 
 const PREVIEW_SECONDS = 2.75;

@@ -1,6 +1,7 @@
 # Acceptance Tests
 
-Current gate: Infinite Techno `2.3.0` rhythm-topology implementation candidate; prior
+Current gate: Infinite Techno `2.3.1` resident-open-hat, pulse-timbre, and
+structured-light implementation candidate; prior
 deployment evidence remains historical; public acceptance remains open
 
 Passing one gate does not imply another. Deterministic structure, rendered audio,
@@ -36,9 +37,10 @@ carried forward across the material-planner rewrite.
   every bar downbeat, keep at least two sixteenth notes between onsets, and change
   only at eight-bar boundaries.
 - [x] pickup and rolling articulations are quieter and shorter than foundation hits.
-- [x] clap is an exact beats-two-and-four backbeat, a classic offbeat open hat is
-  present outside intentional rests, and hats/percussion/bass/foreground voices use
-  distinct grammar families rather than one universal Euclidean constructor.
+- [x] clap is an exact beats-two-and-four backbeat; open hats use deterministic
+  full-offbeat, paired, alternating-bar, tail, and closed-only modes resident with
+  the hats clock; and hats/percussion/bass/foreground voices use distinct grammar
+  families rather than one universal Euclidean constructor.
 - [x] Track DNA selects `off`, `short`, or `deep` rumble for the trajectory; `off`
   produces zero rumble send and feedback.
 - [x] pickup and rolling collisions relocate bass to an adjacent safe step; only
@@ -121,7 +123,7 @@ carried forward across the material-planner rewrite.
 - [x] every audible Echo Ascent hit enters the frozen read-only visual forecast.
 - [x] the complete deterministic, DSP, worklet, lifecycle, transition, trajectory,
   performance-control, taste, FFT, and syntax suite passes together on the current
-  local `2.3.0` source state.
+  local `2.3.1` source state.
 
 ## Gate 4 — Deterministic population evidence
 
@@ -135,17 +137,18 @@ carried forward across the material-planner rewrite.
 - [x] settled Vibe endpoints change future phrases without rewriting an already
   frozen phrase.
 
-Current local evidence: `npm --prefix app run check` passes all 171 tests. The
+Current local evidence: `npm --prefix app run check` passes all 190 tests. The
 13-trajectory first-48-bar manifest passes all 78 pairs; the minimum observed
-composite distance is `0.218280`, with rhythm and phrase-grammar separation plus at
+composite distance is `0.213345`, with rhythm and phrase-grammar separation plus at
 least one of orchestration, timbre, or harmony for every pair.
 
 ## Gate 5 — Render and listening evidence
 
 - [x] the local core-engine audit renders four-bar full mixes and bass solos for ten
   fixed seeds through `OfflineAudioContext`; all 45 FFT-feature comparisons clear
-  `0.08`, with nearest combined distance `0.115554`. This excludes advanced
-  AudioWorklet voices and is not a listening result.
+  `0.08`, with nearest combined distance `0.108876` (`0.118072` full mix,
+  `0.102216` bass solo). This excludes advanced AudioWorklet voices and is not a
+  listening result.
 - [ ] fixed-seed real-engine Echo Ascent captures confirm the intended density rise,
   bright articulation, audible left/right motion, finite tail, and acceptable mix
   balance against nearby non-event phrases.
@@ -162,12 +165,12 @@ least one of orchestration, timbre, or harmony for every pair.
 
 ## Gate 6 — Interface, browser, and soak
 
-- [x] `window.QuantumTechno` is versioned `2.3.0`, preserves `getSnapshot()`,
+- [x] `window.QuantumTechno` is versioned `2.3.1`, preserves `getSnapshot()`,
   `requestVibe()`, and `requestTonality()`, and adds bounded mix, direction, and
   bass-character methods.
 - [x] snapshots add a deeply frozen material section with gesture, motif lineage,
-  lane-clock summaries, selected-candidate score, candidate count, temperature, and
-  kick-phrase status.
+  lane-clock summaries including the resident open-hat mode and variant,
+  selected-candidate score, candidate count, temperature, and kick-phrase status.
 - [x] the performance console exposes bounded three-band EQ, next-beat Kick and
   Bassline cuts, nine phrase-direction controls, and five bassline characters while
   keeping onset masks and individual synthesis parameters private.
@@ -188,8 +191,12 @@ least one of orchestration, timbre, or harmony for every pair.
   bass-character targets, and verified durable-control reload plus nonpersistent
   cuts with no console warnings or errors; `390×844` and `320×568` both had zero
   horizontal overflow and a visible phrase target.
-- [x] the local `2.3.0` in-app-browser smoke loaded the cache-busted module graph,
+- [x] the local `2.3.1` in-app-browser smoke loaded the cache-busted module graph,
   started the real Web Audio engine from a user gesture, stopped it cleanly, and
+  produced no console warnings or errors.
+- [x] the local WebGL2 terrain smoke rendered phrase-resident structured projection
+  with high-contrast gaps and saturated light; the deterministic vocabulary reaches
+  eleven pattern families and ten palettes, preserves the Canvas2D fallback, and
   produced no console warnings or errors.
 - [ ] foreground Start/Stop, every performance control, Vibe, Tonality, New
   Trajectory, transition, preview, restart, responsive, reduced-motion, and
@@ -279,6 +286,9 @@ historical facts, not `2.0.0` authorities.
   bass voice inside an eight-bar phrase.
 - [x] bass voice identity follows its own resident material ID and does not rotate
   on a 32-bar decision span or reset with motif replacement.
+- [x] resident Pulse timbre selects uniformly among raw, filtered, wobble-growl,
+  neuro-reese, and all-layer hybrid; the selected frozen parameter contract stays
+  stable across its phrase and every native source stops finitely.
 - [x] motif replacement changes motif/bass-cell material while tonal identity,
   progression vocabulary and position, scene target, and bass voice remain held.
 - [x] harmony turns occupy every tested calendar residue, have variable causal

@@ -16,6 +16,7 @@ import {
   MATERIAL_STRUCTURE_MIN_DISTANCE,
   MATERIAL_VERSION,
   MaterialPlanner,
+  OPEN_HAT_MODES,
   PHRASE_BARS,
   SCORE_WEIGHTS,
   STEPS_PER_BAR,
@@ -29,6 +30,7 @@ import {
   materialPhraseFingerprint,
   materialStructuralDistance,
   renderMaterialClock,
+  renderOpenHatPattern,
   summarizeMaterialState,
   traceMaterial,
   validateMaterialCandidate,
@@ -194,6 +196,19 @@ function assertPhraseSafety(candidate) {
   }
 
   const patterns = candidate.phrase.patterns;
+  assert.ok(OPEN_HAT_MODES.includes(candidate.phrase.openHatMode));
+  assert.equal(
+    candidate.phrase.openHatMode,
+    candidate.clocks.hats.openHatMode,
+  );
+  assert.deepEqual(
+    patterns.openHats,
+    renderOpenHatPattern(
+      candidate.clocks.hats,
+      candidate.phraseIndex,
+      candidate.form.intentionalRest === true,
+    ),
+  );
   for (const lane of [
     patterns.kick,
     patterns.clap,
@@ -292,7 +307,7 @@ test("canonical Euclidean patterns are immutable, even, rotated, and validated",
 });
 
 test("gesture grammar and candidate score weights preserve the authored contract", () => {
-  assert.equal(MATERIAL_VERSION, "2.3.0");
+  assert.equal(MATERIAL_VERSION, "2.3.1");
   assert.equal(MATERIAL_CANDIDATE_COUNT, 12);
   assert.equal(MATERIAL_SCORE_FLOOR, 0.55);
   assert.equal(MATERIAL_SCORE_BAND, 0.2);
@@ -336,6 +351,14 @@ test("gesture grammar and candidate score weights preserve the authored contract
     ),
   );
   assertDeepFrozen(LANE_DOMAINS);
+  assert.deepEqual(OPEN_HAT_MODES, [
+    "offbeat-full",
+    "offbeat-pair",
+    "offbeat-alternating",
+    "offbeat-tail",
+    "closed-only",
+  ]);
+  assertDeepFrozen(OPEN_HAT_MODES);
   assert.deepEqual(KICK_PHRASE_IDS, [
     "anchor",
     "turnaround-pickup",
@@ -693,6 +716,11 @@ test("candidate validator rejects crafted unsafe material for every safety class
   );
   assert.ok(
     reasonsFor((unsafe) => {
+      unsafe.phrase.patterns.openHats[0] = true;
+    }).includes("open-hat-vocabulary"),
+  );
+  assert.ok(
+    reasonsFor((unsafe) => {
       const offset = unsafe.phrase.patterns.percussion.findIndex(Boolean);
       unsafe.phrase.patterns.percussionVoices[offset] = "unsafe-voice";
     }).includes("voice:percussion"),
@@ -875,6 +903,11 @@ test("state creation, incremental advance, batch replay, summaries, and class wr
     assert.equal(summary.gesture, state.gesture);
     assert.equal(summary.motifLineageId, state.motif.lineageId);
     assert.equal(summary.phraseFingerprint, state.phrase.fingerprint);
+    assert.equal(summary.openHatMode, state.phrase.openHatMode);
+    assert.equal(
+      summary.laneClocks.hats.openHatMode,
+      state.clocks.hats.openHatMode,
+    );
     assert.equal(summary.candidateCount, MATERIAL_CANDIDATE_COUNT);
   }
   assertDeepFrozen(summarizeMaterialState(null));
@@ -983,6 +1016,66 @@ test("absolute clock phase and material identity continue across the 192-bar obs
     trace.slice(24, 30),
     "startPhrase reset material instead of replaying to the requested window",
   );
+});
+
+test("open-hat vocabulary is varied, deterministic, and resident with the hats clock", () => {
+  const reachedModes = new Set();
+  let residentComparisons = 0;
+  let residentModeChanges = 0;
+  let fullPhrases = 0;
+  let audiblePhrases = 0;
+  for (let seed = 0; seed < 32; seed += 1) {
+    const trackDNA = createTrackDNA(seed);
+    let state = null;
+    for (let phraseIndex = 0; phraseIndex < 24; phraseIndex += 1) {
+      const form = derivePhraseState(seed, phraseIndex);
+      const previous = state;
+      const input = {
+        seed,
+        trackDNA,
+        phraseIndex,
+        form,
+        profile: PROFILE,
+        tonality: "minor",
+      };
+      state = state
+        ? advanceMaterialState(state, input)
+        : createMaterialState(input);
+      const mode = state.phrase.openHatMode;
+      reachedModes.add(mode);
+      assert.equal(mode, state.clocks.hats.openHatMode);
+      assert.deepEqual(
+        state.phrase.patterns.openHats,
+        renderOpenHatPattern(
+          state.clocks.hats,
+          phraseIndex,
+          form.intentionalRest === true,
+        ),
+      );
+      if (!form.intentionalRest) {
+        const count = state.phrase.patterns.openHats.filter(Boolean).length;
+        audiblePhrases += 1;
+        fullPhrases += Number(mode === "offbeat-full");
+        if (mode === "offbeat-full") assert.equal(count, 32);
+        if (mode === "offbeat-pair" || mode === "offbeat-alternating") {
+          assert.equal(count, 16);
+        }
+        if (mode === "offbeat-tail") assert.ok([8, 16].includes(count));
+        if (mode === "closed-only") assert.equal(count, 0);
+      }
+      if (previous?.clocks.hats.id === state.clocks.hats.id) {
+        residentComparisons += 1;
+        residentModeChanges += Number(
+          previous.phrase.openHatMode !== state.phrase.openHatMode,
+        );
+      }
+    }
+  }
+  assert.deepEqual([...reachedModes].sort(), [...OPEN_HAT_MODES].sort());
+  assert.ok(residentComparisons > 500);
+  assert.equal(residentModeChanges, 0);
+  assert.ok(fullPhrases / audiblePhrases > 0.1);
+  assert.ok(fullPhrases / audiblePhrases < 0.4);
 });
 
 test("Track DNA creates statistically distinct clock dialects and patient hold times", () => {

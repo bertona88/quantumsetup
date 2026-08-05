@@ -1,7 +1,8 @@
 # Claims and Validation
 
-Status: claim register for Infinite Techno `2.3.0` rhythm-topology implementation candidate;
-prior deployment evidence remains historical
+Status: claim register for Infinite Techno `2.3.1` resident-open-hat,
+pulse-timbre, and structured-light implementation candidate; prior deployment
+evidence remains historical
 
 The named `2.1.0` deployment is verified at `b16c5dc`, Pages run `30631366177`, and
 deployment `5691599940`. All 18 published files byte-match and a focused public
@@ -38,9 +39,10 @@ The application may claim that it:
   onset mask;
 - keeps the kick clock on four-floor `E(4,16)` and varies it only through curated,
   bar-aligned anchor, turnaround-pickup, breathing, and rolling-pressure phrases;
-- keeps clap on the beats-two-and-four backbeat, supplies a classic offbeat open
-  hat outside intentional rests, and gives hats, percussion, bass, and foreground
-  engines distinct bounded grammars;
+- keeps clap on the beats-two-and-four backbeat, gives the open hat a resident
+  multi-phrase vocabulary of full, paired, alternating-bar, tail, and closed-only
+  modes, and gives hats, percussion, bass, and foreground engines distinct bounded
+  grammars;
 - selects track-level `off`, `short`, or `deep` kick rumble, with zero send and
   feedback when rumble is off;
 - relocates bass collisions caused by quiet pickup and rolling kick articulations
@@ -49,6 +51,9 @@ The application may claim that it:
   foundation kicks, with bass-only level/definition and dense-bass rumble protection;
 - treats bass character as a density bias: Sub remains restrained while Rolling
   and Acid can occasionally reach seven or eight onsets per 20-step clock;
+- keeps Pulse bass timbre resident with its bass-voice material ID and selects
+  deterministically among five equally weighted, bounded DSP graphs rather than
+  rerolling timbre note by note;
 - keeps lane identities resident for two to eight phrases and limits structural
   mutation to one lane ordinarily or two during earned climax, release, or recall;
 - carries phrase memory containing a resident motif, previous gesture, unresolved
@@ -131,7 +136,9 @@ The application may claim that it:
   kick-phrase status;
 - drives one persistent causal field from a read-only event tape derived from the
   already-frozen phrase: future pressure, audio-clock crossing, and long visual
-  residue are three phases of the same event; the visual does not rewrite the score.
+  residue are three phases of the same event; the visual does not rewrite the score;
+- projects eleven deterministic phrase-resident structured-light families through
+  ten palettes onto the analyser-driven terrain while retaining a Canvas2D fallback.
 
 ## Nonclaims
 

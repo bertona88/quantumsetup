@@ -45,6 +45,7 @@ jobs:
             app/audio-engine.js \
             app/techno-model.js \
             app/material-planner.js \
+            app/pulse-bass-timbres.js \
             app/emergent-form.js \
             app/generative-utils.js \
             app/trajectory-identity.js \

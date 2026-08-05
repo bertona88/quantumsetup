@@ -44,6 +44,14 @@ function signalDifference(first, second) {
   return difference;
 }
 
+function maxAdjacentDelta(channel) {
+  let maximum = 0;
+  for (let index = 1; index < channel.length; index += 1) {
+    maximum = Math.max(maximum, Math.abs(channel[index] - channel[index - 1]));
+  }
+  return maximum;
+}
+
 function median(values) {
   const sorted = [...values].sort((left, right) => left - right);
   return sorted[Math.floor((sorted.length - 1) / 2)];
@@ -82,6 +90,44 @@ test("all three DSP engines render finite, bounded, non-silent audio", () => {
       );
     }
   }
+});
+
+test("FM square operators retain pulse colour without raw discontinuities", () => {
+  const palette = createSynthPalette({ seed: 22, bar: 0 });
+  const genome = {
+    ...palette.fm,
+    algorithm: "parallel",
+    ratios: [1, 1, 1, 1],
+    waves: ["square", "square", "square", "square"],
+    levels: [1, 0.01, 0.01, 0.01],
+    modulationIndex: 0.22,
+    feedback: 0,
+    toneHz: 11_200,
+    filterQ: 0.55,
+    filterEnvelope: 0.08,
+    drive: 1.05,
+  };
+  const rendered = renderSynthNote(
+    {
+      engine: "fm",
+      genome,
+      midi: 69,
+      velocity: 1,
+      startFrame: 0,
+      durationFrames: 12_000,
+      noteSeed: 1,
+    },
+    12_000,
+    48_000,
+  );
+
+  assert.ok(rendered);
+  const stats = signalStats(rendered);
+  assert.ok(stats.peak > 0.02, "rounded pulse lost its audible body");
+  assert.ok(
+    maxAdjacentDelta(rendered.left) < 0.01,
+    "square operator exposed a raw sample discontinuity",
+  );
 });
 
 test("advanced engines have bounded and comparable representative foreground peaks", () => {

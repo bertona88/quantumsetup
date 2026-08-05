@@ -7,6 +7,8 @@ export const SYNTH_HARD_LIFETIME_SECONDS = 8;
 
 const TAU = Math.PI * 2;
 const SILENCE = 1e-7;
+const ROUNDED_PULSE_DRIVE = 2.45;
+const ROUNDED_PULSE_NORMALIZATION = Math.tanh(ROUNDED_PULSE_DRIVE);
 const ENGINE_OUTPUT_TRIM = Object.freeze({
   fm: 0.085,
   modal: 0.115,
@@ -36,7 +38,16 @@ function waveform(type, phase) {
   const normalized = ((phase / TAU) % 1 + 1) % 1;
   if (type === "triangle") return 1 - 4 * Math.abs(normalized - 0.5);
   if (type === "sawtooth") return normalized * 2 - 1;
-  if (type === "square") return normalized < 0.5 ? 1 : -1;
+  // A mathematically hard square is brittle before FM and creates excessive
+  // upper-band energy. Saturating a sine retains the odd-harmonic pulse colour
+  // while rounding the discontinuity; the genome's filter and drive can then
+  // shape it without exposing a perfect textbook square.
+  if (type === "square") {
+    return (
+      Math.tanh(Math.sin(phase) * ROUNDED_PULSE_DRIVE) /
+      ROUNDED_PULSE_NORMALIZATION
+    );
+  }
   return Math.sin(phase);
 }
 
