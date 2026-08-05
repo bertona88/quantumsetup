@@ -21,7 +21,7 @@ import {
   normalizeMomentCapsule,
   restoreMomentEngine,
 } from "./moment-share.js";
-import { QuantumPremonitionVisual } from "./quantum-visual.js";
+import { QuantumPremonitionVisual } from "./quantum-visual.js?v=2.2.0-spectrum-mountain-4";
 
 const app = document.querySelector("#app");
 const transportButton = document.querySelector("#transport-button");
@@ -738,7 +738,7 @@ function handleEngineEvent(event) {
     } else {
       premonitionVisual?.setRunning(true, engine.ctx?.currentTime || 0);
     }
-    app.dataset.visualEngine = "causal-world";
+    app.dataset.visualEngine = premonitionVisual?.rendererName || "spectrum-mountain";
     if (event.running) void stopSignalAudition();
     updateSignalAvailability();
   }
@@ -1150,8 +1150,15 @@ function render(now) {
   const running = engine.fillSpectrum(spectrum);
   premonitionVisual.render({
     now,
-    audioNow: engine.ctx?.currentTime || 0,
     spectrum,
+    sampleRate: engine.ctx?.sampleRate || 48000,
+    pulses: {
+      kick: visualState.kick,
+      bass: visualState.bass,
+      hat: visualState.hat,
+      chord: visualState.chord,
+      synth: visualState.synth,
+    },
     energy: visualState.energy,
   });
 
@@ -1178,7 +1185,7 @@ premonitionVisual = new QuantumPremonitionVisual(canvas, {
   reducedMotion: reducedMotion.matches,
 });
 premonitionVisual.setSeed(engine.seed);
-app.dataset.visualEngine = "causal-world";
+app.dataset.visualEngine = premonitionVisual.rendererName;
 
 if (premonitionVisual.context) {
   if ("ResizeObserver" in window) {
@@ -1196,4 +1203,5 @@ if (premonitionVisual.context) {
 window.addEventListener("pagehide", () => {
   if (renderHandle) window.cancelAnimationFrame(renderHandle);
   if (renderTimer) window.clearTimeout(renderTimer);
+  premonitionVisual?.dispose();
 });

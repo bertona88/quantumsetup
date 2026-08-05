@@ -149,13 +149,15 @@ touch kick and bass routing.
 Native temporary voices are capped at 72 and the advanced bank at 24, preserving a
 combined ceiling of 96. Every voice has a finite hard end.
 
-`main.js` owns the single audio-first interface. `visual-grammar.js` converts the
-remaining bars of the already-frozen phrase, up to eight bars, into a read-only
-event forecast. `causal-world.js` turns that forecast into stable spacetime events
-and owns the long-lived filaments, future force, audio-clock crossings, and scars.
-`quantum-visual.js` renders that one world through native persistent framebuffer
-feedback. Analyser energy shades the material but does not define the world. The
-forecast never drives or rewrites the music.
+`main.js` owns the single audio-first interface. `spectrum-mountain.js` resamples
+the live analyser into a log-frequency height profile, advances those profiles
+through a continuous history texture, and displaces one dense WebGL2 terrain mesh.
+The shader derives smooth surface normals from that height field, ray-marches
+terrain self-shadow, and projects changing rainbow light onto a white mineral
+material. Kick and bass shape relief and light intensity; hat, chord, synth,
+spectral centroid, flux, and five broad frequency bands steer roughness, color,
+camera drift, and illumination. `quantum-visual.js` owns that renderer and its
+Canvas2D fallback. The visual reads the music and never drives or rewrites it.
 
 See [`../MUSICAL_SYSTEM.md`](../MUSICAL_SYSTEM.md) for the arrangement grammar,
 transition design, and research sources.

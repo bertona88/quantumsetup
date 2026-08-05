@@ -35,16 +35,17 @@ the icon-only transport gesture required to start browser audio; readouts and mu
 controls begin below the fold and appear through ordinary scrolling. Once audio is
 running, the opening transport glyph withdraws and the visual owns that viewport.
 
-The visual is one continuously evolving causal world, not a slideshow of scenes or
-a stack of visualizer presets. A native persistent-feedback renderer owns one field
-of long-lived filaments, temporal worldlines, and impact scars. At each bar, the
-audio engine exposes a read-only forecast from the phrase that has already been
-frozen by the musical planner. The forecast becomes a spacetime event tape: future
-events deform the field before their Web Audio time, the audible crossing produces
-an impact, and the same event remains as decaying field memory. Analyser energy can
-shade the material but does not define its structure. The world is generative while
-silent and the transport attaches its audible plane; the forecast cannot rewrite
-the musical plan.
+The visual is one continuously evolving spectrum landscape, not a slideshow of
+scenes or a stack of visualizer presets. A native WebGL2 renderer resamples the live
+FFT on a logarithmic frequency axis and streams successive profiles through a
+linearly filtered height texture. One dense mesh becomes a continuous moving
+mountain under height-derived smooth normals, terrain self-shadow, a white mineral
+material, and music-steered rainbow illumination. Kick and bass control relief and
+light impact while wider spectral change moves color, roughness, and the flyover.
+The silent field remains a calm deterministic landscape until analyser data arrives.
+A Canvas2D terrain is the fallback when WebGL2 is unavailable. The renderer is a
+read-only response to audio and forecast color genes; it cannot rewrite the musical
+plan.
 
 ## Transport
 
