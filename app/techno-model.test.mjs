@@ -50,7 +50,7 @@ test("canonical supplied generator remains byte-identical", () => {
 });
 
 test("the versioned high-level browser API remains source-compatible", () => {
-  assert.equal(GENERATOR_VERSION, "2.2.1");
+  assert.equal(GENERATOR_VERSION, "2.3.0");
   const source = readFileSync(
     new URL("./main.js", import.meta.url),
     "utf8",
@@ -392,6 +392,7 @@ test("earned echo ascents freeze a bounded bright-percussion phrase contour", ()
 test("rendered bar lanes preserve their selected material provenance", () => {
   const fixtures = [
     { seed: 0, bar: 2, vibeId: "peak" },
+    { seed: 0, bar: 47, vibeId: "peak" },
     { seed: 0, bar: 0, vibeId: "detroit" },
     { seed: 1, bar: 178, vibeId: "detroit" },
     { seed: 0, bar: 543, vibeId: "detroit" },

@@ -1,9 +1,9 @@
 # Infinite Techno Musical System
 
-Status: `2.2.1` acid-bass release candidate; deterministic and browser/audio
+Status: `2.3.0` rhythm-topology implementation candidate; deterministic and browser/audio
 validation remain separate from listening, soak, deployment, and
 public-acceptance gates
-Generator version: `2.2.1` (`2.2.0` material-state schema)
+Generator version: `2.3.0` (`2.3.0` material-state schema)
 Primary product: music  
 Quantum role: visual and poetic contour only
 
@@ -49,14 +49,17 @@ and recurrent-form tendencies. Track DNA never supplies an onset mask. Field nam
 seed, scene label, material IDs, and fingerprints do not count as musical difference
 in a structural-distance gate.
 
-`New Trajectory` samples 16 browser-random candidates and, when the pool contains
-an eligible candidate, selects the most distant one by a weighted DNA comparison.
+`New Trajectory` samples 16 browser-random candidates and ranks eligible candidates
+by weighted DNA comparison.
 Eligibility requires distance of at least `0.55`, at least five changed fields, and
 at least three changed core fields among groove, kick, bass, harmony, and form. If a
-16-candidate draw contains no eligible result, the request is rejected and the
-current trajectory continues; an unqualified fallback seed never enters. At the
-16-bar trajectory boundary, the engine clears the resident advanced voices and
-reconstructs seed-bound synthesis and ensemble identity.
+candidate passes that gate, the engine previews its emitted rhythmic and melodic
+topology while ignoring IDs, labels, timbre, and transposition. It must remain at
+least `0.075` from the current start and the bounded recent-start history. If no
+candidate passes both gates, the request is rejected and the current trajectory
+continues; an unqualified fallback seed never enters. At the 16-bar trajectory
+boundary, the engine clears the resident advanced voices and reconstructs
+seed-bound synthesis and ensemble identity.
 
 Vibe remains an independent user direction layered onto this trajectory identity.
 It affects realized rhythm, low end, harmony, synthesis, audio profile, and form;
@@ -111,7 +114,7 @@ observation window about six minutes.
 
 ## Phrase-sequential generative material
 
-The `2.2.0` material planner is a second recurrent layer downstream of emergent
+The `2.3.0` material planner is a second recurrent layer downstream of emergent
 form. At every eight-bar boundary it accepts the trajectory seed, Track DNA, current
 form snapshot, Vibe profile settled for that phrase boundary, tonality, and previous
 material state. It plans and freezes the complete eight-bar symbolic phrase once.
@@ -120,13 +123,15 @@ decisions.
 
 Each rhythmic lane carries a persistent clock with:
 
-- loop length and Euclidean hit count;
+- loop length, target hit count, and a lane-specific grammar identity;
 - rotation and absolute phase origin;
 - residence age;
 - bounded mutation history.
 
-`euclidean(hits, steps, rotation)` uses canonical Bjorklund distribution and returns
-immutable output. Clock phase follows the absolute sixteenth-note position and never
+`euclidean(hits, steps, rotation)` remains the immutable canonical Bjorklund
+primitive, but it is no longer the universal onset constructor. Kick, clap, hats,
+percussion, bass, and each foreground engine interpret their resident clocks through
+separate grammars. Clock phase follows the absolute sixteenth-note position and never
 restarts at a bar, phrase, derived section, or 192-bar observation boundary. Clock
 identities normally remain resident for two to eight phrases. An ordinary phrase may
 mutate at most one structural lane; an earned climax, release, or recall may mutate
@@ -138,8 +143,9 @@ The bounded loop domains are:
 | Lane | Loop domain |
 | --- | --- |
 | Kick | bar-aligned `E(4,16)` foundation plus curated eight-bar anchor, turnaround-pickup, breathing, or rolling-pressure phrasing |
-| Clap | 12, 15, 16, 18, 20, or 24 steps with two or three hits |
-| Hats and secondary percussion | 5–29 steps, biased by Track DNA groove family |
+| Clap | fixed 16-step backbeat at beats two and four |
+| Hats | 5–29-step motor, eighth, swing-pair, triplet-weave, or broken-chatter grammar plus the classic offbeat open hat |
+| Secondary percussion | 5–29-step gap-call, offbeat-answer, clave-walk, burst-tail, or dust-point grammar |
 | Bass | 12, 15, 16, 18, 20, 24, 28, or 32 steps |
 | Advanced-synth gestures | 7, 9, 11, 13, 15, 17, 19, 23, 29, or 31 steps |
 
@@ -187,9 +193,11 @@ safety bounds. Eligible candidates receive normalized scores:
 | Polymetric phase interest | 8% |
 
 Only candidates scoring at least `0.55` and within `0.20` of the best remain in the
-selection pool. A named seed coordinate samples a softmax over that pool instead of
-always taking the maximum. Temperature stays between `0.35` and `0.85` according to
-novelty debt and trajectory phenotype. Candidate construction and selection are
+initial selection pool. The planner greedily removes candidates closer than `0.045`
+in emitted rhythm/melody topology before a named seed coordinate samples a softmax
+over the remaining pool. All twelve constructed candidates retain different core
+signatures. Temperature stays between `0.35` and `0.85` according to novelty debt
+and trajectory phenotype. Candidate construction and selection are
 coordinate-addressed and replayable: the same seed plus the same intent history
 produces the same material trace.
 
@@ -200,7 +208,10 @@ downbeat, has no onset spacing below two sixteenth notes, and remains resident f
 one to three phrases. Pickup and rolling articulations are quieter and shorter than
 foundation hits. Polymetric clocks remain available to secondary lanes, never to
 the kick. This curated material phrasing is distinct from rare form-level thinning
-or intentional withdrawal.
+or intentional withdrawal. A thin policy lasts at most one phrase, cannot recur
+until three phrase onsets later, and follows a bounded valley-and-return contour;
+the one-kick-per-bar texture lasts no more than two consecutive bars before pressure
+starts returning.
 
 ## Emergent form
 
@@ -268,16 +279,18 @@ memory. Runtime Vibe or Tonality requests affect future phrase selections only.
 
 The kick and bass are planned as a relationship rather than independent lanes.
 
-- The bass onset clock uses a resident 12–32-step Euclidean/polymetric identity
-  rather than a fixed two-bar cell.
+- The bass onset clock uses a resident 12–32-step behaviour grammar rather than a
+  fixed two-bar cell or the universal secondary-lane constructor.
 - A persistent motif lineage supplies modal degrees and bounded transformations
   while the bass clock supplies onset phase.
 - Pitch degrees remain inside the active modal field; accent, velocity, length,
   octave, and slides are bounded and coordinate-addressed.
 - Bass voice identity has its own resident material ID. It does not rotate on a
   32-bar clock or reset when a motif gesture changes.
-- Candidate validation scores kick/bass separation and rejects unsafe overlap before
-  the phrase is frozen.
+- Track DNA declares the kick/bass relationship: counterpoint removes anchor
+  overlap, hybrid material retains a bounded subset, and layered sub material may
+  intentionally reinforce the kick. Candidate validation scores and bounds the
+  selected relationship before the phrase is frozen.
 - The recurrent form can earn a joint low-end dropout after floor trust has been
   established. It removes both kick and bass for the final two or four bars of an
   eight-bar phrase, uses an eight-phrase cooldown, and leaves the upper arrangement

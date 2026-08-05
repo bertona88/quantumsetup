@@ -9,9 +9,11 @@ import {
   KICK_ARTICULATIONS,
   KICK_PHRASE_IDS,
   LANE_DOMAINS,
+  LANE_GRAMMARS,
   MATERIAL_CANDIDATE_COUNT,
   MATERIAL_SCORE_BAND,
   MATERIAL_SCORE_FLOOR,
+  MATERIAL_STRUCTURE_MIN_DISTANCE,
   MATERIAL_VERSION,
   MaterialPlanner,
   PHRASE_BARS,
@@ -23,7 +25,10 @@ import {
   euclidean,
   generateMaterialCandidates,
   gestureProbabilities,
+  materialCoreSignature,
   materialPhraseFingerprint,
+  materialStructuralDistance,
+  renderMaterialClock,
   summarizeMaterialState,
   traceMaterial,
   validateMaterialCandidate,
@@ -63,7 +68,7 @@ const EXPECTED_TRANSITIONS = Object.freeze({
 
 const EXPECTED_LANE_DOMAINS = Object.freeze({
   kick: [16],
-  clap: [12, 15, 16, 18, 20, 24],
+  clap: [16],
   hats: Array.from({ length: 25 }, (_, index) => index + 5),
   percussion: Array.from({ length: 25 }, (_, index) => index + 5),
   bass: [12, 15, 16, 18, 20, 24, 28, 32],
@@ -133,16 +138,7 @@ function plannerInput(seed, phraseIndex, overrides = {}) {
 }
 
 function expectedClockPattern(state, lane) {
-  const clock = state.clocks[lane];
-  const cycle = euclidean(clock.hits, clock.loopLength, clock.rotation);
-  return Array.from({ length: STEPS_PER_PHRASE }, (_, offset) => {
-    const absoluteStep = state.startStep + offset;
-    const phase =
-      ((absoluteStep - clock.phaseOrigin) % clock.loopLength +
-        clock.loopLength) %
-      clock.loopLength;
-    return cycle[phase] === 1;
-  });
+  return renderMaterialClock(state.clocks[lane], state.phraseIndex);
 }
 
 function motifKey(motif) {
@@ -296,7 +292,7 @@ test("canonical Euclidean patterns are immutable, even, rotated, and validated",
 });
 
 test("gesture grammar and candidate score weights preserve the authored contract", () => {
-  assert.equal(MATERIAL_VERSION, "2.2.0");
+  assert.equal(MATERIAL_VERSION, "2.3.0");
   assert.equal(MATERIAL_CANDIDATE_COUNT, 12);
   assert.equal(MATERIAL_SCORE_FLOOR, 0.55);
   assert.equal(MATERIAL_SCORE_BAND, 0.2);
@@ -333,6 +329,12 @@ test("gesture grammar and candidate score weights preserve the authored contract
   });
   approximatelyEqual(sum(Object.values(SCORE_WEIGHTS)), 1);
   assert.deepEqual(LANE_DOMAINS, EXPECTED_LANE_DOMAINS);
+  assert.deepEqual(Object.keys(LANE_GRAMMARS), Object.keys(LANE_DOMAINS));
+  assert.ok(
+    Object.values(LANE_GRAMMARS).every(
+      (grammars) => grammars.length > 0 && new Set(grammars).size === grammars.length,
+    ),
+  );
   assertDeepFrozen(LANE_DOMAINS);
   assert.deepEqual(KICK_PHRASE_IDS, [
     "anchor",
@@ -420,21 +422,13 @@ test("kick phrases stay bar-aligned and realize the approved curated vocabulary"
       assert.ok(onsets[index] - onsets[index - 1] >= 2);
     }
     const rawBass = expectedClockPattern(state, "bass");
-    const anchorCollisions = rawBass.filter(
-      (active, offset) =>
-        active &&
-        state.phrase.patterns.kick[offset] &&
-        state.phrase.kickArticulations[offset] === "anchor",
-    ).length;
+    const vacatedAnchors =
+      state.phrase.patterns.bassVacatedByAnchor.filter(Boolean).length;
     assert.equal(
       rawBass.filter(Boolean).length -
         state.phrase.patterns.bass.filter(Boolean).length,
-      anchorCollisions,
-      `${id} allowed a secondary kick to erase bass material`,
-    );
-    assert.equal(
-      state.phrase.patterns.bassVacatedByAnchor.filter(Boolean).length,
-      anchorCollisions,
+      vacatedAnchors,
+      `${id} lost bass outside its declared kick relation`,
     );
     let sourceCursor = 0;
     rawBass.forEach((active, offset) => {
@@ -581,6 +575,12 @@ test("candidate generation is deterministic, order-independent, bounded, and col
     first.map((candidate) => candidate.candidateIndex),
     Array.from({ length: MATERIAL_CANDIDATE_COUNT }, (_, index) => index),
   );
+  assert.equal(
+    new Set(first.map((candidate) => materialCoreSignature(candidate.phrase)))
+      .size,
+    MATERIAL_CANDIDATE_COUNT,
+    "the candidate bank collapsed distinct indices onto the same core material",
+  );
   assertDeepFrozen(first);
 
   for (const candidate of first) {
@@ -704,9 +704,10 @@ test("candidate validator rejects crafted unsafe material for every safety class
   );
   assert.ok(
     reasonsFor((unsafe) => {
+      unsafe.phrase.bassKickRelation = "counter";
       const offset = unsafe.phrase.patterns.kick.findIndex(Boolean);
       unsafe.phrase.patterns.bass[offset] = true;
-    }).includes("kick-bass-collision"),
+    }).includes("kick-bass-relation"),
   );
   assert.ok(
     reasonsFor((unsafe) => {
@@ -931,16 +932,16 @@ test("absolute clock phase and material identity continue across the 192-bar obs
     assert.equal(state.clocks.kick.rotation, 0);
     assert.ok(KICK_PHRASE_IDS.includes(state.kickPhrase.id));
     for (const lane of RAW_PATTERN_LANES) {
-      const renderedPattern =
-        lane === "hats"
-          ? state.phrase.patterns.hats.map(
-              (active, offset) =>
-                active || state.phrase.patterns.openHats[offset],
-            )
-          : state.phrase.patterns[lane];
+      const renderedPattern = state.phrase.patterns[lane];
+      const expectedPattern = expectedClockPattern(state, lane).map(
+        (active, offset) =>
+          lane === "hats" && state.phrase.patterns.openHats[offset]
+            ? false
+            : active,
+      );
       assert.deepEqual(
         renderedPattern,
-        expectedClockPattern(state, lane),
+        expectedPattern,
         `${lane} lost absolute phase at phrase ${state.phraseIndex}`,
       );
     }
@@ -1146,12 +1147,29 @@ test("candidate sampling explores eligible alternatives instead of always taking
     const state = createMaterialState(input);
     const valid = candidates.filter((candidate) => candidate.valid);
     const bestScore = Math.max(...valid.map((candidate) => candidate.score));
-    const eligible = valid
+    const scoreEligible = valid
       .filter(
         (candidate) =>
           candidate.score >= MATERIAL_SCORE_FLOOR &&
           candidate.score >= bestScore - MATERIAL_SCORE_BAND,
       )
+      .sort(
+        (left, right) =>
+          right.score - left.score || left.id - right.id,
+      );
+    const pruned = [];
+    for (const candidate of scoreEligible) {
+      if (
+        pruned.every(
+          (accepted) =>
+            materialStructuralDistance(candidate.phrase, accepted.phrase) >=
+            MATERIAL_STRUCTURE_MIN_DISTANCE,
+        )
+      ) {
+        pruned.push(candidate);
+      }
+    }
+    const eligible = (pruned.length > 0 ? pruned : scoreEligible.slice(0, 1))
       .sort((left, right) => left.id - right.id);
     assert.equal(state.selection.eligibleCandidateCount, eligible.length);
     assert.ok(
@@ -1307,13 +1325,16 @@ test("128 trajectories over 384 bars satisfy the material long-scan contract", (
           event.degree >= 0 &&
           event.degree <= 6,
       ));
-      assert.equal(
-        state.phrase.patterns.bass.some(
-          (active, offset) =>
-            active && state.phrase.patterns.kick[offset],
-        ),
-        false,
-      );
+      const bassKickOverlap = state.phrase.patterns.bass.filter(
+        (active, offset) => active && state.phrase.patterns.kick[offset],
+      ).length;
+      if (state.phrase.bassKickRelation === "counter") {
+        assert.equal(bassKickOverlap, 0);
+      } else if (state.phrase.bassKickRelation === "hybrid") {
+        assert.ok(bassKickOverlap <= PHRASE_BARS);
+      } else {
+        assert.equal(state.phrase.bassKickRelation, "layered");
+      }
       assert.equal(
         state.phrase.patterns.openHats.some(
           (active, offset) =>

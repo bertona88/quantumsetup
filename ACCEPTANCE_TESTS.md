@@ -1,6 +1,6 @@
 # Acceptance Tests
 
-Current gate: Infinite Techno `2.2.1` acid-bass release candidate; prior
+Current gate: Infinite Techno `2.3.0` rhythm-topology implementation candidate; prior
 deployment evidence remains historical; public acceptance remains open
 
 Passing one gate does not imply another. Deterministic structure, rendered audio,
@@ -36,6 +36,9 @@ carried forward across the material-planner rewrite.
   every bar downbeat, keep at least two sixteenth notes between onsets, and change
   only at eight-bar boundaries.
 - [x] pickup and rolling articulations are quieter and shorter than foundation hits.
+- [x] clap is an exact beats-two-and-four backbeat, a classic offbeat open hat is
+  present outside intentional rests, and hats/percussion/bass/foreground voices use
+  distinct grammar families rather than one universal Euclidean constructor.
 - [x] Track DNA selects `off`, `short`, or `deep` rumble for the trajectory; `off`
   produces zero rumble send and feedback.
 - [x] pickup and rolling collisions relocate bass to an adjacent safe step; only
@@ -71,7 +74,9 @@ carried forward across the material-planner rewrite.
   16% kick/bass separation, 14% motif conversation, 12% novelty, 10% orchestration,
   and 8% polymetric phase interest.
 - [x] only candidates scoring at least `0.55` and within `0.20` of the best enter
-  seeded softmax selection.
+  structural near-duplicate pruning and seeded softmax selection.
+- [x] all twelve constructed candidates have distinct core signatures; candidates
+  within `0.045` emitted-topology distance cannot coexist in the final softmax pool.
 - [x] sampling temperature remains between `0.35` and `0.85`; the same seed and
   intent history replay the same selected sequence while multiple eligible
   candidates are selected across seeds.
@@ -95,6 +100,9 @@ carried forward across the material-planner rewrite.
 - [x] only an accepted New Trajectory resets material memory; a rejected trajectory
   request, observation boundary, ordinary gesture, Vibe request, and Tonality
   request do not.
+- [x] a New Trajectory must pass both the Track-DNA gate and `0.075` structural
+  distance from the current/recent trajectory starts; IDs, labels, timbre, and
+  transposition do not count toward that structural distance.
 - [x] Vibe and Tonality requests affect only phrases selected at future eight-bar
   boundaries.
 - [x] the full selected eight-bar phrase is frozen once before playback; all eight
@@ -112,8 +120,8 @@ carried forward across the material-planner rewrite.
   leaves the ordinary shared delay plus kick/bass buses unchanged.
 - [x] every audible Echo Ascent hit enters the frozen read-only visual forecast.
 - [x] the complete deterministic, DSP, worklet, lifecycle, transition, trajectory,
-  performance-control, taste, and syntax suite passes together on the current local
-  `2.2.0` source state.
+  performance-control, taste, FFT, and syntax suite passes together on the current
+  local `2.3.0` source state.
 
 ## Gate 4 — Deterministic population evidence
 
@@ -127,13 +135,17 @@ carried forward across the material-planner rewrite.
 - [x] settled Vibe endpoints change future phrases without rewriting an already
   frozen phrase.
 
-Current local evidence: `npm --prefix app run check` passes all 148 tests. The
+Current local evidence: `npm --prefix app run check` passes all 171 tests. The
 13-trajectory first-48-bar manifest passes all 78 pairs; the minimum observed
-composite distance is `0.252146`, with rhythm and phrase-grammar separation plus at
+composite distance is `0.218280`, with rhythm and phrase-grammar separation plus at
 least one of orchestration, timbre, or harmony for every pair.
 
 ## Gate 5 — Render and listening evidence
 
+- [x] the local core-engine audit renders four-bar full mixes and bass solos for ten
+  fixed seeds through `OfflineAudioContext`; all 45 FFT-feature comparisons clear
+  `0.08`, with nearest combined distance `0.115554`. This excludes advanced
+  AudioWorklet voices and is not a listening result.
 - [ ] fixed-seed real-engine Echo Ascent captures confirm the intended density rise,
   bright articulation, audible left/right motion, finite tail, and acceptable mix
   balance against nearby non-event phrases.
@@ -150,7 +162,7 @@ least one of orchestration, timbre, or harmony for every pair.
 
 ## Gate 6 — Interface, browser, and soak
 
-- [x] `window.QuantumTechno` is versioned `2.2.1`, preserves `getSnapshot()`,
+- [x] `window.QuantumTechno` is versioned `2.3.0`, preserves `getSnapshot()`,
   `requestVibe()`, and `requestTonality()`, and adds bounded mix, direction, and
   bass-character methods.
 - [x] snapshots add a deeply frozen material section with gesture, motif lineage,
@@ -176,6 +188,9 @@ least one of orchestration, timbre, or harmony for every pair.
   bass-character targets, and verified durable-control reload plus nonpersistent
   cuts with no console warnings or errors; `390×844` and `320×568` both had zero
   horizontal overflow and a visible phrase target.
+- [x] the local `2.3.0` in-app-browser smoke loaded the cache-busted module graph,
+  started the real Web Audio engine from a user gesture, stopped it cleanly, and
+  produced no console warnings or errors.
 - [ ] foreground Start/Stop, every performance control, Vibe, Tonality, New
   Trajectory, transition, preview, restart, responsive, reduced-motion, and
   clean-console browser smoke passes on the final `2.1.0` bytes.

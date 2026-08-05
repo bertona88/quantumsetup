@@ -14,6 +14,9 @@ import { createTrackDNA } from "./track-dna.js";
 const TRAJECTORY_WINDOW_BARS = 192;
 const FIRST_48_BAR_WINDOW = 48;
 const FIRST_48_PHRASE_GRAMMAR_FLOOR = 0.1;
+// Kick, clap, and open-hat anchors are deliberately shared. The early-window
+// drum floor therefore measures variation around a stable club foundation.
+const FIRST_48_RHYTHM_FLOOR = 0.03;
 const TEST_VIBE = "hypnotic";
 const TEST_TONALITY = "minor";
 
@@ -49,7 +52,7 @@ const VIBE_TEST_SEED = "deadbeefdeadbeefdeadbeefdeadbeef";
 
 const EXPECTED_LANE_DOMAINS = Object.freeze({
   kick: Object.freeze([16]),
-  clap: Object.freeze([12, 15, 16, 18, 20, 24]),
+  clap: Object.freeze([16]),
   hats: Object.freeze([
     5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
     24, 25, 26, 27, 28, 29,
@@ -420,9 +423,10 @@ function assertMaterialClockContract(materialState, context) {
   const kick = materialState.clocks.kick;
   assert.equal(kick.hits, 4, `${context} violated the kick hit rule`);
   assert.equal(kick.rotation, 0, `${context} rotated the kick clock`);
-  assert.ok(
-    [2, 3].includes(materialState.clocks.clap.hits),
-    `${context} violated the two-or-three-hit clap rule`,
+  assert.equal(
+    materialState.clocks.clap.hits,
+    2,
+    `${context} violated the backbeat clap rule`,
   );
 }
 
@@ -1036,7 +1040,7 @@ function assertFirst48Separated(summaries) {
       const distance = first48SymbolicDistance(first, second);
       const pair = `${first.seed} <> ${second.seed}`;
       assert.ok(
-        distance.domains.rhythm >= DOMAIN_FLOORS.rhythm,
+        distance.domains.rhythm >= FIRST_48_RHYTHM_FLOOR,
         `${pair} did not separate rhythm: ${JSON.stringify(distance)}`,
       );
       assert.ok(

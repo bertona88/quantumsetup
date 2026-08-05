@@ -1,7 +1,7 @@
-import { InfiniteTechnoEngine, formatSeed } from "./audio-engine.js?v=2.2.1-acid-bass-1";
+import { InfiniteTechnoEngine, formatSeed } from "./audio-engine.js?v=2.3.0-rhythm-topology-1";
 import { InstrumentAuditioner } from "./instrument-preview.js";
 import { SignalDeckModel } from "./signal-deck.js";
-import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js?v=2.2.1-acid-bass-1";
+import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js?v=2.3.0-rhythm-topology-1";
 import {
   DEFAULT_DIRECTION_CONTROLS,
   DEFAULT_MIX_CONTROLS,
@@ -818,7 +818,9 @@ function handleEngineEvent(event) {
     transitionCopy.textContent =
       "NO DISTINCT TRAJECTORY FOUND · CURRENT SET CONTINUES";
     liveRegion.textContent =
-      "The candidate pool was too close to the current musical DNA, so no trajectory change was made.";
+      event.reason === "insufficient-structural-distance"
+        ? "The candidate pool repeated a recent groove structure, so the current trajectory continues."
+        : "The candidate pool was too close to the current musical DNA, so no trajectory change was made.";
   }
 
   if (event.type === "step") {

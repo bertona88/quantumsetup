@@ -241,12 +241,14 @@ test("the recurrent form earns variable arcs, cooldowns, and independent materia
       mutation: -Infinity,
       recall: -Infinity,
       withdrawal: -Infinity,
+      thinning: -Infinity,
       lowEndDropout: -Infinity,
       climaxOnset: -Infinity,
       harmonyTurn: null,
     };
     let climaxRun = 0;
     let withdrawalRun = 0;
+    let thinningRun = 0;
     let previous = null;
 
     for (const state of trace) {
@@ -328,6 +330,22 @@ test("the recurrent form earns variable arcs, cooldowns, and independent materia
         }
       } else {
         withdrawalRun = 0;
+      }
+
+      if (state.kickPolicy === "thin") {
+        thinningRun += 1;
+        assert.ok(
+          thinningRun <= FORM_RULES.kickThinning.maximumPhrases,
+        );
+        if (thinningRun === 1) {
+          assert.ok(
+            state.phraseIndex - lastAt.thinning >=
+              FORM_RULES.kickThinning.cooldownPhrases,
+          );
+          lastAt.thinning = state.phraseIndex;
+        }
+      } else {
+        thinningRun = 0;
       }
 
       if (state.lowEndDropout) {
@@ -536,7 +554,15 @@ test("bar plans consume one frozen sequential material phrase instead of form-ow
               ? sourceBassDegrees[step]
               : sourceVacatedBassDegrees[step],
           );
-          assert.equal(Boolean(plan.kick[step]), false);
+          if (materialState.phrase.bassKickRelation === "counter") {
+            assert.equal(Boolean(plan.kick[step]), false);
+          } else {
+            assert.ok(
+              ["hybrid", "layered"].includes(
+                materialState.phrase.bassKickRelation,
+              ),
+            );
+          }
           assert.equal(note.lineageId, materialState.motif.lineageId);
           assert.ok(note.velocity >= 0.42 && note.velocity <= 0.9);
         }
@@ -591,6 +617,43 @@ test("bar plans consume one frozen sequential material phrase instead of form-ow
   assert.ok(bassNotes > 100);
   assert.ok(rhythmFingerprints.size > 100);
   assert.ok(kickMorphsRendered > 0);
+});
+
+test("thin kick phrases make a brief valley and restore pressure within the phrase", () => {
+  let thinPhrases = 0;
+
+  for (let seed = 0; seed < 64; seed += 1) {
+    let materialState = null;
+    for (let phraseIndex = 0; phraseIndex < 48; phraseIndex += 1) {
+      materialState = nextMaterialState(materialState, seed, phraseIndex);
+      const plans = buildPhrasePlans({
+        seed,
+        phraseIndex,
+        materialState,
+      });
+      if (plans[0].form.kickPolicy !== "thin") continue;
+      thinPhrases += 1;
+
+      const kickCounts = plans.map((plan) =>
+        plan.lowEnd.dropoutActive ? 0 : plan.kick.filter(Boolean).length
+      );
+      let oneKickRun = 0;
+      let longestOneKickRun = 0;
+      for (const count of kickCounts) {
+        oneKickRun = count === 1 ? oneKickRun + 1 : 0;
+        longestOneKickRun = Math.max(longestOneKickRun, oneKickRun);
+      }
+      assert.ok(
+        longestOneKickRun <= 2,
+        `seed ${seed} phrase ${phraseIndex} held one kick for ${longestOneKickRun} bars`,
+      );
+      if (!plans[7].lowEnd.dropoutActive) {
+        assert.ok(kickCounts[7] >= 3);
+      }
+    }
+  }
+
+  assert.ok(thinPhrases > 0);
 });
 
 test("macro motif events do not regenerate unrelated sequential material clocks", () => {

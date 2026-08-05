@@ -1,6 +1,6 @@
 # Claims and Validation
 
-Status: claim register for Infinite Techno `2.2.1` acid-bass release candidate;
+Status: claim register for Infinite Techno `2.3.0` rhythm-topology implementation candidate;
 prior deployment evidence remains historical
 
 The named `2.1.0` deployment is verified at `b16c5dc`, Pages run `30631366177`, and
@@ -17,18 +17,20 @@ The application may claim that it:
 - uses deterministic seed-based composition;
 - samples a 128-bit trajectory ID from the browser cryptographic random source on
   each clean page load and derives the initial Vibe and harmonic field from it;
-- deterministically assigns each trajectory an 11-field categorical macro
+- deterministically assigns each trajectory a 12-field categorical macro
   phenotype covering groove, drums, low end, harmony, foreground synthesis, mix
   contour, and form tendency;
-- evaluates 16 fresh candidates for `New Trajectory` and selects the most
-  macro-distinct eligible candidate when that bounded pool contains one;
+- evaluates 16 fresh candidates for `New Trajectory`, ranks the macro-distinct
+  candidates, and accepts the first whose emitted topology also clears the current
+  and recent-start structural-distance gate;
 - rejects a `New Trajectory` request and preserves the current seed when the
   bounded pool contains no threshold-eligible candidate;
 - has \(2^{128}\), or about \(3.4 \times 10^{38}\), possible trajectory IDs, so two
   independent uniform ID draws match with probability \(1 / 2^{128}\), or about
   \(2.9 \times 10^{-39}\);
 - advances bounded recurrent musical state at eight-bar phrase boundaries;
-- uses immutable Bjorklund Euclidean patterns read through persistent lane clocks;
+- uses immutable Bjorklund Euclidean patterns plus persistent lane-specific onset
+  grammars rather than routing every lane through one universal constructor;
 - carries each lane's loop length, hit count, rotation, absolute phase origin,
   residence age, and bounded mutation history across bars, phrases, derived labels,
   and 192-bar observation boundaries;
@@ -36,6 +38,9 @@ The application may claim that it:
   onset mask;
 - keeps the kick clock on four-floor `E(4,16)` and varies it only through curated,
   bar-aligned anchor, turnaround-pickup, breathing, and rolling-pressure phrases;
+- keeps clap on the beats-two-and-four backbeat, supplies a classic offbeat open
+  hat outside intentional rests, and gives hats, percussion, bass, and foreground
+  engines distinct bounded grammars;
 - selects track-level `off`, `short`, or `deep` kick rumble, with zero send and
   feedback when rumble is off;
 - relocates bass collisions caused by quiet pickup and rolling kick articulations
@@ -58,8 +63,8 @@ The application may claim that it:
   density, voice, pitch, collision, kick anchoring or articulation, silence, and DSP-safety violations,
   and scores eligible candidates with normalized musical measures;
 - keeps candidates scoring at least `0.55` and within `0.20` of the best, then uses
-  deterministic seeded softmax sampling at temperature `0.35`–`0.85` rather than
-  always taking the maximum;
+  a `0.045` emitted-topology near-duplicate filter followed by deterministic seeded
+  softmax sampling at temperature `0.35`–`0.85` rather than always taking the maximum;
 - freezes the selected full eight-bar phrase before its first bar and lets the audio
   scheduler materialize it without recomputing musical decisions;
 - exposes pure material-state creation, advancement, and trace functions so the same
@@ -77,8 +82,9 @@ The application may claim that it:
   without allowing form labels to reset the material kick clock;
 - changes an independent kick-family identity only after earned release or floor
   recommit, with a 24-phrase cooldown and one-phrase bounded parameter morph;
-- generates bass from a persistent 12–32-step clock plus resident modal motif
-  lineage, kick-onset separation, and independently resident voice identity;
+- generates bass from a persistent 12–32-step behaviour grammar plus resident modal
+  motif lineage, a counter/hybrid/layered kick relationship, and independently
+  resident voice identity;
 - separates motif, lane-clock, tonal, harmonic-position, semantic-scene,
   synthesis-genome, and bass-voice material so one gesture cannot reset them
   together;
@@ -179,6 +185,7 @@ The application does not claim:
 | council and ensemble tests | semantic scene-role reachability without onset masks, causal one-engine handoff, decisive cast limits, layer editing, collision rules, rare fills, and onset budgets | whether the resulting arrangement sounds musically compelling |
 | Track DNA and runtime-selection tests | deterministic flat phenotype, curated-domain reachability and balance, weighted distance, bounded candidate-selection rules, and rejection of an unqualified pool without changing seed | downstream realization, audible contrast, or eligibility in every random candidate draw |
 | first-48-bar trajectory distance tests | every fixed-manifest pair separates in rhythm and phrase grammar plus another musical domain with composite symbolic distance at least `0.20` | rendered-audio separation, masking, spectral balance, arbitrary-seed coverage, or listener discrimination |
+| 10-seed core-engine FFT audit | 20 real OfflineAudioContext renders (four-bar full mix and bass solo), 45 pairwise comparisons, and no pair below `0.08`; nearest combined distance `0.115554` | advanced-worklet contribution, long-form recurrence, listener discrimination, groove quality, mastering, or club translation |
 | taste-model and deck tests | bounded explicit-feedback updates, deterministic specimens, persistence fallback, exploration cadence, and arrangement isolation | whether the learned preference matches a listener's broader taste |
 | preview renderer tests | deterministic, finite, normalized specimen PCM and cleanup | perceived quality on every output device |
 | spectrum-mountain tests | deterministic continuous terrain history, full-depth audio warm start, log-frequency peak retention, bounded five-band extraction, finite indexed geometry, and finite flyover matrices | artistic success, GPU performance on every device, or subjective music responsiveness |

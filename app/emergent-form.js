@@ -17,6 +17,10 @@ export const FORM_RULES = Object.freeze({
     cooldownPhrases: 10,
     maximumPhrases: 2,
   }),
+  kickThinning: Object.freeze({
+    cooldownPhrases: 3,
+    maximumPhrases: 1,
+  }),
   lowEndDropout: Object.freeze({
     minFloorTrust: 0.6,
     cooldownPhrases: 8,
@@ -355,7 +359,9 @@ function initialState(seed) {
     phrasesSinceClimax: Math.floor(
       coordinate(seed, 0, "origin-since-climax") * 49,
     ),
-    kickPolicy: energy < 0.45 ? "thin" : "anchor",
+    kickPolicy: "anchor",
+    kickThinAge: 0,
+    kickThinCooldown: 0,
     kickWithdrawalAge: 0,
     kickCooldown: 3 + Math.floor(coordinate(seed, 0, "origin-kick-cooldown") * 5),
     lowEndDropout: false,
@@ -802,10 +808,26 @@ function advanceState(state, seed, phraseIndex) {
     state.kickWithdrawalAge < FORM_RULES.kickWithdrawal.maximumPhrases &&
     chair === "radical-reduction" &&
     !climax;
+  const availableKickThinCooldown = Math.max(
+    0,
+    state.kickThinCooldown - 1,
+  );
+  const thinContext =
+    energy < 0.48 || (chair === "radical-reduction" && space > 0.62);
+  const mayContinueThinning =
+    state.kickPolicy === "thin" &&
+    state.kickThinAge < FORM_RULES.kickThinning.maximumPhrases &&
+    thinContext &&
+    !climax;
+  const mayEnterThinning =
+    state.kickPolicy !== "thin" &&
+    availableKickThinCooldown === 0 &&
+    thinContext &&
+    !climax;
   const kickPolicy =
     mayEnterWithdrawal || mayContinueWithdrawal
       ? "withdraw"
-      : energy < 0.48 || (chair === "radical-reduction" && space > 0.62)
+      : mayEnterThinning || mayContinueThinning
         ? "thin"
         : "anchor";
   const kickReason =
@@ -1044,6 +1066,15 @@ function advanceState(state, seed, phraseIndex) {
         ? state.kickWithdrawalAge + 1
         : 1
       : 0;
+  const kickThinAge =
+    kickPolicy === "thin"
+      ? state.kickPolicy === "thin"
+        ? state.kickThinAge + 1
+        : 1
+      : 0;
+  const kickThinCooldown = mayEnterThinning
+    ? FORM_RULES.kickThinning.cooldownPhrases
+    : availableKickThinCooldown;
   const kickCooldown =
     mayEnterWithdrawal
       ? FORM_RULES.kickWithdrawal.cooldownPhrases
@@ -1207,6 +1238,8 @@ function advanceState(state, seed, phraseIndex) {
     echoAscentCooldown,
     kickPolicy,
     kickReason,
+    kickThinAge,
+    kickThinCooldown,
     kickCooldown,
     kickWithdrawalAge,
     kickFamilyId,
@@ -1266,6 +1299,8 @@ function advanceState(state, seed, phraseIndex) {
       climaxCooldown,
       phrasesSinceClimax: climax ? 0 : state.phrasesSinceClimax + 1,
       kickPolicy,
+      kickThinAge,
+      kickThinCooldown,
       kickWithdrawalAge,
       kickCooldown,
       lowEndDropout,

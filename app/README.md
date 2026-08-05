@@ -32,10 +32,11 @@ quantum-random.
 - **Live Mix** supplies smoothed Low/Mid/High EQ and next-beat Kick/Bassline cuts.
 - **Direction** supplies nine bounded phrase-safe macro biases plus an Auto, Sub,
   Rolling, Acid, or Syncopated bassline character.
-- **New trajectory** evaluates sixteen deterministic Track-DNA candidates and
-  queues only one that crosses the macro-distance gate at a 16-bar seed-change
-  boundary. If none qualifies, the current trajectory continues. This is not a
-  synth-mutation clock.
+- **New trajectory** evaluates sixteen deterministic Track-DNA candidates, previews
+  their emitted rhythmic/melodic topology, and queues only one that clears both the
+  macro and recent-start structural-distance gates at a 16-bar seed-change boundary.
+  If none qualifies, the current trajectory continues. This is not a synth-mutation
+  clock.
 - **Share moment** copies a versioned replay URL with the full trajectory ID,
   bar/step coordinate, intent history, performance state, and local Signal Deck
   state. A compatible link reconstructs that deterministic history and waits for a
@@ -78,12 +79,20 @@ The same state may occasionally authorize an Echo Ascent after rising tension an
 anticipation converge, then enforces an eight-phrase cooldown.
 
 `material-planner.js` owns phrase-sequential rhythmic and motif material. Persistent
-Euclidean clocks follow the absolute sixteenth-note stream, an authored gesture
-grammar transforms resident motif lineage, and each eight-bar boundary evaluates
-twelve complete candidates through bounded rejection, weighted scoring, and seeded
-softmax selection. The chosen phrase is frozen before the scheduler consumes its
-bars. Observation windows and derived form labels do not reset its clocks or
-memory; only an accepted New Trajectory does.
+clocks follow the absolute sixteenth-note stream, while kick, clap, hats,
+percussion, bass, and the three foreground engines use different onset grammars.
+Kick, backbeat clap, and classic offbeat open hat provide the trustworthy bed. Each
+eight-bar boundary evaluates twelve core-distinct candidates through bounded
+rejection, weighted scoring, structural near-duplicate pruning, and seeded softmax
+selection. The chosen phrase is frozen before the scheduler consumes its bars.
+Observation windows and derived form labels do not reset its clocks or memory; only
+an accepted New Trajectory does.
+
+Open `http://localhost:4173/audio-diversity.html` for the autonomous rendered-audio
+audit. It renders the real core Web Audio engine as full mixes and bass solos,
+extracts FFT-band onset, recurrence, spectral, and dynamics features, then rejects
+cross-seed pairs below the checked-in structural-distance threshold. Advanced
+AudioWorklet voices are intentionally outside this bounded core audit.
 
 `audio-engine.js` owns the audio clock and synthesis. Its voices include synthesized
 kick, clap, closed/open hat, ride, shaker, rim, tom, metallic FM percussion,

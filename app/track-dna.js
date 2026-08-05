@@ -197,7 +197,7 @@ export function trackDNADistance(left, right) {
   return differenceSummary(asTrackDNA(left), asTrackDNA(right)).distance;
 }
 
-export function selectDistinctTrajectorySeed(currentSeed, candidates) {
+export function rankDistinctTrajectorySeeds(currentSeed, candidates) {
   if (!Array.isArray(candidates)) {
     throw new TypeError("track DNA candidates must be an array");
   }
@@ -223,7 +223,7 @@ export function selectDistinctTrajectorySeed(currentSeed, candidates) {
       candidate.coreChangedDomains >=
         TRACK_DNA_SELECTION_MIN_CORE_CHANGED_DOMAINS,
   );
-  if (eligible.length === 0) return null;
+  if (eligible.length === 0) return Object.freeze([]);
 
   eligible.sort(
     (left, right) =>
@@ -243,11 +243,17 @@ export function selectDistinctTrajectorySeed(currentSeed, candidates) {
       left.dna.seedKey.localeCompare(right.dna.seedKey),
   );
 
-  const selected = eligible[0];
-  return Object.freeze({
-    seed: selected.seed,
-    dna: selected.dna,
-    distance: selected.distance,
-    changedDomains: selected.changedDomains,
-  });
+  return Object.freeze(
+    eligible.map((selected) => Object.freeze({
+      seed: selected.seed,
+      dna: selected.dna,
+      distance: selected.distance,
+      changedDomains: selected.changedDomains,
+      coreChangedDomains: selected.coreChangedDomains,
+    })),
+  );
+}
+
+export function selectDistinctTrajectorySeed(currentSeed, candidates) {
+  return rankDistinctTrajectorySeeds(currentSeed, candidates)[0] || null;
 }

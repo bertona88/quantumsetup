@@ -13,19 +13,25 @@ import {
   FORM_RULES,
   derivePhraseState,
   traceEmergentForm,
-} from "./emergent-form.js";
+} from "./emergent-form.js?v=2.3.0-rhythm-topology-1";
 import {
   advanceMaterialState,
   createMaterialState,
+  materialCoreSignature,
+  materialStructuralDistance,
+  materialStructuralProfile,
   summarizeMaterialState,
-} from "./material-planner.js";
-import { createTrackDNA } from "./track-dna.js";
+} from "./material-planner.js?v=2.3.0-rhythm-topology-1";
+import { createTrackDNA } from "./track-dna.js?v=2.3.0-rhythm-topology-1";
 
 export {
   FORM_RULES,
   advanceMaterialState,
   clamp,
   createMaterialState,
+  materialCoreSignature,
+  materialStructuralDistance,
+  materialStructuralProfile,
   derivePhraseState,
   hash32,
   lerp,
@@ -34,7 +40,7 @@ export {
   summarizeMaterialState,
 };
 
-export const GENERATOR_VERSION = "2.2.1";
+export const GENERATOR_VERSION = "2.3.0";
 export const STEPS_PER_BAR = 16;
 export const PHRASE_BARS = 8;
 export const MOVEMENT_BARS = 192;
@@ -2529,7 +2535,9 @@ function buildBassLine({
   );
   const phraseOffset = barInPhrase * STEPS_PER_BAR;
   const residentCandidates = onsetSlice.flatMap((active, step) => {
-    if (!active || kick[step] || form.intentionalRest || lowEndDropout) return [];
+    const kickBlocksBass =
+      materialState.phrase.bassKickRelation === "counter" && kick[step];
+    if (!active || kickBlocksBass || form.intentionalRest || lowEndDropout) return [];
     return [
       {
         step,
@@ -2824,20 +2832,24 @@ export function buildBarPlan({
       ? [{ step, articulation: sourceKickArticulations[step] || "anchor" }]
       : [],
   );
+  const thinKickLimit = Math.max(
+    clamp(
+      Math.round(
+        1 +
+          form.floorTrust * 1.5 -
+          profile.breakDepth * 0.65 -
+          Math.max(0, profile.performanceBreakdownDepth ?? 0) * 1.35,
+      ),
+      1,
+      3,
+    ),
+    [2, 1, 1, 2, 1, 1, 2, 3][barInPhrase],
+  );
   const kickLimit =
     lowEndDropout || form.kickPolicy === "withdraw"
       ? 0
       : form.kickPolicy === "thin"
-        ? clamp(
-            Math.round(
-              1 +
-              form.floorTrust * 1.5 -
-              profile.breakDepth * 0.65 -
-              Math.max(0, profile.performanceBreakdownDepth ?? 0) * 1.35,
-            ),
-            1,
-            3,
-          )
+        ? thinKickLimit
         : kickOnsets.length;
   kickOnsets
     .map(({ step, articulation }) => ({
@@ -2916,7 +2928,7 @@ export function buildBarPlan({
   );
   materialBarSlice(phrasePatterns.openHats, barInPhrase).forEach(
     (active, step) => {
-      if (!active || sparse) return;
+      if (!active || form.intentionalRest) return;
       openHat[step] =
         0.24 +
         energy * 0.32 +

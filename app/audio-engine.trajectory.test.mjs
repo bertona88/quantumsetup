@@ -21,9 +21,12 @@ globalThis.window = {
   },
 };
 
-const { InfiniteTechnoEngine } = await import("./audio-engine.js");
+const {
+  InfiniteTechnoEngine,
+  TRAJECTORY_STRUCTURE_MIN_DISTANCE,
+} = await import("./audio-engine.js");
 const { buildBarPlan, hash32, profileForVibe } = await import("./techno-model.js");
-const { selectDistinctTrajectorySeed } = await import("./track-dna.js");
+const { rankDistinctTrajectorySeeds } = await import("./track-dna.js");
 
 const OLD_SEED = "00000000000000000000000000000001";
 const NEW_SEED = "00000000000000000000000000000002";
@@ -138,6 +141,7 @@ test("a running trajectory boundary replaces resident seed-bound synth identity"
     identityReset: true,
     dnaDistance: null,
     changedDomains: null,
+    structureDistance: null,
   });
   assert.ok(
     workletMessages
@@ -154,8 +158,8 @@ test("new trajectory requests select a bounded macro-distinct seed candidate", (
         .padStart(8, "0"),
     ).join(""),
   );
-  const expected = selectDistinctTrajectorySeed(OLD_SEED, candidates);
-  assert.ok(expected);
+  const ranked = rankDistinctTrajectorySeeds(OLD_SEED, candidates);
+  assert.ok(ranked.length > 0);
 
   const priorGetRandomValues = window.crypto.getRandomValues;
   let cursor = 0;
@@ -182,8 +186,24 @@ test("new trajectory requests select a bounded macro-distinct seed candidate", (
     engine.requestNewTrajectory();
 
     assert.equal(cursor, candidates.length);
-    assert.equal(engine.pendingSeed.seed, expected.seed);
-    assert.deepEqual(engine.pendingSeed.selection, expected);
+    const expected = ranked.find(
+      (candidate) => candidate.seed === engine.pendingSeed.seed,
+    );
+    assert.ok(expected, "selected trajectory did not pass the DNA gate");
+    assert.equal(engine.pendingSeed.selection.distance, expected.distance);
+    assert.equal(
+      engine.pendingSeed.selection.changedDomains,
+      expected.changedDomains,
+    );
+    assert.equal(
+      engine.pendingSeed.selection.coreChangedDomains,
+      expected.coreChangedDomains,
+    );
+    assert.ok(
+      engine.pendingSeed.selection.structureDistance >=
+        TRAJECTORY_STRUCTURE_MIN_DISTANCE,
+    );
+    assert.ok(engine.pendingSeed.selection.priorStructure);
     assert.equal(engine.pendingSeed.startBar, 16);
     assert.deepEqual(events.at(-1), {
       type: "intent",
@@ -193,6 +213,7 @@ test("new trajectory requests select a bounded macro-distinct seed candidate", (
       immediate: false,
       dnaDistance: expected.distance,
       changedDomains: expected.changedDomains,
+      structureDistance: engine.pendingSeed.selection.structureDistance,
     });
   } finally {
     window.crypto.getRandomValues = priorGetRandomValues;

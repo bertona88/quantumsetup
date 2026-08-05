@@ -1,9 +1,10 @@
 import { clamp, hash32 } from "./generative-utils.js";
 
-export const MATERIAL_VERSION = "2.2.0";
+export const MATERIAL_VERSION = "2.3.0";
 export const MATERIAL_CANDIDATE_COUNT = 12;
 export const MATERIAL_SCORE_FLOOR = 0.55;
 export const MATERIAL_SCORE_BAND = 0.2;
+export const MATERIAL_STRUCTURE_MIN_DISTANCE = 0.045;
 export const PHRASE_BARS = 8;
 export const STEPS_PER_BAR = 16;
 export const STEPS_PER_PHRASE = PHRASE_BARS * STEPS_PER_BAR;
@@ -49,13 +50,50 @@ export const SCORE_WEIGHTS = Object.freeze({
 
 export const LANE_DOMAINS = Object.freeze({
   kick: Object.freeze([16]),
-  clap: Object.freeze([12, 15, 16, 18, 20, 24]),
+  clap: Object.freeze([16]),
   hats: Object.freeze(Array.from({ length: 25 }, (_, index) => index + 5)),
   percussion: Object.freeze(Array.from({ length: 25 }, (_, index) => index + 5)),
   bass: Object.freeze([12, 15, 16, 18, 20, 24, 28, 32]),
   synthFm: Object.freeze([7, 9, 11, 13, 15, 17, 19, 23, 29, 31]),
   synthModal: Object.freeze([7, 9, 11, 13, 15, 17, 19, 23, 29, 31]),
   synthString: Object.freeze([7, 9, 11, 13, 15, 17, 19, 23, 29, 31]),
+});
+
+export const LANE_GRAMMARS = Object.freeze({
+  kick: Object.freeze(["four-floor"]),
+  clap: Object.freeze(["backbeat"]),
+  hats: Object.freeze([
+    "sixteenth-motor",
+    "eighth-engine",
+    "swing-pairs",
+    "triplet-weave",
+    "broken-chatter",
+  ]),
+  percussion: Object.freeze([
+    "gap-call",
+    "offbeat-answer",
+    "clave-walk",
+    "burst-tail",
+    "dust-points",
+  ]),
+  bass: Object.freeze([
+    "offbeat-pulse",
+    "rolling-cell",
+    "acid-serpent",
+    "sub-sustain",
+    "syncopated-stabs",
+  ]),
+  synthFm: Object.freeze(["fm-motor", "fm-call", "fm-stutter"]),
+  synthModal: Object.freeze([
+    "modal-puncture",
+    "modal-answer",
+    "modal-bells",
+  ]),
+  synthString: Object.freeze([
+    "string-tail",
+    "string-counterline",
+    "string-swell",
+  ]),
 });
 
 export const KICK_PHRASE_IDS = Object.freeze([
@@ -250,6 +288,60 @@ function grooveLengthWeight(length, grooveFamily, lane) {
   return weight;
 }
 
+const HAT_GRAMMAR_DIALECTS = Object.freeze({
+  "straight-pressure": Object.freeze(["sixteenth-motor", "eighth-engine"]),
+  "rolling-syncopation": Object.freeze(["sixteenth-motor", "broken-chatter"]),
+  "triplet-weave": Object.freeze(["triplet-weave", "swing-pairs"]),
+  "broken-machine": Object.freeze(["broken-chatter", "eighth-engine"]),
+  "swung-motor": Object.freeze(["swing-pairs", "sixteenth-motor"]),
+});
+
+const PERCUSSION_GRAMMAR_DIALECTS = Object.freeze({
+  "dry-machine": Object.freeze(["gap-call", "clave-walk"]),
+  "bright-club": Object.freeze(["offbeat-answer", "gap-call"]),
+  "metallic-yard": Object.freeze(["clave-walk", "burst-tail"]),
+  "dusty-electro": Object.freeze(["dust-points", "burst-tail"]),
+  "dub-chamber": Object.freeze(["gap-call", "dust-points"]),
+});
+
+function grammarChoicesFor(lane, trackDNA) {
+  if (lane === "hats") {
+    return HAT_GRAMMAR_DIALECTS[trackDNA?.grooveFamily] ||
+      LANE_GRAMMARS.hats;
+  }
+  if (lane === "percussion") {
+    return PERCUSSION_GRAMMAR_DIALECTS[trackDNA?.percussionKit] ||
+      LANE_GRAMMARS.percussion;
+  }
+  if (lane === "bass") {
+    return LANE_GRAMMARS.bass.includes(trackDNA?.bassBehavior)
+      ? [trackDNA.bassBehavior]
+      : LANE_GRAMMARS.bass;
+  }
+  return LANE_GRAMMARS[lane];
+}
+
+function grammarForClock(
+  lane,
+  trackDNA,
+  seed,
+  phraseIndex,
+  candidateIndex,
+  mutationCount,
+) {
+  const choices = grammarChoicesFor(lane, trackDNA);
+  return choices[
+    hash32(
+      seed,
+      phraseIndex,
+      lane,
+      candidateIndex,
+      mutationCount,
+      "lane-grammar",
+    ) % choices.length
+  ];
+}
+
 function clockHoldPhrases(trackDNA, seed, phraseIndex, lane, mutationCount) {
   const phenotype = trackDNA?.formPhenotype;
   const bounds =
@@ -277,9 +369,7 @@ function hitsForClock(
   trackDNA = null,
 ) {
   if (lane === "kick") return loopLength === 16 ? 4 : clamp(Math.round(loopLength / 4), 3, 5);
-  if (lane === "clap") {
-    return 2 + (hash32(seed, phraseIndex, mutationCount, "clap-hits") % 2);
-  }
+  if (lane === "clap") return 2;
   const density = profileValue(profile, "density");
   const syncopation = profileValue(profile, "syncopation");
   if (lane === "hats") {
@@ -343,6 +433,7 @@ function createClock({
   trackDNA,
   profile,
   mutationCount = 0,
+  candidateIndex = 0,
 }) {
   const domain = LANE_DOMAINS[lane];
   const weights = domain.map((length) =>
@@ -354,6 +445,7 @@ function createClock({
     seed,
     phraseIndex,
     lane,
+    candidateIndex,
     mutationCount,
     "clock-length",
   );
@@ -369,15 +461,57 @@ function createClock({
   const rotation =
     lane === "kick"
       ? 0
-      : hash32(seed, phraseIndex, lane, mutationCount, "clock-rotation") %
+      : lane === "clap"
+        ? 0
+        : hash32(
+            seed,
+            phraseIndex,
+            lane,
+            candidateIndex,
+            mutationCount,
+            "clock-rotation",
+          ) %
         loopLength;
   const phraseStartStep = phraseIndex * STEPS_PER_PHRASE;
   const phaseOffset =
     lane === "kick"
       ? 0
-      : hash32(seed, phraseIndex, lane, mutationCount, "clock-phase") %
+      : lane === "clap"
+        ? 0
+        : hash32(
+            seed,
+            phraseIndex,
+            lane,
+            candidateIndex,
+            mutationCount,
+            "clock-phase",
+          ) %
         loopLength;
   const phaseOrigin = phraseStartStep - phaseOffset;
+  const grammarId = grammarForClock(
+    lane,
+    trackDNA,
+    seed,
+    phraseIndex,
+    candidateIndex,
+    mutationCount,
+  );
+  const grammarVariant = hash32(
+    seed,
+    phraseIndex,
+    lane,
+    candidateIndex,
+    mutationCount,
+    "lane-grammar-variant",
+  ) % 8;
+  const grammarSeed = hash32(
+    MATERIAL_VERSION,
+    seed,
+    lane,
+    candidateIndex,
+    mutationCount,
+    "lane-grammar-seed",
+  );
   return {
     id: hash32(
       MATERIAL_VERSION,
@@ -389,12 +523,19 @@ function createClock({
       rotation,
       phaseOrigin,
       mutationCount,
+      candidateIndex,
+      grammarId,
+      grammarVariant,
+      grammarSeed,
     ),
     lane,
     loopLength,
     hits,
     rotation,
     phaseOrigin,
+    grammarId,
+    grammarVariant,
+    grammarSeed,
     agePhrases: 0,
     holdPhrases: clockHoldPhrases(
       trackDNA,
@@ -425,11 +566,14 @@ function mutateClock(clock, input, candidateIndex) {
     trackDNA: input.trackDNA,
     profile: input.profile,
     mutationCount: nextMutation + candidateIndex * 17,
+    candidateIndex,
   });
   if (
     next.loopLength === clock.loopLength &&
     next.hits === clock.hits &&
-    next.rotation === clock.rotation
+    next.rotation === clock.rotation &&
+    next.grammarId === clock.grammarId &&
+    next.grammarVariant === clock.grammarVariant
   ) {
     next = {
       ...next,
@@ -504,12 +648,130 @@ function renewClockIdentity(clock, input, candidateIndex) {
   };
 }
 
-function renderClock(clock, phraseIndex) {
-  const cycle = euclidean(clock.hits, clock.loopLength, clock.rotation);
+function rankedGrammarCycle(clock, scoreForStep) {
+  const ranked = Array.from({ length: clock.loopLength }, (_, step) => ({
+    step,
+    score:
+      scoreForStep(step) +
+      unitHash(clock.grammarSeed, step, "grammar-jitter") * 0.19,
+  })).sort(
+    (left, right) =>
+      right.score - left.score ||
+      hash32(clock.grammarSeed, left.step, "grammar-tie") -
+        hash32(clock.grammarSeed, right.step, "grammar-tie"),
+  );
+  const selected = new Set(
+    ranked.slice(0, clamp(clock.hits, 0, clock.loopLength)).map(({ step }) => step),
+  );
+  return Array.from(
+    { length: clock.loopLength },
+    (_, step) => selected.has(step),
+  );
+}
+
+function grammarCycle(clock) {
+  if (clock.grammarId === "four-floor") {
+    return euclidean(clock.hits, clock.loopLength, 0).map(Boolean);
+  }
+  if (clock.grammarId === "backbeat") {
+    return Array.from(
+      { length: clock.loopLength },
+      (_, step) => step === 4 || step === 12,
+    );
+  }
+
+  const variant = clock.grammarVariant || 0;
+  const phase = (step, modulus) => positiveModulo(step + clock.rotation, modulus);
+  const hashed = (step, coordinate) =>
+    unitHash(clock.grammarSeed, step, coordinate);
+  return rankedGrammarCycle(clock, (step) => {
+    const four = phase(step, 4);
+    const eight = phase(step, 8);
+    switch (clock.grammarId) {
+      case "sixteenth-motor":
+        return (four % 2 === 1 ? 1 : 0.54) + (eight === 7 ? 0.2 : 0);
+      case "eighth-engine":
+        return four === 0 ? 1 : four === 2 ? 0.72 : 0.16;
+      case "swing-pairs":
+        return four === 1 ? 1 : four === 3 ? 0.78 : 0.18;
+      case "triplet-weave":
+        return phase(step, 3) === variant % 3
+          ? 1
+          : phase(step, 3) === (variant + 2) % 3
+            ? 0.58
+            : 0.12;
+      case "broken-chatter": {
+        const cluster = hashed(Math.floor(step / 2), "hat-cluster");
+        return cluster * 0.68 + (step % 2 === variant % 2 ? 0.38 : 0.08);
+      }
+      case "gap-call":
+        return four === 3 ? 1 : four === 1 ? 0.52 : 0.1;
+      case "offbeat-answer":
+        return four === 2 ? 0.92 : four === (variant % 2 ? 1 : 3) ? 0.7 : 0.08;
+      case "clave-walk": {
+        const multiplier = [3, 5, 7, 9][variant % 4];
+        return ((step * multiplier + variant) % 16) < 5 ? 0.92 : 0.12;
+      }
+      case "burst-tail":
+        return positiveModulo(step - (clock.loopLength - 4 - variant % 3), clock.loopLength) < 4
+          ? 0.92
+          : 0.08;
+      case "dust-points":
+        return hashed(step, "dust-point") ** 2;
+      case "offbeat-pulse": {
+        const target = [2, 1, 3][variant % 3];
+        return four === target ? 1 : four === 0 ? 0.02 : 0.2;
+      }
+      case "rolling-cell":
+        return four === 1 || four === 3
+          ? 0.82 + hashed(Math.floor(step / 2), "rolling-pair") * 0.28
+          : four === 2
+            ? 0.42
+            : 0.08;
+      case "acid-serpent": {
+        const cluster = hashed(Math.floor((step + variant) / 3), "acid-cluster");
+        return cluster * 0.7 + (phase(step, 3) !== 2 ? 0.42 : 0.08);
+      }
+      case "sub-sustain":
+        return eight === 0 ? 1 : four === 0 ? 0.72 : four === 2 ? 0.16 : 0.04;
+      case "syncopated-stabs":
+        return four === 3 ? 1 : four === 1 ? 0.74 : four === 2 ? 0.3 : 0.04;
+      case "fm-motor":
+        return four === (variant % 4) ? 0.94 : step % 2 ? 0.44 : 0.12;
+      case "fm-call":
+        return step < clock.loopLength / 2
+          ? hashed(step, "fm-call") * 0.8 + 0.25
+          : 0.08;
+      case "fm-stutter":
+        return phase(step, 3) <= 1 && phase(step, 8) >= 4 ? 0.92 : 0.06;
+      case "modal-puncture":
+        return four === 3 ? 0.86 : hashed(step, "modal-puncture") * 0.36;
+      case "modal-answer":
+        return step >= clock.loopLength / 2
+          ? hashed(step, "modal-answer") * 0.78 + 0.24
+          : 0.08;
+      case "modal-bells":
+        return phase(step, 5) === variant % 5 ? 0.96 : 0.08;
+      case "string-tail":
+        return step >= clock.loopLength - 3 ? 0.92 : step === variant % clock.loopLength ? 0.75 : 0.04;
+      case "string-counterline":
+        return four === 2 ? 0.84 : four === 3 ? 0.52 : 0.1;
+      case "string-swell":
+        return Math.sin((step / Math.max(1, clock.loopLength - 1)) * Math.PI) * 0.88;
+      default:
+        return hashed(step, "fallback-grammar");
+    }
+  });
+}
+
+export function renderMaterialClock(clock, phraseIndex) {
+  const cycle = grammarCycle(clock);
   const phraseStart = phraseIndex * STEPS_PER_PHRASE;
   return Array.from({ length: STEPS_PER_PHRASE }, (_, offset) => {
     const absoluteStep = phraseStart + offset;
-    return cycle[positiveModulo(absoluteStep - clock.phaseOrigin, clock.loopLength)] === 1;
+    return Boolean(
+      cycle[positiveModulo(absoluteStep - clock.phaseOrigin, clock.loopLength)],
+    );
   });
 }
 
@@ -820,6 +1082,7 @@ function candidateClocks(previousState, input, candidateIndex, gesture) {
           phraseIndex: input.phraseIndex,
           trackDNA: input.trackDNA,
           profile: input.profile,
+          candidateIndex,
         })
       : ageClock(previousState.clocks[lane]);
   }
@@ -929,15 +1192,55 @@ function assignDegrees(pattern, motif, offset = 0, reverse = false) {
   return degrees;
 }
 
-function relocateBassAroundKick(bass, kick, articulations) {
+function bassKickRelationFor(trackDNA) {
+  if (trackDNA?.bassBehavior === "sub-sustain") return "layered";
+  if (
+    trackDNA?.bassBehavior === "rolling-cell" ||
+    trackDNA?.bassBehavior === "acid-serpent"
+  ) {
+    return "hybrid";
+  }
+  return "counter";
+}
+
+function relocateBassAroundKick(
+  bass,
+  kick,
+  articulations,
+  relation,
+  seed,
+  phraseIndex,
+  candidateIndex,
+) {
   const vacatedByAnchor = Array(STEPS_PER_PHRASE).fill(false);
   const collisions = bass.flatMap((active, offset) =>
     active && kick[offset]
       ? [{ offset, articulation: articulations[offset] || "anchor" }]
       : [],
   );
-  for (const { offset } of collisions) bass[offset] = false;
+  const hybridKept = new Set(
+    relation === "hybrid"
+      ? collisions
+          .filter(({ articulation }) => articulation === "anchor")
+          .sort(
+            (left, right) =>
+              hash32(seed, phraseIndex, candidateIndex, left.offset, "bass-kick-hybrid") -
+              hash32(seed, phraseIndex, candidateIndex, right.offset, "bass-kick-hybrid"),
+          )
+          .slice(0, Math.min(
+            PHRASE_BARS,
+            Math.max(1, Math.round(collisions.length * 0.28)),
+          ))
+          .map(({ offset }) => offset)
+      : [],
+  );
   for (const { offset, articulation } of collisions) {
+    const keepLayered = relation === "layered";
+    const keepHybrid = relation === "hybrid" && hybridKept.has(offset);
+    if (!keepLayered && !keepHybrid) bass[offset] = false;
+  }
+  for (const { offset, articulation } of collisions) {
+    if (bass[offset]) continue;
     if (articulation === "anchor") {
       vacatedByAnchor[offset] = true;
       continue;
@@ -973,36 +1276,34 @@ function materializePhrase(
 ) {
   const materializedKick = materializeKickPhrase(kickPhrase);
   const kick = materializedKick.pattern;
-  const clap = renderClock(clocks.clap, input.phraseIndex);
-  const hats = renderClock(clocks.hats, input.phraseIndex);
-  const percussion = renderClock(clocks.percussion, input.phraseIndex);
-  const bass = renderClock(clocks.bass, input.phraseIndex);
+  const clap = renderMaterialClock(clocks.clap, input.phraseIndex);
+  const hats = renderMaterialClock(clocks.hats, input.phraseIndex);
+  const percussion = renderMaterialClock(clocks.percussion, input.phraseIndex);
+  const bass = renderMaterialClock(clocks.bass, input.phraseIndex);
   const bassSourceDegrees = assignDegrees(bass, motif, 0, false);
+  const bassKickRelation = bassKickRelationFor(input.trackDNA);
   const bassVacatedByAnchor = relocateBassAroundKick(
     bass,
     kick,
     materializedKick.articulations,
+    bassKickRelation,
+    input.seed,
+    input.phraseIndex,
+    candidateIndex,
   );
   const synth = Object.fromEntries(
     Object.entries(SYNTH_LANES).map(([engine, lane]) => [
       engine,
       gesture === "rest"
         ? Array(STEPS_PER_PHRASE).fill(false)
-        : renderClock(clocks[lane], input.phraseIndex),
+        : renderMaterialClock(clocks[lane], input.phraseIndex),
     ]),
   );
   capSynthPatterns(synth, kick, input.seed, input.phraseIndex);
-  const openHats = hats.map(
-    (active, offset) =>
-      active &&
-      unitHash(
-        input.seed,
-        input.phraseIndex,
-        candidateIndex,
-        offset,
-        "open-hat",
-      ) <
-        0.06 + profileValue(input.profile, "space") * 0.13,
+  const openHats = Array.from(
+    { length: STEPS_PER_PHRASE },
+    (_, offset) =>
+      !input.form?.intentionalRest && offset % STEPS_PER_BAR % 4 === 2,
   );
   const closedHats = hats.map(
     (active, offset) => active && !openHats[offset],
@@ -1027,6 +1328,7 @@ function materializePhrase(
   });
   return {
     kickPhraseId: kickPhrase.id,
+    bassKickRelation,
     kickArticulations: materializedKick.articulations,
     patterns: {
       kick,
@@ -1060,6 +1362,145 @@ function booleanDistance(left, right) {
     if (Boolean(left[index]) !== Boolean(right[index])) changes += 1;
   }
   return changes / left.length;
+}
+
+function normalizedHistogram(values, width) {
+  const counts = Array(width).fill(0);
+  for (const value of values) {
+    if (Number.isSafeInteger(value) && value >= 0 && value < width) {
+      counts[value] += 1;
+    }
+  }
+  const total = counts.reduce((sum, value) => sum + value, 0);
+  return counts.map((value) => value / Math.max(1, total));
+}
+
+function patternStructure(pattern) {
+  const onsets = pattern.flatMap((active, step) => active ? [step] : []);
+  const stepProfile = Array(STEPS_PER_BAR).fill(0);
+  const barDensity = Array(PHRASE_BARS).fill(0);
+  for (const onset of onsets) {
+    stepProfile[onset % STEPS_PER_BAR] += 1 / PHRASE_BARS;
+    barDensity[Math.floor(onset / STEPS_PER_BAR)] += 1 / STEPS_PER_BAR;
+  }
+  const gaps = onsets.map((onset, index) => {
+    const next = onsets[(index + 1) % onsets.length];
+    return Math.min(
+      16,
+      positiveModulo(next - onset, STEPS_PER_PHRASE) || STEPS_PER_PHRASE,
+    );
+  });
+  return Object.freeze({
+    stepProfile: Object.freeze(stepProfile),
+    barDensity: Object.freeze(barDensity),
+    gapHistogram: Object.freeze(normalizedHistogram(gaps, 17)),
+    density: onsets.length / STEPS_PER_PHRASE,
+  });
+}
+
+function combinePatterns(patterns) {
+  return Array.from(
+    { length: STEPS_PER_PHRASE },
+    (_, step) => patterns.some((pattern) => Boolean(pattern?.[step])),
+  );
+}
+
+function degreeIntervalHistogram(degrees) {
+  const sequence = degrees.filter(Number.isFinite);
+  const intervals = sequence.slice(1).map((degree, index) =>
+    clamp(degree - sequence[index], -4, 4) + 4
+  );
+  return Object.freeze(normalizedHistogram(intervals, 9));
+}
+
+export function materialStructuralProfile(phrase) {
+  if (!phrase?.patterns || !phrase?.degrees) {
+    throw new TypeError("materialStructuralProfile requires an emitted phrase");
+  }
+  return deepFreeze({
+    hats: patternStructure(phrase.patterns.hats),
+    percussion: patternStructure(phrase.patterns.percussion),
+    bass: patternStructure(phrase.patterns.bass),
+    synth: patternStructure(combinePatterns(Object.values(phrase.patterns.synth))),
+    bassIntervals: degreeIntervalHistogram(phrase.degrees.bass),
+    synthIntervals: degreeIntervalHistogram(
+      Object.values(phrase.degrees.synth).flat(),
+    ),
+    bassKickRelation: phrase.bassKickRelation,
+  });
+}
+
+function vectorDistance(left, right) {
+  return left.reduce(
+    (sum, value, index) => sum + Math.abs(value - right[index]),
+    0,
+  ) / Math.max(1, left.length);
+}
+
+function cyclicVectorDistance(left, right) {
+  let minimum = Infinity;
+  for (let shift = 0; shift < left.length; shift += 1) {
+    const distance = left.reduce(
+      (sum, value, index) =>
+        sum + Math.abs(value - right[(index + shift) % right.length]),
+      0,
+    ) / Math.max(1, left.length);
+    minimum = Math.min(minimum, distance);
+  }
+  return minimum;
+}
+
+function structureLaneDistance(left, right) {
+  return clamp(
+    cyclicVectorDistance(left.stepProfile, right.stepProfile) * 0.44 +
+      vectorDistance(left.barDensity, right.barDensity) * 0.2 +
+      vectorDistance(left.gapHistogram, right.gapHistogram) * 0.22 +
+      Math.abs(left.density - right.density) * 0.14,
+    0,
+    1,
+  );
+}
+
+export function materialStructuralDistance(leftPhrase, rightPhrase) {
+  const left = leftPhrase?.hats?.stepProfile
+    ? leftPhrase
+    : materialStructuralProfile(leftPhrase);
+  const right = rightPhrase?.hats?.stepProfile
+    ? rightPhrase
+    : materialStructuralProfile(rightPhrase);
+  const bass = clamp(
+    structureLaneDistance(left.bass, right.bass) * 0.72 +
+      vectorDistance(left.bassIntervals, right.bassIntervals) * 0.18 +
+      Number(left.bassKickRelation !== right.bassKickRelation) * 0.1,
+    0,
+    1,
+  );
+  const synth = clamp(
+    structureLaneDistance(left.synth, right.synth) * 0.78 +
+      vectorDistance(left.synthIntervals, right.synthIntervals) * 0.22,
+    0,
+    1,
+  );
+  return clamp(
+    structureLaneDistance(left.hats, right.hats) * 0.18 +
+      structureLaneDistance(left.percussion, right.percussion) * 0.22 +
+      bass * 0.36 +
+      synth * 0.24,
+    0,
+    1,
+  );
+}
+
+export function materialCoreSignature(phrase) {
+  const encode = (pattern) => pattern.map((active) => active ? "1" : "0").join("");
+  return hash32(
+    encode(phrase.patterns.hats),
+    encode(phrase.patterns.percussion),
+    encode(phrase.patterns.bass),
+    ...Object.values(phrase.patterns.synth).map(encode),
+    phrase.bassKickRelation,
+    "material-core-signature",
+  ).toString(16).padStart(8, "0");
 }
 
 export function materialPhraseFingerprint(phrase) {
@@ -1097,6 +1538,7 @@ export function materialPhraseFingerprint(phrase) {
     .join("/");
   return hash32(
     phrase.kickPhraseId,
+    phrase.bassKickRelation,
     encodeValues(phrase.kickArticulations),
     laneSignature,
     voiceSignature,
@@ -1138,7 +1580,18 @@ function scoreCandidate(candidate, previousState, input) {
   const overlap = candidate.phrase.patterns.bass.filter(
     (active, index) => active && candidate.phrase.patterns.kick[index],
   ).length;
-  const kickBassSeparation = overlap === 0 ? 1 : clamp(1 - overlap / 8, 0, 1);
+  const bassCount = candidate.phrase.patterns.bass.filter(Boolean).length;
+  const desiredOverlap =
+    candidate.phrase.bassKickRelation === "layered"
+      ? bassCount * 0.55
+      : candidate.phrase.bassKickRelation === "hybrid"
+        ? bassCount * 0.18
+        : 0;
+  const kickBassSeparation = clamp(
+    1 - Math.abs(overlap - desiredOverlap) / Math.max(4, bassCount * 0.55),
+    0,
+    1,
+  );
   const mutationFraction =
     (candidate.mutation.changedOnsets + candidate.mutation.changedDegrees) /
     Math.max(1, previousState?.motif?.events?.length || candidate.motif.events.length);
@@ -1264,12 +1717,18 @@ export function validateMaterialCandidate(candidate, previousState = null) {
   if (candidate.mutation.onsetFraction > 0.25 || candidate.mutation.degreeFraction > 0.25) {
     reasons.push("motif-mutation-budget");
   }
+  const bassKickOverlap = patterns.bass.filter(
+    (active, index) => active && patterns.kick[index],
+  ).length;
   if (
-    patterns.bass.some(
-      (active, index) => active && patterns.kick[index],
-    )
+    !["counter", "hybrid", "layered"].includes(
+      candidate.phrase.bassKickRelation,
+    ) ||
+    (candidate.phrase.bassKickRelation === "counter" && bassKickOverlap > 0) ||
+    (candidate.phrase.bassKickRelation === "hybrid" &&
+      bassKickOverlap > PHRASE_BARS)
   ) {
-    reasons.push("kick-bass-collision");
+    reasons.push("kick-bass-relation");
   }
   if (
     !Array.isArray(patterns.bassVacatedByAnchor) ||
@@ -1618,6 +2077,24 @@ function selectCandidate(candidates, input) {
     fallback = true;
     eligible = [valid.slice().sort((left, right) => right.score - left.score)[0]];
   }
+  const structurallyRanked = eligible.slice().sort(
+    (left, right) => right.score - left.score || left.id - right.id,
+  );
+  const structurallyEligible = [];
+  for (const candidate of structurallyRanked) {
+    if (
+      structurallyEligible.every(
+        (accepted) =>
+          materialStructuralDistance(candidate.phrase, accepted.phrase) >=
+          MATERIAL_STRUCTURE_MIN_DISTANCE,
+      )
+    ) {
+      structurallyEligible.push(candidate);
+    }
+  }
+  eligible = structurallyEligible.length > 0
+    ? structurallyEligible
+    : [structurallyRanked[0]];
   eligible.sort((left, right) => left.id - right.id);
   const temperature = samplingTemperature(input);
   const weights = eligible.map((candidate) =>
@@ -1700,6 +2177,8 @@ function stateFromSelection(previousState, input, candidates, selection) {
     renewedLanes: selected.renewedLanes,
     kickPhrase: selected.kickPhrase,
     phrase: selected.phrase,
+    structuralProfile: materialStructuralProfile(selected.phrase),
+    coreSignature: materialCoreSignature(selected.phrase),
     phraseMemory: {
       residentMotif: selected.motif,
       previousGesture: selected.gesture,
@@ -1845,6 +2324,8 @@ export function summarizeMaterialState(state) {
     motifLineageId: state.motif.lineageId,
     motifParentLineageId: state.motif.parentLineageId,
     phraseFingerprint: state.phrase.fingerprint,
+    coreSignature: state.coreSignature,
+    bassKickRelation: state.phrase.bassKickRelation,
     laneClocks: Object.fromEntries(
       LANE_IDS.map((lane) => {
         const clock = state.clocks[lane];
@@ -1855,6 +2336,8 @@ export function summarizeMaterialState(state) {
             hits: clock.hits,
             rotation: clock.rotation,
             phaseOrigin: clock.phaseOrigin,
+            grammarId: clock.grammarId,
+            grammarVariant: clock.grammarVariant,
             agePhrases: clock.agePhrases,
             mutationCount: clock.mutationCount,
           },

@@ -10,6 +10,7 @@ import {
   derivePhraseState,
   hash32,
   makeRng,
+  materialStructuralDistance,
   midiToHz,
   nextPhraseBoundary,
   profileForVibe,
@@ -17,7 +18,7 @@ import {
   summarizeMaterialState,
   transitionDurationFor,
   transitionProgress,
-} from "./techno-model.js?v=2.2.1-acid-bass-1";
+} from "./techno-model.js?v=2.3.0-rhythm-topology-1";
 import { SYNTH_VOICE_LIMIT } from "./synth-dsp.js";
 import { stageSynthPalette } from "./synth-genomes.js";
 import {
@@ -40,8 +41,8 @@ import {
 } from "./performance-controls.js";
 import {
   createTrackDNA,
-  selectDistinctTrajectorySeed,
-} from "./track-dna.js";
+  rankDistinctTrajectorySeeds,
+} from "./track-dna.js?v=2.3.0-rhythm-topology-1";
 import {
   formatTrajectoryId,
   freshTrajectoryId,
@@ -60,6 +61,7 @@ const RUMBLE_BUS_LEVEL = 0.92;
 const MUSIC_BUS_LEVEL = 1;
 const SYNTH_MESSAGE_LEAD_SECONDS = 0.05;
 const TRAJECTORY_CANDIDATE_COUNT = 16;
+export const TRAJECTORY_STRUCTURE_MIN_DISTANCE = 0.075;
 const DIRECTION_MORPH_BARS = 8;
 const SILENT_GAIN = 0.0001;
 
@@ -211,6 +213,7 @@ export class InfiniteTechnoEngine {
     this.vibeTransition = null;
     this.tonalityTransition = null;
     this.pendingSeed = null;
+    this.trajectoryStructureHistory = [];
     this.ctx = null;
     this.running = false;
     this.starting = false;
@@ -465,11 +468,55 @@ export class InfiniteTechnoEngine {
       { length: TRAJECTORY_CANDIDATE_COUNT },
       () => freshSeed(),
     );
-    const selection = selectDistinctTrajectorySeed(this.seed, candidates);
-    if (!selection) {
+    const ranked = rankDistinctTrajectorySeeds(this.seed, candidates);
+    if (ranked.length === 0) {
       this.onEvent({
         type: "trajectory-rejected",
         reason: "insufficient-dna-distance",
+        candidateCount: candidates.length,
+      });
+      return false;
+    }
+    const startBar = this.running
+      ? nextPhraseBoundary(this.bar, 16)
+      : Math.max(0, this.bar);
+    const phraseIndex = Math.floor(startBar / 8);
+    const phraseState = this.resolveMusicalState(startBar);
+    const currentStructure =
+      this.materialState?.structuralProfile ||
+      this.previewTrajectoryMaterial(
+        this.seed,
+        phraseIndex,
+        phraseState,
+      ).structuralProfile;
+    const comparisonStructures = [
+      currentStructure,
+      ...this.trajectoryStructureHistory,
+    ].slice(-8);
+    let selection = null;
+    for (const candidate of ranked) {
+      const preview = this.previewTrajectoryMaterial(
+        candidate.seed,
+        phraseIndex,
+        phraseState,
+      );
+      const structureDistance = Math.min(
+        ...comparisonStructures.map((prior) =>
+          materialStructuralDistance(preview.structuralProfile, prior)
+        ),
+      );
+      if (structureDistance < TRAJECTORY_STRUCTURE_MIN_DISTANCE) continue;
+      selection = Object.freeze({
+        ...candidate,
+        structureDistance,
+        priorStructure: currentStructure,
+      });
+      break;
+    }
+    if (!selection) {
+      this.onEvent({
+        type: "trajectory-rejected",
+        reason: "insufficient-structural-distance",
         candidateCount: candidates.length,
       });
       return false;
@@ -479,7 +526,6 @@ export class InfiniteTechnoEngine {
       this.applySeed(seed, selection);
       return true;
     }
-    const startBar = nextPhraseBoundary(this.bar, 16);
     this.pendingSeed = { seed, startBar, selection };
     this.onEvent({
       type: "intent",
@@ -489,8 +535,27 @@ export class InfiniteTechnoEngine {
       immediate: false,
       dnaDistance: selection?.distance ?? null,
       changedDomains: selection?.changedDomains ?? null,
+      structureDistance: selection.structureDistance,
     });
     return true;
+  }
+
+  previewTrajectoryMaterial(seed, phraseIndex, phraseState) {
+    const profile = Object.freeze({
+      ...phraseState.profile,
+      bpm: Object.freeze([...phraseState.profile.bpm]),
+    });
+    return createMaterialState({
+      seed,
+      phraseIndex,
+      trackDNA: createTrackDNA(seed),
+      form: applyDirectionToForm(
+        derivePhraseState(seed, phraseIndex),
+        phraseState.direction,
+      ),
+      profile,
+      tonality: phraseState.dominantTonality,
+    });
   }
 
   setTasteProfile(profile) {
@@ -520,6 +585,12 @@ export class InfiniteTechnoEngine {
     } catch (_) {
       // A failed worklet must not prevent the trajectory boundary from landing.
     }
+    if (selection?.priorStructure) {
+      this.trajectoryStructureHistory = [
+        ...this.trajectoryStructureHistory,
+        selection.priorStructure,
+      ].slice(-8);
+    }
     this.runtimeSynthPalette = null;
     this.runtimeSynthPhraseIndex = -1;
     this.runtimeEnsembleRoles = null;
@@ -548,6 +619,7 @@ export class InfiniteTechnoEngine {
       identityReset: true,
       dnaDistance: selection?.distance ?? null,
       changedDomains: selection?.changedDomains ?? null,
+      structureDistance: selection?.structureDistance ?? null,
     });
   }
 
