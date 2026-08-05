@@ -34,7 +34,7 @@ export {
   summarizeMaterialState,
 };
 
-export const GENERATOR_VERSION = "2.2.0";
+export const GENERATOR_VERSION = "2.2.1";
 export const STEPS_PER_BAR = 16;
 export const PHRASE_BARS = 8;
 export const MOVEMENT_BARS = 192;
@@ -2648,6 +2648,56 @@ function buildBassLine({
   };
 }
 
+function applyAcidClimaxTail({
+  seed,
+  phraseIndex,
+  barInPhrase,
+  form,
+  bassVoice,
+  bass,
+}) {
+  if (!form.climax || bassVoice !== "acid") return null;
+  const tailBar =
+    hash32(
+      seed,
+      phraseIndex,
+      form.motifLineageId,
+      "acid-climax-tail-bar",
+    ) % PHRASE_BARS;
+  if (barInPhrase !== tailBar) return null;
+
+  const candidates = bass.flatMap((note, step) =>
+    note ? [{ note, step }] : [],
+  );
+  if (candidates.length === 0) return null;
+  const accented = candidates.filter(({ note }) => note.accent);
+  const pool = accented.length > 0 ? accented : candidates;
+  const selected =
+    pool[
+      hash32(
+        seed,
+        phraseIndex,
+        form.motifLineageId,
+        "acid-climax-tail-note",
+      ) % pool.length
+    ];
+  const durationSeconds =
+    1.4 +
+    unitHash(
+      seed,
+      phraseIndex,
+      form.motifLineageId,
+      selected.step,
+      "acid-climax-tail-duration",
+    ) *
+      1.8;
+  selected.note.acidDecaySeconds = durationSeconds;
+  return Object.freeze({
+    step: selected.step,
+    durationSeconds,
+  });
+}
+
 export function buildBarPlan({
   seed,
   bar,
@@ -3136,6 +3186,14 @@ export function buildBarPlan({
   }
 
   const bassVoice = selectBassVoice(seed, movement, form, profile);
+  const acidClimaxTail = applyAcidClimaxTail({
+    seed,
+    phraseIndex,
+    barInPhrase,
+    form,
+    bassVoice,
+    bass,
+  });
 
   const synthProfile = instrumentProfile;
   const synthHandoff = synthHandoffForForm(seed, form);
@@ -3273,6 +3331,8 @@ export function buildBarPlan({
     bassCellSignature: bassLine.cellSignature,
     canonicalBassDensity: bassLine.cell.length,
     bassVoice,
+    acidClimaxTailStep: acidClimaxTail?.step ?? null,
+    acidClimaxTailSeconds: acidClimaxTail?.durationSeconds ?? 0,
     musicDuckDepth: clamp(
       0.39 +
         energy * 0.14 +

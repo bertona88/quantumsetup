@@ -1,8 +1,7 @@
 # Acceptance Tests
 
-Current gate: local Infinite Techno `2.2.0` kick-phrase candidate; deployed
-`2.1.0` performance-control release evidence remains historical;
-public acceptance remains open
+Current gate: Infinite Techno `2.2.1` acid-bass release candidate; prior
+deployment evidence remains historical; public acceptance remains open
 
 Passing one gate does not imply another. Deterministic structure, rendered audio,
 listening quality, active-browser behavior, long-run reliability, deployment, and
@@ -151,7 +150,7 @@ least one of orchestration, timbre, or harmony for every pair.
 
 ## Gate 6 — Interface, browser, and soak
 
-- [x] `window.QuantumTechno` is versioned `2.2.0`, preserves `getSnapshot()`,
+- [x] `window.QuantumTechno` is versioned `2.2.1`, preserves `getSnapshot()`,
   `requestVibe()`, and `requestTonality()`, and adds bounded mix, direction, and
   bass-character methods.
 - [x] snapshots add a deeply frozen material section with gesture, motif lineage,

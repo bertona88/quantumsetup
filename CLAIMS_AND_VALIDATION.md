@@ -1,7 +1,7 @@
 # Claims and Validation
 
-Status: claim register for local Infinite Techno `2.2.0` kick-phrase candidate;
-deployed `2.1.0` performance-control evidence remains historical
+Status: claim register for Infinite Techno `2.2.1` acid-bass release candidate;
+prior deployment evidence remains historical
 
 The named `2.1.0` deployment is verified at `b16c5dc`, Pages run `30631366177`, and
 deployment `5691599940`. All 18 published files byte-match and a focused public

@@ -730,6 +730,66 @@ test("acid, pulse, and both sub oscillators share bounded slide timing", () => {
   }
 });
 
+test("acid bass includes triangle while resonance and extended tails stay bounded", () => {
+  const { context, engine } = makeEngine();
+  engine.bassBus = context.createGain();
+  engine.musicBus = context.createGain();
+  engine.delayIn = context.createGain();
+  engine.reverbIn = context.createGain();
+  engine.registerVoice = () => true;
+  const profile = {
+    acid: 4,
+    drive: 0.8,
+    space: 0.5,
+    warmth: 0.4,
+  };
+  const note = {
+    midi: 42,
+    slideTo: null,
+    slideSteps: 0,
+    length: 1,
+    velocity: 0.8,
+    accent: true,
+    acidDecaySeconds: 99,
+  };
+
+  engine.acidBass(1, note, 0.12, 0.5, profile);
+
+  assert.equal(context.oscillators[0].type, "triangle");
+  assert.equal(context.filters[0].Q.value, 8);
+  approximatelyEqual(context.oscillators[0].stops[0][0], 4.225);
+  const filterClose = context.filters[0].frequency.events.at(-1);
+  assert.equal(filterClose.type, "ramp");
+  approximatelyEqual(filterClose.time, 4.2);
+});
+
+test("acid oscillator color retains bounded square and sawtooth edges", () => {
+  const { context, engine } = makeEngine();
+  engine.bassBus = context.createGain();
+  engine.musicBus = context.createGain();
+  engine.delayIn = context.createGain();
+  engine.reverbIn = context.createGain();
+  engine.registerVoice = () => true;
+  const note = {
+    midi: 42,
+    slideTo: null,
+    slideSteps: 0,
+    length: 1,
+    velocity: 0.7,
+    accent: false,
+  };
+  const profile = { acid: 0.5, drive: 0.6, space: 0.3, warmth: 0.5 };
+
+  engine.acidBass(1, note, 0.12, 0.1, profile);
+  engine.acidBass(2, note, 0.12, 0.9, profile);
+
+  assert.deepEqual(
+    context.oscillators.map((oscillator) => oscillator.type),
+    ["square", "sawtooth"],
+  );
+  assert.ok(context.filters.every((filter) => filter.Q.value <= 8));
+});
+
 test("routing clamps dry, shared effects, and echo-ascent sends before connecting", () => {
   const { context, engine } = makeEngine();
   engine.bassBus = context.createGain();

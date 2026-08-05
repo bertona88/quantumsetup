@@ -1,9 +1,9 @@
 # Infinite Techno Musical System
 
-Status: local `2.2.0` kick-phrase candidate; deterministic and browser/audio
-validation remain separate from the deployed `2.1.0` release and from listening,
-soak, deployment, and public-acceptance gates
-Generator version: `2.2.0` (`2.2.0` material-state schema)
+Status: `2.2.1` acid-bass release candidate; deterministic and browser/audio
+validation remain separate from listening, soak, deployment, and
+public-acceptance gates
+Generator version: `2.2.1` (`2.2.0` material-state schema)
 Primary product: music  
 Quantum role: visual and poetic contour only
 
@@ -255,6 +255,10 @@ instead of restarting with the cache window.
   Matrix, Resonator, or String genome at a stable phrase boundary. Material gestures
   do not automatically change timbre. The other two engines retain their resident
   genomes and roles; there is no 16-bar synth clock or round-robin.
+- Acid bass uses square, triangle, or sawtooth identities selected from the
+  trajectory's stable filter color. Resonance remains at or below `Q 8`, including
+  accents. A climax phrase may authorize one deterministic acid note with a bounded
+  `1.4–3.2` second decay; ordinary acid notes retain their short step-derived decay.
 
 No phrase regenerates every lane at once. Persistent clocks continue through display
 labels and observation windows; only an accepted New Trajectory resets material

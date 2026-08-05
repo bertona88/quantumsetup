@@ -17,7 +17,7 @@ import {
   summarizeMaterialState,
   transitionDurationFor,
   transitionProgress,
-} from "./techno-model.js";
+} from "./techno-model.js?v=2.2.1-acid-bass-1";
 import { SYNTH_VOICE_LIMIT } from "./synth-dsp.js";
 import { stageSynthPalette } from "./synth-genomes.js";
 import {
@@ -2621,7 +2621,9 @@ export class InfiniteTechnoEngine {
       time,
       stepDuration,
     );
-    const duration = timing.duration;
+    const duration = Number.isFinite(note.acidDecaySeconds)
+      ? clamp(note.acidDecaySeconds, 0.075, 3.2)
+      : timing.duration;
     const accent = note.accent ? 1 : 0;
     const velocity = clamp(Number(note.velocity) || 0.68, 0, 1);
     const baseCutoff = 160 + filterBias * 360 + profile.drive * 170;
@@ -2630,9 +2632,18 @@ export class InfiniteTechnoEngine {
       700,
       5800,
     );
-    oscillator.type = filterBias > 0.5 ? "sawtooth" : "square";
+    oscillator.type =
+      filterBias < 0.22
+        ? "square"
+        : filterBias > 0.82
+          ? "sawtooth"
+          : "triangle";
     filterA.type = "lowpass";
-    filterA.Q.value = 7 + profile.acid * 9 + accent * 2;
+    filterA.Q.value = clamp(
+      3.2 + profile.acid * 4.2 + accent * 0.8,
+      0.5,
+      8,
+    );
     filterA.frequency.setValueAtTime(baseCutoff, time);
     filterA.frequency.exponentialRampToValueAtTime(peakCutoff, time + 0.025);
     filterA.frequency.exponentialRampToValueAtTime(baseCutoff * 1.12, time + duration);

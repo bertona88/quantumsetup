@@ -50,7 +50,7 @@ test("canonical supplied generator remains byte-identical", () => {
 });
 
 test("the versioned high-level browser API remains source-compatible", () => {
-  assert.equal(GENERATOR_VERSION, "2.2.0");
+  assert.equal(GENERATOR_VERSION, "2.2.1");
   const source = readFileSync(
     new URL("./main.js", import.meta.url),
     "utf8",
@@ -135,6 +135,45 @@ test("trajectory DNA makes kick rumble absent, short, or deep for the whole trac
   );
   assert.ok(bassProtectedDeep.kickTimbre.rumbleCutoffHz <= 112);
   assert.equal(bassProtectedDeep.lowEnd.rumbleBassDuckDepth, 0.62);
+});
+
+test("acid climax phrases authorize one bounded ultra-long decay", () => {
+  const profile = {
+    ...profileForVibe("acid"),
+    performanceBassCharacter: "acid",
+  };
+  const plans = Array.from({ length: 8 }, (_, offset) =>
+    buildBarPlan({
+      seed: 0,
+      bar: 96 + offset,
+      vibeId: "acid",
+      profile,
+      instrumentProfile: profile,
+    }),
+  );
+  assert.ok(plans.every((plan) => plan.form.climax));
+  const tails = plans.filter(
+    (plan) => plan.lowEnd.acidClimaxTailSeconds > 0,
+  );
+  assert.equal(tails.length, 1);
+  const [tailPlan] = tails;
+  assert.equal(tailPlan.bassVoice, "acid");
+  assert.ok(tailPlan.lowEnd.acidClimaxTailSeconds >= 1.4);
+  assert.ok(tailPlan.lowEnd.acidClimaxTailSeconds <= 3.2);
+  assert.equal(
+    tailPlan.bass[tailPlan.lowEnd.acidClimaxTailStep].acidDecaySeconds,
+    tailPlan.lowEnd.acidClimaxTailSeconds,
+  );
+
+  const ordinary = buildBarPlan({
+    seed: 0,
+    bar: 0,
+    vibeId: "acid",
+    profile,
+    instrumentProfile: profile,
+  });
+  assert.equal(ordinary.form.climax, false);
+  assert.equal(ordinary.lowEnd.acidClimaxTailSeconds, 0);
 });
 
 test("final kick thinning and withdrawal never vacate resident bass events", () => {

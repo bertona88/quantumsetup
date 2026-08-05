@@ -1,7 +1,7 @@
-import { InfiniteTechnoEngine, formatSeed } from "./audio-engine.js";
+import { InfiniteTechnoEngine, formatSeed } from "./audio-engine.js?v=2.2.1-acid-bass-1";
 import { InstrumentAuditioner } from "./instrument-preview.js";
 import { SignalDeckModel } from "./signal-deck.js";
-import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js";
+import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js?v=2.2.1-acid-bass-1";
 import {
   DEFAULT_DIRECTION_CONTROLS,
   DEFAULT_MIX_CONTROLS,

@@ -395,7 +395,7 @@ test("snapshots expose the frozen material summary instead of mutable planner st
   const snapshot = engine.getSnapshot();
   const expected = summarizeMaterialState(engine.materialState);
 
-  assert.equal(snapshot.version, "2.2.0");
+  assert.equal(snapshot.version, "2.2.1");
   assert.equal(snapshot.material === engine.materialState, false);
   assert.deepEqual(snapshot.material, expected);
   assertDeepFrozen(snapshot, new Set(), "snapshot");

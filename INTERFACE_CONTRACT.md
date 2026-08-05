@@ -1,6 +1,6 @@
 # Interface Contract
 
-Browser API contract: `window.QuantumTechno/2.2.0`
+Browser API contract: `window.QuantumTechno/2.2.1`
 Scope: one audio-first generative techno instrument
 Release boundary: deployed production interface from `b16c5dc`; local and public
 focused performance smoke recorded; full browser, soak, listening, render, and
@@ -176,7 +176,7 @@ After startup:
 
 ```js
 window.QuantumTechno = Object.freeze({
-  version: "2.2.0",
+  version: "2.2.1",
   getSnapshot,
   requestVibe,
   requestTonality,
