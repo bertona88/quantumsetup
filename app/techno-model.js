@@ -2505,6 +2505,7 @@ function buildBassLine({
   energy,
   kick,
   materialState,
+  lowEndDropout = false,
 }) {
   const bass = Array(STEPS_PER_BAR).fill(null);
   const trackDNA = movement.trackDNA || createTrackDNA(seed);
@@ -2528,7 +2529,7 @@ function buildBassLine({
   );
   const phraseOffset = barInPhrase * STEPS_PER_BAR;
   const residentCandidates = onsetSlice.flatMap((active, step) => {
-    if (!active || kick[step] || form.intentionalRest) return [];
+    if (!active || kick[step] || form.intentionalRest || lowEndDropout) return [];
     return [
       {
         step,
@@ -2539,7 +2540,7 @@ function buildBassLine({
     ];
   });
   const restoredCandidates = vacatedOnsetSlice.flatMap((active, step) => {
-    if (!active || kick[step] || form.intentionalRest) return [];
+    if (!active || kick[step] || form.intentionalRest || lowEndDropout) return [];
     return [
       {
         step,
@@ -2751,6 +2752,12 @@ export function buildBarPlan({
     barInPhrase,
     form,
   });
+  const lowEndDropout =
+    form.lowEndDropout === true &&
+    Number.isInteger(form.lowEndDropoutStartBar) &&
+    Number.isInteger(form.lowEndDropoutBars) &&
+    barInPhrase >= form.lowEndDropoutStartBar &&
+    barInPhrase < form.lowEndDropoutStartBar + form.lowEndDropoutBars;
 
   const phrasePatterns = materialState.phrase.patterns;
   const kick = emptyPattern();
@@ -2768,7 +2775,7 @@ export function buildBarPlan({
       : [],
   );
   const kickLimit =
-    form.kickPolicy === "withdraw"
+    lowEndDropout || form.kickPolicy === "withdraw"
       ? 0
       : form.kickPolicy === "thin"
         ? clamp(
@@ -2913,6 +2920,7 @@ export function buildBarPlan({
     energy,
     kick,
     materialState,
+    lowEndDropout,
   });
   const bass = bassLine.bass;
   const bassCount = bassLine.count;
@@ -3240,6 +3248,10 @@ export function buildBarPlan({
     motifMutationCount: form.motifMutationCount,
     kickPolicy: form.kickPolicy,
     kickReason: form.kickReason,
+    dropoutActive: lowEndDropout,
+    dropoutStartBar: form.lowEndDropoutStartBar,
+    dropoutBars: form.lowEndDropoutBars,
+    dropoutReadiness: form.lowEndDropoutReadiness,
     kickPhraseId: materialState.kickPhrase.id,
     kickPhraseAge: materialState.kickPhrase.agePhrases,
     kickPhraseHold: materialState.kickPhrase.holdPhrases,

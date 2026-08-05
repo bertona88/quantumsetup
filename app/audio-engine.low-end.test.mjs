@@ -222,16 +222,21 @@ test("the graph keeps kick, bass, rumble, and music on distinct bounded buses", 
     engine.kickPerformanceGain,
   ]);
   assert.deepEqual(connectionTargets(engine.kickPerformanceGain), [
-    engine.preMaster,
+    engine.lowEndArrangementGain,
     engine.rumbleSendGain,
   ]);
   assert.deepEqual(connectionTargets(engine.bassBus), [
     engine.bassPerformanceGain,
   ]);
   assert.deepEqual(connectionTargets(engine.bassPerformanceGain), [
+    engine.lowEndArrangementGain,
+  ]);
+  assert.deepEqual(connectionTargets(engine.rumbleBus), [
+    engine.lowEndArrangementGain,
+  ]);
+  assert.deepEqual(connectionTargets(engine.lowEndArrangementGain), [
     engine.preMaster,
   ]);
-  assert.deepEqual(connectionTargets(engine.rumbleBus), [engine.preMaster]);
   assert.deepEqual(connectionTargets(engine.musicBus), [engine.toneFilter]);
   assert.deepEqual(connectionTargets(engine.rumbleWet), [engine.rumbleBus]);
   assert.deepEqual(connectionTargets(engine.echoAscentIn), [
@@ -369,6 +374,28 @@ test("live EQ applies in dB and beat-quantized cuts preserve separate gain stage
         event.value === undefined || Number.isFinite(event.value)
       )
     ),
+  );
+});
+
+test("planned low-end dropouts reach exact zero without changing live cuts", () => {
+  const { engine } = makeEngine();
+  engine.buildGraph();
+
+  assert.equal(engine.syncPlannedLowEnd(2, true), true);
+  assert.equal(engine.plannedLowEndMuted, true);
+  assert.deepEqual(
+    lastEvent(engine.lowEndArrangementGain.gain, "linear-ramp"),
+    { type: "linear-ramp", value: 0, time: 2.012 },
+  );
+  assert.equal(engine.mixControls.kickCut, false);
+  assert.equal(engine.mixControls.bassCut, false);
+  assert.equal(engine.syncPlannedLowEnd(3, true), false);
+
+  assert.equal(engine.syncPlannedLowEnd(4, false), true);
+  assert.equal(engine.plannedLowEndMuted, false);
+  assert.deepEqual(
+    lastEvent(engine.lowEndArrangementGain.gain, "linear-ramp"),
+    { type: "linear-ramp", value: 1, time: 4.006 },
   );
 });
 

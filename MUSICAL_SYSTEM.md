@@ -274,6 +274,11 @@ The kick and bass are planned as a relationship rather than independent lanes.
   32-bar clock or reset when a motif gesture changes.
 - Candidate validation scores kick/bass separation and rejects unsafe overlap before
   the phrase is frozen.
+- The recurrent form can earn a joint low-end dropout after floor trust has been
+  established. It removes both kick and bass for the final two or four bars of an
+  eight-bar phrase, uses an eight-phrase cooldown, and leaves the upper arrangement
+  alive for a clear return. The renderer fades the kick, bass, and rumble path to
+  exact zero during those bars without changing listener-owned cut controls.
 - Breathing kick phrases expose two additional quarter-note positions in each
   sparse bar.
   When a quiet pickup or rolling kick collides with planned bass, the bass onset is
@@ -420,7 +425,7 @@ timbre-candidate pool.
 
 The deterministic and focused-browser evidence does not establish persuasive
 long-form musical quality, audible trajectory separation, long-duration
-foreground-browser reliability, or multi-day performance. All 159 deterministic
+foreground-browser reliability, or multi-day performance. All 161 deterministic
 tests pass. Focused local and public performance smokes cover Start/Stop, EQ,
 quantized cuts, direction targeting, bass character, persistence, responsive
 widths, and console cleanliness. The exact 18-file Pages bundle byte-matches

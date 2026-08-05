@@ -234,6 +234,7 @@ export class InfiniteTechnoEngine {
     this.currentTempo = this.profileTempo(profileForVibe(this.activeVibe), 0);
     this.lastOpenHatGain = null;
     this.lastOpenHatEnd = 0;
+    this.plannedLowEndMuted = false;
     this.analyser = null;
     this.cachedCurves = new Map();
     this.synthBank = null;
@@ -873,6 +874,7 @@ export class InfiniteTechnoEngine {
     this.musicBus = context.createGain();
     this.kickPerformanceGain = context.createGain();
     this.bassPerformanceGain = context.createGain();
+    this.lowEndArrangementGain = context.createGain();
     this.toneFilter = context.createBiquadFilter();
     this.preMaster = context.createGain();
     this.highpass = context.createBiquadFilter();
@@ -890,6 +892,8 @@ export class InfiniteTechnoEngine {
     this.musicBus.gain.value = MUSIC_BUS_LEVEL;
     this.kickPerformanceGain.gain.value = 1;
     this.bassPerformanceGain.gain.value = 1;
+    this.lowEndArrangementGain.gain.value = 1;
+    this.plannedLowEndMuted = false;
     this.toneFilter.type = "lowpass";
     this.toneFilter.frequency.value = 6500;
     this.toneFilter.Q.value = 0.7;
@@ -919,10 +923,11 @@ export class InfiniteTechnoEngine {
     this.masterGain.gain.value = 0.0001;
 
     this.kickBus.connect(this.kickPerformanceGain);
-    this.kickPerformanceGain.connect(this.preMaster);
+    this.kickPerformanceGain.connect(this.lowEndArrangementGain);
     this.bassBus.connect(this.bassPerformanceGain);
-    this.bassPerformanceGain.connect(this.preMaster);
-    this.rumbleBus.connect(this.preMaster);
+    this.bassPerformanceGain.connect(this.lowEndArrangementGain);
+    this.rumbleBus.connect(this.lowEndArrangementGain);
+    this.lowEndArrangementGain.connect(this.preMaster);
     this.musicBus.connect(this.toneFilter);
     this.toneFilter.connect(this.preMaster);
     this.preMaster.connect(this.highpass);
@@ -1214,6 +1219,21 @@ export class InfiniteTechnoEngine {
         mix: this.mixControls,
       });
     }
+    return true;
+  }
+
+  syncPlannedLowEnd(time, muted) {
+    if (!this.lowEndArrangementGain?.gain) return false;
+    const targetMuted = muted === true;
+    if (targetMuted === this.plannedLowEndMuted) return false;
+    const at = Number.isFinite(time) ? time : this.ctx?.currentTime ?? 0;
+    const gain = this.lowEndArrangementGain.gain;
+    holdParamAtTime(gain, at, targetMuted ? 1 : 0);
+    gain.linearRampToValueAtTime(
+      targetMuted ? 0 : 1,
+      at + (targetMuted ? 0.012 : 0.006),
+    );
+    this.plannedLowEndMuted = targetMuted;
     return true;
   }
 
@@ -1694,6 +1714,10 @@ export class InfiniteTechnoEngine {
     let hatPulse = 0;
     let chordPulse = 0;
     let synthPulse = 0;
+
+    if (step === 0) {
+      this.syncPlannedLowEnd(eventTime, plan.lowEnd?.dropoutActive === true);
+    }
 
     if (step === 0) {
       this.onEvent({

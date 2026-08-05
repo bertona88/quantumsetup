@@ -203,6 +203,7 @@ test("the recurrent form earns variable arcs, cooldowns, and independent materia
     dialogue: 0,
     kickFamily: 0,
     withdrawal: 0,
+    lowEndDropout: 0,
     mutation: 0,
     replacement: 0,
     recall: 0,
@@ -240,6 +241,7 @@ test("the recurrent form earns variable arcs, cooldowns, and independent materia
       mutation: -Infinity,
       recall: -Infinity,
       withdrawal: -Infinity,
+      lowEndDropout: -Infinity,
       climaxOnset: -Infinity,
       harmonyTurn: null,
     };
@@ -328,6 +330,29 @@ test("the recurrent form earns variable arcs, cooldowns, and independent materia
         withdrawalRun = 0;
       }
 
+      if (state.lowEndDropout) {
+        assert.ok(
+          state.phraseIndex - lastAt.lowEndDropout >=
+            FORM_RULES.lowEndDropout.cooldownPhrases,
+        );
+        lastAt.lowEndDropout = state.phraseIndex;
+        eventCounts.lowEndDropout += 1;
+        assert.ok(
+          [
+            FORM_RULES.lowEndDropout.minimumBars,
+            FORM_RULES.lowEndDropout.maximumBars,
+          ].includes(state.lowEndDropoutBars),
+        );
+        assert.equal(
+          state.lowEndDropoutStartBar + state.lowEndDropoutBars,
+          8,
+        );
+        assert.notEqual(state.kickPolicy, "withdraw");
+      } else {
+        assert.equal(state.lowEndDropoutBars, 0);
+        assert.equal(state.lowEndDropoutStartBar, null);
+      }
+
       if (state.motifOperation === "mutate") {
         assert.ok(
           state.phraseIndex - lastAt.mutation >=
@@ -404,6 +429,10 @@ test("the recurrent form earns variable arcs, cooldowns, and independent materia
   for (const [event, count] of Object.entries(eventCounts)) {
     assert.ok(count > 0, `${event} never occurred`);
   }
+  assert.ok(
+    eventCounts.lowEndDropout >= 256,
+    `joint low-end dropout remained too rare: ${eventCounts.lowEndDropout}/8192 phrases`,
+  );
   assert.ok(mean(values.energy) >= 0.35 && mean(values.energy) <= 0.85);
   assert.ok(mean(values.tension) >= 0.35 && mean(values.tension) <= 0.9);
   assert.ok(mean(values.floorTrust) >= 0.45 && mean(values.floorTrust) <= 0.9);
@@ -514,7 +543,7 @@ test("bar plans consume one frozen sequential material phrase instead of form-ow
 
         const kickCount = plan.kick.filter(Boolean).length;
         policyCounts[plan.form.kickPolicy] += 1;
-        if (plan.form.kickPolicy === "withdraw") {
+        if (plan.lowEnd.dropoutActive || plan.form.kickPolicy === "withdraw") {
           assert.equal(kickCount, 0);
         } else if (plan.form.kickPolicy === "thin") {
           assert.ok(kickCount >= 1 && kickCount <= 3);

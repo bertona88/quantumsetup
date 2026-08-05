@@ -140,13 +140,14 @@ test("trajectory DNA makes kick rumble absent, short, or deep for the whole trac
 test("final kick thinning and withdrawal never vacate resident bass events", () => {
   let reducedKickBars = 0;
   let restoredVacatedEvents = 0;
+  let lowEndDropoutBars = 0;
   for (let seed = 0; seed < 16; seed += 1) {
     for (let bar = 0; bar < 384; bar += 1) {
       const plan = buildBarPlan({ seed, bar });
       if (["thin", "withdraw"].includes(plan.form.kickPolicy)) {
         reducedKickBars += 1;
       }
-      if (plan.form.intentionalRest) {
+      if (plan.form.intentionalRest || plan.lowEnd.dropoutActive) {
         assert.equal(plan.lowEnd.bassDensity, 0);
         assert.equal(plan.lowEnd.restoredBassDensity, 0);
       } else {
@@ -164,10 +165,22 @@ test("final kick thinning and withdrawal never vacate resident bass events", () 
         );
         restoredVacatedEvents += plan.lowEnd.restoredBassDensity;
       }
+      if (plan.lowEnd.dropoutActive) {
+        lowEndDropoutBars += 1;
+        assert.equal(plan.kick.some(Boolean), false);
+        assert.equal(plan.bass.some(Boolean), false);
+        assert.equal(plan.lowEnd.bassDensity, 0);
+        assert.ok([2, 4].includes(plan.lowEnd.dropoutBars));
+        assert.equal(
+          plan.lowEnd.dropoutStartBar + plan.lowEnd.dropoutBars,
+          8,
+        );
+      }
     }
   }
   assert.ok(reducedKickBars > 0);
   assert.ok(restoredVacatedEvents > 0);
+  assert.ok(lowEndDropoutBars > 0);
 });
 
 test("hash and random stream are deterministic", () => {
@@ -1003,11 +1016,15 @@ test("the four-lens council enforces one idea, earned dialogue, and rare fills",
         assert.equal(verdict.allowFill, true);
       }
       if (
-        plan.form.kickPolicy === "anchor"
+        plan.form.kickPolicy === "anchor" &&
+        !plan.lowEnd.dropoutActive
       ) {
         assert.ok(plan.kick[0] > 0);
         assert.equal(plan.material.laneClocks.kick.loopLength, 16);
-      } else if (plan.form.kickPolicy === "withdraw") {
+      } else if (
+        plan.form.kickPolicy === "withdraw" ||
+        plan.lowEnd.dropoutActive
+      ) {
         for (const step of [0, 4, 8, 12]) assert.equal(plan.kick[step], 0);
       }
     }

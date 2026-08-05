@@ -17,6 +17,12 @@ export const FORM_RULES = Object.freeze({
     cooldownPhrases: 10,
     maximumPhrases: 2,
   }),
+  lowEndDropout: Object.freeze({
+    minFloorTrust: 0.6,
+    cooldownPhrases: 8,
+    minimumBars: 2,
+    maximumBars: 4,
+  }),
   kickFamily: Object.freeze({
     cooldownPhrases: 24,
   }),
@@ -352,6 +358,12 @@ function initialState(seed) {
     kickPolicy: energy < 0.45 ? "thin" : "anchor",
     kickWithdrawalAge: 0,
     kickCooldown: 3 + Math.floor(coordinate(seed, 0, "origin-kick-cooldown") * 5),
+    lowEndDropout: false,
+    lowEndDropoutStartBar: null,
+    lowEndDropoutBars: 0,
+    lowEndDropoutReadiness: 0,
+    lowEndDropoutCooldown: 2 +
+      Math.floor(coordinate(seed, 0, "origin-low-end-dropout-cooldown") * 5),
     kickFamilyId,
     priorKickFamilyId: null,
     kickFamilyMorphCooldown: Math.floor(
@@ -807,6 +819,44 @@ function advanceState(state, seed, phraseIndex) {
           ? "floor-return"
           : "floor-continuity";
 
+  const availableLowEndDropoutCooldown = Math.max(
+    0,
+    state.lowEndDropoutCooldown - 1,
+  );
+  const lowEndDropoutReadiness = bounded(
+    floorTrust * 0.28 +
+      tension * 0.18 +
+      contrastDebt * 0.18 +
+      payoffDebt * 0.16 +
+      fatigue * 0.1 +
+      coordinate(seed, phraseIndex, "low-end-dropout-readiness") * 0.1,
+  );
+  const lowEndDropoutContext =
+    chair === "radical-reduction" ||
+    release ||
+    fatigue > 0.52 ||
+    (contrastDebt > 0.52 && payoffDebt > 0.5);
+  const lowEndDropout =
+    !climax &&
+    kickPolicy !== "withdraw" &&
+    availableLowEndDropoutCooldown === 0 &&
+    floorTrust >= FORM_RULES.lowEndDropout.minFloorTrust &&
+    lowEndDropoutContext &&
+    lowEndDropoutReadiness > 0.53 &&
+    coordinate(seed, phraseIndex, "low-end-dropout-gate") > 0.42;
+  const lowEndDropoutBars = lowEndDropout
+    ? payoffDebt > 0.62 &&
+      coordinate(seed, phraseIndex, "low-end-dropout-length") > 0.56
+      ? FORM_RULES.lowEndDropout.maximumBars
+      : FORM_RULES.lowEndDropout.minimumBars
+    : 0;
+  const lowEndDropoutStartBar = lowEndDropout
+    ? 8 - lowEndDropoutBars
+    : null;
+  const lowEndDropoutCooldown = lowEndDropout
+    ? FORM_RULES.lowEndDropout.cooldownPhrases
+    : availableLowEndDropoutCooldown;
+
   const availableKickFamilyMorphCooldown = Math.max(
     0,
     state.kickFamilyMorphCooldown - 1,
@@ -1138,6 +1188,11 @@ function advanceState(state, seed, phraseIndex) {
     release,
     anticipation,
     intentionalRest,
+    lowEndDropout,
+    lowEndDropoutStartBar,
+    lowEndDropoutBars,
+    lowEndDropoutReadiness,
+    lowEndDropoutCooldown,
     earnedDialogue,
     dialogueReadiness,
     dialogueCooldown,
@@ -1213,6 +1268,11 @@ function advanceState(state, seed, phraseIndex) {
       kickPolicy,
       kickWithdrawalAge,
       kickCooldown,
+      lowEndDropout,
+      lowEndDropoutStartBar,
+      lowEndDropoutBars,
+      lowEndDropoutReadiness,
+      lowEndDropoutCooldown,
       kickFamilyId,
       priorKickFamilyId,
       kickFamilyMorphCooldown,
