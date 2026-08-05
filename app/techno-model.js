@@ -3041,8 +3041,16 @@ export function buildBarPlan({
     };
   }
 
-  let pad =
-    barInPhrase === 0 &&
+  const padEntryBar =
+    hash32(
+      seed,
+      phraseIndex,
+      trackDNA.harmonyBehavior,
+      "pad-entry-bar",
+    ) % PHRASE_BARS;
+  const padRequested =
+    phraseIndex > 0 &&
+    barInPhrase === padEntryBar &&
     (form.release ||
       form.space > 0.62 ||
       (form.chair === "machine-soul" && form.motifSalience > 0.58) ||
@@ -3063,18 +3071,61 @@ export function buildBarPlan({
             }[vibeId],
           0,
           0.9,
-        ))
-      ? {
-          notes: makeChord(
-            movement,
-            audibleHarmonyDegree,
-            2,
-            harmonyDesign.suspended || profile.space > 0.7,
-          ),
-          durationBars: clamp(Math.round(2 + profile.space * 4), 2, 6),
-          velocity: 0.12 + profile.chords * 0.14,
-        }
-      : null;
+        ));
+  let pad = null;
+  if (padRequested) {
+    const baseNotes = makeChord(
+      movement,
+      audibleHarmonyDegree,
+      2,
+      harmonyDesign.suspended || profile.space > 0.7,
+    );
+    const inversion =
+      hash32(seed, phraseIndex, "pad-inversion") % baseNotes.length;
+    const notes = [
+      ...baseNotes.slice(inversion),
+      ...baseNotes.slice(0, inversion).map((note) => note + 12),
+    ];
+    const oscillatorPalettes = [
+      ["sine", "triangle", "sine", "triangle"],
+      ["triangle", "sine", "triangle", "sine"],
+      ["sine", "triangle", "sawtooth", "triangle"],
+    ];
+    const availableBars = PHRASE_BARS - padEntryBar;
+    const desiredDuration = Math.round(
+      1.5 +
+        profile.space * 3.5 +
+        unitHash(seed, phraseIndex, "pad-duration") * 1.5,
+    );
+    const attackRatio =
+      0.08 + unitHash(seed, phraseIndex, "pad-attack") * 0.28;
+    const releaseStartRatio =
+      0.58 + unitHash(seed, phraseIndex, "pad-release") * 0.28;
+    pad = {
+      notes,
+      durationBars: clamp(desiredDuration, 1, availableBars),
+      velocity: 0.12 + profile.chords * 0.14,
+      attackRatio,
+      releaseStartRatio: Math.max(attackRatio + 0.18, releaseStartRatio),
+      filterPeakRatio:
+        0.24 + unitHash(seed, phraseIndex, "pad-filter-peak") * 0.32,
+      oscillatorTypes:
+        oscillatorPalettes[
+          hash32(seed, phraseIndex, "pad-oscillator-palette") %
+            oscillatorPalettes.length
+        ],
+      modulation: {
+        waveform:
+          hash32(seed, phraseIndex, "pad-modulation-waveform") % 2
+            ? "triangle"
+            : "sine",
+        rateHz:
+          8 + unitHash(seed, phraseIndex, "pad-modulation-rate") * 14,
+        depth:
+          0.06 + unitHash(seed, phraseIndex, "pad-modulation-depth") * 0.1,
+      },
+    };
+  }
 
   const bassVoice = selectBassVoice(seed, movement, form, profile);
 

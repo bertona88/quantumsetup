@@ -26,6 +26,11 @@ class FakeAudioParam {
     this.events.push({ type: "ramp", value, time });
   }
 
+  linearRampToValueAtTime(value, time) {
+    this.value = value;
+    this.events.push({ type: "linear-ramp", value, time });
+  }
+
   setTargetAtTime(value, time, constant) {
     this.value = value;
     this.events.push({ type: "target", value, time, constant });
@@ -488,6 +493,74 @@ test("kick synthesis consumes physical timbre fields and always stops finitely",
       (sample) => Number.isFinite(sample) && Math.abs(sample) <= 1,
     ),
   );
+});
+
+test("pads use bounded fast modulation, varied envelopes, and finite cleanup", () => {
+  const { context, engine } = makeEngine();
+  engine.musicBus = context.createGain();
+  engine.delayIn = context.createGain();
+  engine.reverbIn = context.createGain();
+  let registration = null;
+  engine.registerVoice = (sources, nodes) => {
+    registration = { sources, nodes };
+    return true;
+  };
+
+  const startTime = 2;
+  const stepDuration = 0.12;
+  engine.pad(
+    startTime,
+    {
+      notes: [60, 64, 67, 71],
+      durationBars: 4,
+      velocity: 0.22,
+      attackRatio: 0.25,
+      releaseStartRatio: 0.75,
+      filterPeakRatio: 0.31,
+      oscillatorTypes: ["triangle", "sine", "sawtooth", "triangle"],
+      modulation: {
+        waveform: "triangle",
+        rateHz: 17,
+        depth: 0.14,
+      },
+    },
+    stepDuration,
+    { space: 0.7 },
+  );
+
+  assert.ok(registration);
+  assert.equal(registration.sources.length, 5);
+  assert.deepEqual(
+    registration.sources.slice(0, 4).map((source) => source.type),
+    ["triangle", "sine", "sawtooth", "triangle"],
+  );
+  const modulator = registration.sources.at(-1);
+  assert.equal(modulator.type, "triangle");
+  assert.equal(modulator.frequency.value, 17);
+  assert.equal(modulator.starts.length, 1);
+  assert.equal(modulator.stops.length, 1);
+  const modulatorDepth = modulator.connections[0].node;
+  assert.equal(modulatorDepth.gain.value, 0.14);
+  assert.equal(modulatorDepth.connections.length, 1);
+
+  const duration = stepDuration * 16 * 4;
+  const envelope = registration.nodes.find((node) =>
+    node.gain.events.some((event) => event.type === "set")
+  );
+  const envelopeRamps = envelope.gain.events.filter(
+    (event) => event.type === "ramp",
+  );
+  approximatelyEqual(envelopeRamps[0].time, startTime + duration * 0.25);
+  approximatelyEqual(
+    envelope.gain.events.find((event) => event.type === "set" && event.time > startTime).time,
+    startTime + duration * 0.75,
+  );
+  assert.ok(
+    registration.sources.every((source) =>
+      source.stops.flat().every(Number.isFinite)
+    ),
+  );
+  approximatelyEqual(modulator.stops[0][0], startTime + duration + 0.05);
 });
 
 test("music and bass duck independently and restore their declared bus levels", () => {

@@ -180,6 +180,48 @@ test("hash and random stream are deterministic", () => {
   );
 });
 
+test("pads avoid the opening phrase and vary later entrances and modulation", () => {
+  const entryBars = new Set();
+  const attackRatios = new Set();
+  const modulationRates = new Set();
+  const oscillatorTypes = new Set();
+  let padCount = 0;
+
+  for (let seed = 0; seed < 48; seed += 1) {
+    for (let bar = 0; bar < 96; bar += 1) {
+      const plan = buildBarPlan({ seed, bar });
+      if (bar < 8) assert.equal(plan.pad, null);
+      if (!plan.pad) continue;
+
+      padCount += 1;
+      const barInPhrase = bar % 8;
+      entryBars.add(barInPhrase);
+      attackRatios.add(plan.pad.attackRatio.toFixed(4));
+      modulationRates.add(plan.pad.modulation.rateHz.toFixed(4));
+      plan.pad.oscillatorTypes.forEach((type) => oscillatorTypes.add(type));
+      assert.ok(plan.pad.durationBars >= 1);
+      assert.ok(plan.pad.durationBars <= 8 - barInPhrase);
+      assert.ok(plan.pad.attackRatio >= 0.08 && plan.pad.attackRatio <= 0.36);
+      assert.ok(plan.pad.releaseStartRatio >= plan.pad.attackRatio + 0.18);
+      assert.ok(plan.pad.releaseStartRatio <= 0.86);
+      assert.ok(
+        plan.pad.modulation.rateHz >= 8 &&
+          plan.pad.modulation.rateHz <= 22,
+      );
+      assert.ok(
+        plan.pad.modulation.depth >= 0.06 &&
+          plan.pad.modulation.depth <= 0.16,
+      );
+    }
+  }
+
+  assert.ok(padCount > 100);
+  assert.ok(entryBars.size >= 6);
+  assert.ok(attackRatios.size > 20);
+  assert.ok(modulationRates.size > 20);
+  assert.deepEqual([...oscillatorTypes].sort(), ["sawtooth", "sine", "triangle"]);
+});
+
 test("the full 128-bit trajectory identity affects the musical plan", () => {
   const common = {
     bar: 0,

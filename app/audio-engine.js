@@ -2771,12 +2771,57 @@ export class InfiniteTechnoEngine {
     const context = this.ctx;
     if (!context || this.activeVoices.size > 70) return;
     const duration = clamp(stepDuration * 16 * event.durationBars, 1.5, 14);
+    const attackRatio = clamp(
+      Number.isFinite(event.attackRatio) ? event.attackRatio : 0.18,
+      0.06,
+      0.4,
+    );
+    const releaseStartRatio = clamp(
+      Number.isFinite(event.releaseStartRatio)
+        ? event.releaseStartRatio
+        : 0.68,
+      Math.max(0.5, attackRatio + 0.12),
+      0.9,
+    );
+    const filterPeakRatio = clamp(
+      Number.isFinite(event.filterPeakRatio) ? event.filterPeakRatio : 0.42,
+      0.2,
+      0.62,
+    );
+    const modulationRate = clamp(
+      Number.isFinite(event.modulation?.rateHz)
+        ? event.modulation.rateHz
+        : 12,
+      8,
+      22,
+    );
+    const modulationDepth = clamp(
+      Number.isFinite(event.modulation?.depth)
+        ? event.modulation.depth
+        : 0.1,
+      0.04,
+      0.18,
+    );
+    const modulationWaveform = ["sine", "triangle"].includes(
+      event.modulation?.waveform,
+    )
+      ? event.modulation.waveform
+      : "sine";
+    const permittedOscillatorTypes = new Set(["sine", "triangle", "sawtooth"]);
     const filter = context.createBiquadFilter();
+    const modulatedGain = context.createGain();
     const gain = context.createGain();
+    const modulator = context.createOscillator();
+    const modulatorDepth = context.createGain();
     const panStage = this.createPanStage(-0.08);
     const oscillators = event.notes.slice(0, 4).map((midi, index) => {
       const oscillator = context.createOscillator();
-      oscillator.type = index % 2 ? "triangle" : "sine";
+      const requestedType = event.oscillatorTypes?.[index];
+      oscillator.type = permittedOscillatorTypes.has(requestedType)
+        ? requestedType
+        : index % 2
+          ? "triangle"
+          : "sine";
       oscillator.frequency.value = midiToHz(midi);
       oscillator.detune.value = (index - 1.5) * 5;
       oscillator.connect(filter);
@@ -2785,22 +2830,52 @@ export class InfiniteTechnoEngine {
     filter.type = "lowpass";
     filter.Q.value = 0.8;
     filter.frequency.setValueAtTime(340, time);
-    filter.frequency.exponentialRampToValueAtTime(1200 + profile.space * 1800, time + duration * 0.42);
+    filter.frequency.exponentialRampToValueAtTime(
+      1200 + profile.space * 1800,
+      time + duration * filterPeakRatio,
+    );
     filter.frequency.exponentialRampToValueAtTime(420, time + duration);
+    modulatedGain.gain.value = 1;
+    modulator.type = modulationWaveform;
+    modulator.frequency.value = modulationRate;
+    modulatorDepth.gain.value = modulationDepth;
+    modulator.connect(modulatorDepth);
+    modulatorDepth.connect(modulatedGain.gain);
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(event.velocity * 0.032, time + duration * 0.18);
-    gain.gain.setValueAtTime(event.velocity * 0.032, time + duration * 0.68);
+    gain.gain.exponentialRampToValueAtTime(
+      event.velocity * 0.032,
+      time + duration * attackRatio,
+    );
+    gain.gain.setValueAtTime(
+      event.velocity * 0.032,
+      time + duration * releaseStartRatio,
+    );
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
     panStage.pan.setValueAtTime(-0.18, time);
     panStage.pan.linearRampToValueAtTime(0.18, time + duration);
-    filter.connect(gain);
+    filter.connect(modulatedGain);
+    modulatedGain.connect(gain);
     gain.connect(panStage.node);
     const routes = this.route(panStage.node, 0.38, 0.13, 0.42);
-    if (!this.registerVoice(oscillators, [filter, gain, panStage.node, ...routes])) return;
+    if (
+      !this.registerVoice(
+        [...oscillators, modulator],
+        [
+          filter,
+          modulatedGain,
+          gain,
+          modulatorDepth,
+          panStage.node,
+          ...routes,
+        ],
+      )
+    ) return;
     oscillators.forEach((oscillator) => {
       oscillator.start(time);
       oscillator.stop(time + duration + 0.05);
     });
+    modulator.start(time);
+    modulator.stop(time + duration + 0.05);
   }
 
   texture(time, pan, energy, profile) {

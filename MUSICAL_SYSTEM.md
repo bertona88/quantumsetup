@@ -420,7 +420,7 @@ timbre-candidate pool.
 
 The deterministic and focused-browser evidence does not establish persuasive
 long-form musical quality, audible trajectory separation, long-duration
-foreground-browser reliability, or multi-day performance. All 148 deterministic
+foreground-browser reliability, or multi-day performance. All 159 deterministic
 tests pass. Focused local and public performance smokes cover Start/Stop, EQ,
 quantized cuts, direction targeting, bass character, persistence, responsive
 widths, and console cleanliness. The exact 18-file Pages bundle byte-matches
@@ -481,6 +481,9 @@ Effects respond to musical state:
   with risers and do not change kick, bass, or the ordinary shared-delay vocabulary;
 - downlifters mark an emergent release;
 - long pads and texture washes respond to space, release, and motif salience;
+  pads are withheld for the opening eight-bar phrase, then use seed-addressed
+  entry bars, voicings, envelopes, oscillator blends, filter arcs, and bounded
+  8–22 Hz amplitude modulation instead of one recurring startup gesture;
 - master gain remains stable; energy comes primarily from orchestration.
 
 The performance EQ is a listener-owned contour after the generator buses. It does
