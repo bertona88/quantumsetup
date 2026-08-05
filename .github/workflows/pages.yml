@@ -47,6 +47,7 @@ jobs:
             app/emergent-form.js \
             app/generative-utils.js \
             app/trajectory-identity.js \
+            app/moment-share.js \
             app/track-dna.js \
             app/synth-genomes.js \
             app/synth-dsp.js \
