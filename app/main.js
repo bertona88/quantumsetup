@@ -21,7 +21,7 @@ import {
   normalizeMomentCapsule,
   restoreMomentEngine,
 } from "./moment-share.js";
-import { QuantumPremonitionVisual } from "./quantum-visual.js?v=2.2.0-spectrum-mountain-4";
+import { QuantumPremonitionVisual } from "./quantum-visual.js?v=2.2.0-spectrum-mountain-7";
 
 const app = document.querySelector("#app");
 const transportButton = document.querySelector("#transport-button");

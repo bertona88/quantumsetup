@@ -16,6 +16,32 @@ function clamp01(value) {
   return clamp(Number(value) || 0, 0, 1);
 }
 
+function smoothstep(edge0, edge1, value) {
+  const amount = clamp01((value - edge0) / Math.max(1e-8, edge1 - edge0));
+  return amount * amount * (3 - 2 * amount);
+}
+
+function hertzToMel(frequency) {
+  return 2595 * Math.log10(1 + Math.max(0, frequency) / 700);
+}
+
+function melToHertz(mel) {
+  return 700 * (10 ** (Math.max(0, mel) / 2595) - 1);
+}
+
+export function perceptualFrequencyAt(amount, low = 25, high = 16000) {
+  const safeLow = Math.max(1, Number(low) || 25);
+  const safeHigh = Math.max(safeLow, Number(high) || 16000);
+  const lowMel = hertzToMel(safeLow);
+  return melToHertz(lowMel + (hertzToMel(safeHigh) - lowMel) * clamp01(amount));
+}
+
+export function visualSpectrumGain(frequency, high = 16000) {
+  const safeHigh = Math.max(25, Number(high) || 16000);
+  const amount = hertzToMel(Math.max(25, Number(frequency) || 25)) / hertzToMel(safeHigh);
+  return 0.56 + smoothstep(0.015, 0.32, amount) * 0.44;
+}
+
 function hashSeed(seed) {
   let hash = 2166136261;
   for (const character of String(seed)) {
@@ -64,7 +90,7 @@ export function extractSpectralBands(spectrum, sampleRate = 48000) {
   }));
 }
 
-export function resampleLogSpectrum(spectrum, sampleRate = 48000, columns = 128) {
+export function resampleMirroredSpectrum(spectrum, sampleRate = 48000, columns = 128) {
   const count = clamp(Math.floor(Number(columns) || 128), 32, 192);
   if (!spectrum?.length) return Object.freeze(Array(count).fill(0));
   const nyquist = Math.max(1, Number(sampleRate) || 48000) * 0.5;
@@ -72,24 +98,25 @@ export function resampleLogSpectrum(spectrum, sampleRate = 48000, columns = 128)
   const high = Math.min(16000, nyquist);
   const binWidth = nyquist / spectrum.length;
   const raw = Array.from({ length: count }, (_, column) => {
-    const amount = column / Math.max(1, count - 1);
-    const frequency = low * ((high / low) ** amount);
-    const center = clamp(Math.round(frequency / binWidth), 0, spectrum.length - 1);
-    const radius = Math.max(1, Math.floor(center * 0.032));
+    const amount = Math.abs((column + 0.5) / count - 0.5) * 2;
+    const bucketSize = 1 / Math.max(1, count * 0.5);
+    const frequency = perceptualFrequencyAt(amount, low, high);
+    const bucketLow = perceptualFrequencyAt(Math.max(0, amount - bucketSize * 0.55), low, high);
+    const bucketHigh = perceptualFrequencyAt(Math.min(1, amount + bucketSize * 0.55), low, high);
+    const first = clamp(Math.floor(bucketLow / binWidth), 0, spectrum.length - 1);
+    const last = clamp(Math.ceil(bucketHigh / binWidth), first, spectrum.length - 1);
     let maximum = 0;
     let sum = 0;
     let samples = 0;
-    for (
-      let index = Math.max(0, center - radius);
-      index <= Math.min(spectrum.length - 1, center + radius);
-      index += 1
-    ) {
+    for (let index = first; index <= last; index += 1) {
       const amplitude = Math.max(0, ((Number(spectrum[index]) || 0) / 255 - 0.05) / 0.95);
       maximum = Math.max(maximum, amplitude);
       sum += amplitude;
       samples += 1;
     }
-    return clamp01(Math.pow(maximum * 0.64 + (samples ? sum / samples : 0) * 0.36, 0.86));
+    const balanced = (maximum * 0.64 + (samples ? sum / samples : 0) * 0.36) *
+      visualSpectrumGain(frequency, high);
+    return clamp01(Math.pow(balanced, 0.94));
   });
   return Object.freeze(raw.map((value, index) => {
     const previous = raw[Math.max(0, index - 1)];
@@ -214,7 +241,7 @@ export class SpectrumTerrainHistory {
       ? extractSpectralBands(spectrum, sampleRate)
       : Array(SPECTRAL_BANDS.length).fill(0);
     const targetRow = active
-      ? resampleLogSpectrum(spectrum, sampleRate, this.columns)
+      ? resampleMirroredSpectrum(spectrum, sampleRate, this.columns)
       : this.latest;
     const targetPeak = active ? Math.max(...targetRow) : 0;
     if (!this.hasAudioTerrain && targetPeak > 0.08) {
@@ -345,8 +372,8 @@ const TERRAIN_VERTEX_SHADER = `#version 300 es
     float spectrum = sampleSpectrum(uv);
     float edge = smoothstep(0.0, 0.035, uv.x) * smoothstep(0.0, 0.035, 1.0 - uv.x);
     float depthGain = mix(1.12, 0.82, uv.y);
-    float relief = pow(max(0.0, spectrum), 1.14) * uHeightScale * depthGain;
-    relief *= 1.0 + uKick * 0.48 + uBass * 0.18;
+    float relief = pow(max(0.0, spectrum), 1.08) * uHeightScale * depthGain;
+    relief *= 1.0 + uKick * 0.2 + uBass * 0.08;
     return (0.025 + relief) * edge;
   }
 
@@ -398,8 +425,8 @@ const TERRAIN_FRAGMENT_SHADER = `#version 300 es
     float spectrum = sampleSpectrum(uv);
     float edge = smoothstep(0.0, 0.035, uv.x) * smoothstep(0.0, 0.035, 1.0 - uv.x);
     float depthGain = mix(1.12, 0.82, uv.y);
-    float relief = pow(max(0.0, spectrum), 1.14) * uHeightScale * depthGain;
-    relief *= 1.0 + uKick * 0.48 + uBass * 0.18;
+    float relief = pow(max(0.0, spectrum), 1.08) * uHeightScale * depthGain;
+    relief *= 1.0 + uKick * 0.2 + uBass * 0.08;
     return (0.025 + relief) * edge;
   }
 
@@ -631,7 +658,7 @@ export class SpectrumMountainRenderer {
     gl.uniform1f(this.locations.uHistoryOffset, state.historyOffset);
     gl.uniform1f(
       this.locations.uHeightScale,
-      0.48 + sub * 0.12 + bassBand * 0.18 + this.forecastGenes.cellular * 0.05,
+      0.98 + body * 0.12 + presence * 0.08 + this.forecastGenes.cellular * 0.06,
     );
     gl.uniform1f(this.locations.uKick, kick);
     gl.uniform1f(this.locations.uBass, bass);
@@ -719,7 +746,7 @@ export class CanvasSpectrumMountainFallback {
         const xScale = 0.92 - depth * 0.3;
         points.push({
           x: this.width * (0.5 + (amount - 0.5) * xScale),
-          y: this.height * (0.79 - depth * 0.57 - value * (0.24 - depth * 0.08) * (1 + kick * 0.4)),
+          y: this.height * (0.79 - depth * 0.57 - value * (0.4 - depth * 0.13) * (1 + kick * 0.16)),
         });
       }
       rows.push(points);

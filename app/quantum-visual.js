@@ -1,7 +1,7 @@
 import {
   CanvasSpectrumMountainFallback,
   SpectrumMountainRenderer,
-} from "./spectrum-mountain.js?v=2.2.0-spectrum-mountain-4";
+} from "./spectrum-mountain.js?v=2.2.0-spectrum-mountain-7";
 import { clamp } from "./techno-model.js";
 
 export class QuantumPremonitionVisual {
