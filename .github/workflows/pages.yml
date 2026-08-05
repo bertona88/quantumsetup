@@ -39,6 +39,7 @@ jobs:
             app/styles.css \
             app/main.js \
             app/quantum-visual.js \
+            app/spectrum-mountain.js \
             app/visual-grammar.js \
             app/causal-world.js \
             app/audio-engine.js \
