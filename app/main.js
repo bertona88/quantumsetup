@@ -1,7 +1,7 @@
-import { InfiniteTechnoEngine, formatSeed } from "./audio-engine.js?v=2.3.1-pulse-timbres-1";
-import { InstrumentAuditioner } from "./instrument-preview.js?v=2.3.1-square-timbre-1";
+import { InfiniteTechnoEngine, formatSeed } from "./audio-engine.js?v=2.4.0-reference-listener-3";
+import { InstrumentAuditioner } from "./instrument-preview.js?v=2.4.0-pattern-priors-1";
 import { SignalDeckModel } from "./signal-deck.js";
-import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js?v=2.3.1-pulse-timbres-1";
+import { GENERATOR_VERSION, profileForVibe } from "./techno-model.js?v=2.4.0-reference-listener-1";
 import {
   DEFAULT_DIRECTION_CONTROLS,
   DEFAULT_MIX_CONTROLS,
@@ -24,7 +24,7 @@ import {
 import {
   AdaptiveVisualQuality,
   QuantumPremonitionVisual,
-} from "./quantum-visual.js?v=2.3.1-structured-light-3";
+} from "./quantum-visual.js?v=2.4.0-pattern-priors-1";
 
 const app = document.querySelector("#app");
 const transportButton = document.querySelector("#transport-button");

@@ -1,9 +1,9 @@
 import { clamp, hash32 } from "./generative-utils.js";
 
-export const MATERIAL_VERSION = "2.3.1";
+export const MATERIAL_VERSION = "2.4.0";
 // Schema releases must not silently reroll every established lane grammar.
 // Advance this coordinate only when a full material reset is intentional.
-const MATERIAL_RANDOMNESS_REVISION = "2.3.0";
+const MATERIAL_RANDOMNESS_REVISION = "2.4.0";
 export const MATERIAL_CANDIDATE_COUNT = 12;
 export const MATERIAL_SCORE_FLOOR = 0.55;
 export const MATERIAL_SCORE_BAND = 0.2;
@@ -106,6 +106,48 @@ export const OPEN_HAT_MODES = Object.freeze([
   "offbeat-tail",
   "closed-only",
 ]);
+
+export const TWO_BAR_RELATION_IDS = Object.freeze([
+  "clock-locked",
+  "late-answer",
+  "counter-shift",
+  "second-bar-breath",
+]);
+
+export const PULSE_RELATION_IDS = Object.freeze([
+  "independent",
+  "pulse-layer",
+  "pulse-answer",
+]);
+
+// Only aggregate structural tendencies live here: stable two-bar cells,
+// occasional one-event answers, and explicit relationships to the quarter-note
+// pulse. No source pattern, MIDI event list, sample, or waveform is embedded.
+export const TECHNO_RHYTHM_PRIORS = deepFreeze({
+  schema: "aggregate-feature-priors-v1",
+  cellBars: 2,
+  maximumChangedStepsPerAnswerBar: 2,
+  twoBar: {
+    hats: {
+      ids: TWO_BAR_RELATION_IDS,
+      weights: [0.62, 0.16, 0.13, 0.09],
+    },
+    percussion: {
+      ids: TWO_BAR_RELATION_IDS,
+      weights: [0.58, 0.18, 0.15, 0.09],
+    },
+  },
+  pulse: {
+    hats: {
+      ids: PULSE_RELATION_IDS,
+      weights: [0.28, 0.31, 0.41],
+    },
+    percussion: {
+      ids: PULSE_RELATION_IDS,
+      weights: [0.24, 0.36, 0.4],
+    },
+  },
+});
 
 const OPEN_HAT_MODE_WEIGHTS = Object.freeze({
   "sixteenth-motor": Object.freeze([0.24, 0.25, 0.2, 0.14, 0.17]),
@@ -459,6 +501,52 @@ function openHatIdentity(grammarId, grammarSeed) {
   };
 }
 
+function rhythmRelationIdentity(lane, grammarId, grammarSeed) {
+  const twoBarPrior = TECHNO_RHYTHM_PRIORS.twoBar[lane];
+  const pulsePrior = TECHNO_RHYTHM_PRIORS.pulse[lane];
+  if (!twoBarPrior || !pulsePrior) {
+    return {
+      twoBarRelationId: null,
+      pulseRelationId: null,
+      relationVariant: null,
+    };
+  }
+
+  const twoBarWeights = [...twoBarPrior.weights];
+  if (["sixteenth-motor", "eighth-engine", "gap-call"].includes(grammarId)) {
+    twoBarWeights[0] *= 1.25;
+  }
+  if (["broken-chatter", "dust-points", "clave-walk"].includes(grammarId)) {
+    twoBarWeights[2] *= 1.32;
+    twoBarWeights[3] *= 1.18;
+  }
+  if (grammarId === "burst-tail") twoBarWeights[1] *= 0.62;
+
+  const pulseWeights = [...pulsePrior.weights];
+  if (["eighth-engine", "sixteenth-motor", "clave-walk"].includes(grammarId)) {
+    pulseWeights[1] *= 1.22;
+  }
+  if (["swing-pairs", "gap-call", "offbeat-answer"].includes(grammarId)) {
+    pulseWeights[2] *= 1.28;
+  }
+
+  return {
+    twoBarRelationId: coordinateChoice(
+      twoBarPrior.ids,
+      twoBarWeights,
+      grammarSeed,
+      "resident-two-bar-relation",
+    ),
+    pulseRelationId: coordinateChoice(
+      pulsePrior.ids,
+      pulseWeights,
+      grammarSeed,
+      "resident-pulse-relation",
+    ),
+    relationVariant: hash32(grammarSeed, "resident-relation-variant") % 8,
+  };
+}
+
 function createClock({
   lane,
   seed,
@@ -548,6 +636,11 @@ function createClock({
   const openHat = lane === "hats"
     ? openHatIdentity(grammarId, grammarSeed)
     : { mode: null, variant: null };
+  const rhythmRelation = rhythmRelationIdentity(
+    lane,
+    grammarId,
+    grammarSeed,
+  );
   return {
     id: hash32(
       MATERIAL_VERSION,
@@ -563,6 +656,9 @@ function createClock({
       grammarId,
       grammarVariant,
       grammarSeed,
+      rhythmRelation.twoBarRelationId,
+      rhythmRelation.pulseRelationId,
+      rhythmRelation.relationVariant,
     ),
     lane,
     loopLength,
@@ -572,6 +668,9 @@ function createClock({
     grammarId,
     grammarVariant,
     grammarSeed,
+    twoBarRelationId: rhythmRelation.twoBarRelationId,
+    pulseRelationId: rhythmRelation.pulseRelationId,
+    relationVariant: rhythmRelation.relationVariant,
     openHatMode: openHat.mode,
     openHatVariant: openHat.variant,
     agePhrases: 0,
@@ -612,6 +711,9 @@ function mutateClock(clock, input, candidateIndex) {
     next.rotation === clock.rotation &&
     next.grammarId === clock.grammarId &&
     next.grammarVariant === clock.grammarVariant &&
+    next.twoBarRelationId === clock.twoBarRelationId &&
+    next.pulseRelationId === clock.pulseRelationId &&
+    next.relationVariant === clock.relationVariant &&
     next.openHatMode === clock.openHatMode &&
     next.openHatVariant === clock.openHatVariant
   ) {
@@ -688,11 +790,33 @@ function renewClockIdentity(clock, input, candidateIndex) {
   };
 }
 
+function secondaryRhythmLane(lane) {
+  return lane === "hats" || lane === "percussion";
+}
+
+function pulseRelationScore(clock, absoluteStep) {
+  const phase = positiveModulo(absoluteStep, 4);
+  if (clock.pulseRelationId === "pulse-layer") {
+    return phase === 0 ? 1 : phase === 2 ? 0.58 : 0.22;
+  }
+  if (clock.pulseRelationId === "pulse-answer") {
+    return phase === 1 ? 1 : phase === 3 ? 0.76 : phase === 2 ? 0.38 : 0.08;
+  }
+  return 0.5;
+}
+
+function pulseRelationBias(clock, cycleStep) {
+  if (!secondaryRhythmLane(clock.lane)) return 0;
+  const initialAbsoluteStep = clock.phaseOrigin + cycleStep;
+  return (pulseRelationScore(clock, initialAbsoluteStep) - 0.5) * 0.34;
+}
+
 function rankedGrammarCycle(clock, scoreForStep) {
   const ranked = Array.from({ length: clock.loopLength }, (_, step) => ({
     step,
     score:
       scoreForStep(step) +
+      pulseRelationBias(clock, step) +
       unitHash(clock.grammarSeed, step, "grammar-jitter") * 0.19,
   })).sort(
     (left, right) =>
@@ -804,7 +928,7 @@ function grammarCycle(clock) {
   });
 }
 
-export function renderMaterialClock(clock, phraseIndex) {
+function renderMaterialClockBase(clock, phraseIndex) {
   const cycle = grammarCycle(clock);
   const phraseStart = phraseIndex * STEPS_PER_PHRASE;
   return Array.from({ length: STEPS_PER_PHRASE }, (_, offset) => {
@@ -813,6 +937,105 @@ export function renderMaterialClock(clock, phraseIndex) {
       cycle[positiveModulo(absoluteStep - clock.phaseOrigin, clock.loopLength)],
     );
   });
+}
+
+function rankedRelationSteps(clock, purpose) {
+  return Array.from({ length: STEPS_PER_BAR }, (_, step) => {
+    const pulse = pulseRelationScore(clock, step);
+    const purposeScore = purpose === "late-answer"
+      ? pulse * 0.34 + step / (STEPS_PER_BAR - 1) * 0.28
+      : purpose === "breath-source"
+        ? (1 - pulse) * 0.48
+        : purpose === "shift-source"
+          ? (1 - pulse) * 0.38
+          : pulse * 0.48;
+    return {
+      step,
+      score:
+        purposeScore +
+        unitHash(
+          clock.grammarSeed,
+          clock.relationVariant,
+          step,
+          purpose,
+        ) * 0.36,
+    };
+  }).sort(
+    (left, right) =>
+      right.score - left.score ||
+      hash32(clock.grammarSeed, left.step, purpose, "relation-tie") -
+        hash32(clock.grammarSeed, right.step, purpose, "relation-tie"),
+  );
+}
+
+function applyTwoBarRelation(basePattern, clock, phraseIndex) {
+  if (
+    !secondaryRhythmLane(clock.lane) ||
+    clock.twoBarRelationId === "clock-locked"
+  ) {
+    return basePattern;
+  }
+
+  const pattern = [...basePattern];
+  const phraseStartBar = phraseIndex * PHRASE_BARS;
+  const lateTargets = rankedRelationSteps(clock, "late-answer");
+  const shiftSources = rankedRelationSteps(clock, "shift-source");
+  const shiftTargets = rankedRelationSteps(clock, "shift-target");
+  const breathSources = rankedRelationSteps(clock, "breath-source");
+
+  for (let bar = 0; bar < PHRASE_BARS; bar += 1) {
+    const absoluteBar = phraseStartBar + bar;
+    if (absoluteBar % TECHNO_RHYTHM_PRIORS.cellBars !== 1) continue;
+    const barStart = bar * STEPS_PER_BAR;
+    const isActive = (step) => Boolean(pattern[barStart + step]);
+
+    if (clock.twoBarRelationId === "late-answer") {
+      const target = lateTargets.find(({ step }) => !isActive(step));
+      if (target) pattern[barStart + target.step] = true;
+      continue;
+    }
+
+    if (clock.twoBarRelationId === "second-bar-breath") {
+      const activeCount = pattern
+        .slice(barStart, barStart + STEPS_PER_BAR)
+        .filter(Boolean).length;
+      if (activeCount <= 1) continue;
+      const source = breathSources.find(({ step }) => isActive(step));
+      if (source) pattern[barStart + source.step] = false;
+      continue;
+    }
+
+    if (clock.twoBarRelationId !== "counter-shift") continue;
+    for (const source of shiftSources) {
+      if (!isActive(source.step)) continue;
+      const destination = shiftTargets
+        .filter(
+          ({ step }) =>
+            !isActive(step) &&
+            Math.abs(step - source.step) >= 1 &&
+            Math.abs(step - source.step) <= 2,
+        )
+        .sort(
+          (left, right) =>
+            Math.abs(left.step - source.step) -
+              Math.abs(right.step - source.step) ||
+            right.score - left.score,
+        )[0];
+      if (!destination) continue;
+      pattern[barStart + source.step] = false;
+      pattern[barStart + destination.step] = true;
+      break;
+    }
+  }
+  return pattern;
+}
+
+export function renderMaterialClock(clock, phraseIndex) {
+  return applyTwoBarRelation(
+    renderMaterialClockBase(clock, phraseIndex),
+    clock,
+    phraseIndex,
+  );
 }
 
 export function renderOpenHatPattern(
@@ -1174,7 +1397,10 @@ function candidateClocks(previousState, input, candidateIndex, gesture) {
   const mutatedLanes = [];
   const renewedLanes = renewKick ? ["kick"] : [];
   const totalAllowance = mutationAllowance(input.form, gesture);
-  let remaining = totalAllowance - mutatedLanes.length;
+  let remaining = Math.min(
+    totalAllowance,
+    Math.max(0, 2 - renewedLanes.length),
+  );
   const eligible = STRUCTURAL_LANES.filter(
     (lane) => clocks[lane].agePhrases >= 2,
   ).sort(
@@ -1455,9 +1681,25 @@ function patternStructure(pattern) {
   const onsets = pattern.flatMap((active, step) => active ? [step] : []);
   const stepProfile = Array(STEPS_PER_BAR).fill(0);
   const barDensity = Array(PHRASE_BARS).fill(0);
+  const twoBarDeltaProfile = Array(STEPS_PER_BAR).fill(0);
+  const twoBarBalance = Array(PHRASE_BARS / 2).fill(0);
   for (const onset of onsets) {
     stepProfile[onset % STEPS_PER_BAR] += 1 / PHRASE_BARS;
     barDensity[Math.floor(onset / STEPS_PER_BAR)] += 1 / STEPS_PER_BAR;
+  }
+  for (let cell = 0; cell < PHRASE_BARS / 2; cell += 1) {
+    const firstBarStart = cell * 2 * STEPS_PER_BAR;
+    const secondBarStart = firstBarStart + STEPS_PER_BAR;
+    let firstBarHits = 0;
+    let secondBarHits = 0;
+    for (let step = 0; step < STEPS_PER_BAR; step += 1) {
+      const first = Boolean(pattern[firstBarStart + step]);
+      const second = Boolean(pattern[secondBarStart + step]);
+      firstBarHits += Number(first);
+      secondBarHits += Number(second);
+      twoBarDeltaProfile[step] += Number(first !== second) / (PHRASE_BARS / 2);
+    }
+    twoBarBalance[cell] = (secondBarHits - firstBarHits) / STEPS_PER_BAR;
   }
   const gaps = onsets.map((onset, index) => {
     const next = onsets[(index + 1) % onsets.length];
@@ -1469,6 +1711,8 @@ function patternStructure(pattern) {
   return Object.freeze({
     stepProfile: Object.freeze(stepProfile),
     barDensity: Object.freeze(barDensity),
+    twoBarDeltaProfile: Object.freeze(twoBarDeltaProfile),
+    twoBarBalance: Object.freeze(twoBarBalance),
     gapHistogram: Object.freeze(normalizedHistogram(gaps, 17)),
     density: onsets.length / STEPS_PER_PHRASE,
   });
@@ -1529,10 +1773,15 @@ function cyclicVectorDistance(left, right) {
 
 function structureLaneDistance(left, right) {
   return clamp(
-    cyclicVectorDistance(left.stepProfile, right.stepProfile) * 0.44 +
-      vectorDistance(left.barDensity, right.barDensity) * 0.2 +
-      vectorDistance(left.gapHistogram, right.gapHistogram) * 0.22 +
-      Math.abs(left.density - right.density) * 0.14,
+    cyclicVectorDistance(left.stepProfile, right.stepProfile) * 0.34 +
+      vectorDistance(left.barDensity, right.barDensity) * 0.16 +
+      cyclicVectorDistance(
+        left.twoBarDeltaProfile,
+        right.twoBarDeltaProfile,
+      ) * 0.14 +
+      vectorDistance(left.twoBarBalance, right.twoBarBalance) * 0.06 +
+      vectorDistance(left.gapHistogram, right.gapHistogram) * 0.18 +
+      Math.abs(left.density - right.density) * 0.12,
     0,
     1,
   );
@@ -1758,7 +2007,24 @@ function scoreCandidate(candidate, previousState, input) {
   const distinctLengths = new Set(
     LANE_IDS.map((lane) => candidate.clocks[lane].loopLength),
   ).size;
-  const phaseInterest = clamp(nonSixteen / LANE_IDS.length * 0.72 + distinctLengths / LANE_IDS.length * 0.28, 0, 1);
+  const secondaryClocks = [
+    candidate.clocks.hats,
+    candidate.clocks.percussion,
+  ];
+  const relationInterest = secondaryClocks.filter(
+    (clock) => clock.twoBarRelationId !== "clock-locked",
+  ).length / secondaryClocks.length;
+  const pulseContrast = Number(
+    secondaryClocks[0].pulseRelationId !== secondaryClocks[1].pulseRelationId,
+  );
+  const phaseInterest = clamp(
+    nonSixteen / LANE_IDS.length * 0.56 +
+      distinctLengths / LANE_IDS.length * 0.22 +
+      relationInterest * 0.14 +
+      pulseContrast * 0.08,
+    0,
+    1,
+  );
   const measures = {
     grooveContinuity,
     macroFit,
@@ -1778,6 +2044,7 @@ function scoreCandidate(candidate, previousState, input) {
 export function validateMaterialCandidate(candidate, previousState = null) {
   const reasons = [];
   const patterns = candidate.phrase.patterns;
+  const renderedSecondaryRhythms = {};
   for (const lane of LANE_IDS) {
     const clock = candidate.clocks[lane];
     if (!LANE_DOMAINS[lane].includes(clock.loopLength)) {
@@ -1790,6 +2057,67 @@ export function validateMaterialCandidate(candidate, previousState = null) {
     ) {
       reasons.push(`clock-hits:${lane}`);
     }
+    if (secondaryRhythmLane(lane)) {
+      if (!TWO_BAR_RELATION_IDS.includes(clock.twoBarRelationId)) {
+        reasons.push(`two-bar-relation:${lane}`);
+      }
+      if (!PULSE_RELATION_IDS.includes(clock.pulseRelationId)) {
+        reasons.push(`pulse-relation:${lane}`);
+      }
+      if (
+        !Number.isSafeInteger(clock.relationVariant) ||
+        clock.relationVariant < 0 ||
+        clock.relationVariant > 7
+      ) {
+        reasons.push(`relation-variant:${lane}`);
+      }
+      if (
+        LANE_DOMAINS[lane].includes(clock.loopLength) &&
+        Number.isSafeInteger(clock.hits) &&
+        clock.hits >= 0 &&
+        clock.hits <= clock.loopLength &&
+        TWO_BAR_RELATION_IDS.includes(clock.twoBarRelationId) &&
+        PULSE_RELATION_IDS.includes(clock.pulseRelationId) &&
+        Number.isSafeInteger(clock.relationVariant) &&
+        clock.relationVariant >= 0 &&
+        clock.relationVariant <= 7
+      ) {
+        const relatedPattern = renderMaterialClock(
+          clock,
+          candidate.phraseIndex,
+        );
+        renderedSecondaryRhythms[lane] = relatedPattern;
+        if (clock.twoBarRelationId !== "clock-locked") {
+          const basePattern = renderMaterialClockBase(
+            clock,
+            candidate.phraseIndex,
+          );
+          for (let bar = 0; bar < PHRASE_BARS; bar += 1) {
+            const start = bar * STEPS_PER_BAR;
+            const changedSteps = booleanDistance(
+              basePattern.slice(start, start + STEPS_PER_BAR),
+              relatedPattern.slice(start, start + STEPS_PER_BAR),
+            ) * STEPS_PER_BAR;
+            const absoluteBar = candidate.phraseIndex * PHRASE_BARS + bar;
+            if (
+              (absoluteBar % TECHNO_RHYTHM_PRIORS.cellBars !== 1 &&
+                changedSteps !== 0) ||
+              changedSteps >
+                TECHNO_RHYTHM_PRIORS.maximumChangedStepsPerAnswerBar
+            ) {
+              reasons.push(`two-bar-budget:${lane}`);
+              break;
+            }
+          }
+        }
+      }
+    } else if (
+      clock.twoBarRelationId !== null ||
+      clock.pulseRelationId !== null ||
+      clock.relationVariant !== null
+    ) {
+      reasons.push(`secondary-relation-scope:${lane}`);
+    }
   }
   const allowedStructuralMutations = mutationAllowance(
     candidate.form,
@@ -1797,6 +2125,12 @@ export function validateMaterialCandidate(candidate, previousState = null) {
   );
   if (candidate.mutatedLanes.length > allowedStructuralMutations) {
     reasons.push("structural-mutation-budget");
+  }
+  if (
+    candidate.mutatedLanes.length + candidate.renewedLanes.length >
+      2
+  ) {
+    reasons.push("structural-identity-budget");
   }
   if (candidate.mutation.onsetFraction > 0.25 || candidate.mutation.degreeFraction > 0.25) {
     reasons.push("motif-mutation-budget");
@@ -1862,6 +2196,22 @@ export function validateMaterialCandidate(candidate, previousState = null) {
     )
   ) {
     reasons.push("open-hat-vocabulary");
+  }
+  const expectedClosedHats = renderedSecondaryRhythms.hats?.map(
+    (active, index) => active && !expectedOpenHats[index],
+  );
+  const expectedPercussion = renderedSecondaryRhythms.percussion;
+  if (
+    !expectedClosedHats ||
+    !expectedPercussion ||
+    patterns.hats.some(
+      (active, index) => Boolean(active) !== expectedClosedHats[index],
+    ) ||
+    patterns.percussion.some(
+      (active, index) => Boolean(active) !== expectedPercussion[index],
+    )
+  ) {
+    reasons.push("resident-rhythm-render");
   }
   const densityCeilings = {
     kick: 64,
@@ -2008,6 +2358,27 @@ export function validateMaterialCandidate(candidate, previousState = null) {
     !["repeat", "recall"].includes(candidate.gesture)
   ) {
     reasons.push("planner-collapse");
+  }
+  for (const lane of ["hats", "percussion"]) {
+    if (!previousState || !candidate.mutatedLanes.includes(lane)) continue;
+    const emittedDistance = lane === "hats"
+      ? Math.max(
+          booleanDistance(
+            patterns.hats,
+            previousState.phrase.patterns.hats,
+          ),
+          booleanDistance(
+            patterns.openHats,
+            previousState.phrase.patterns.openHats,
+          ),
+        )
+      : booleanDistance(
+          patterns.percussion,
+          previousState.phrase.patterns.percussion,
+        );
+    if (emittedDistance < 2 / STEPS_PER_PHRASE) {
+      reasons.push(`secondary-rhythm-collapse:${lane}`);
+    }
   }
   return Object.freeze(reasons);
 }
@@ -2436,6 +2807,9 @@ export function summarizeMaterialState(state) {
             phaseOrigin: clock.phaseOrigin,
             grammarId: clock.grammarId,
             grammarVariant: clock.grammarVariant,
+            twoBarRelationId: clock.twoBarRelationId,
+            pulseRelationId: clock.pulseRelationId,
+            relationVariant: clock.relationVariant,
             openHatMode: clock.openHatMode,
             openHatVariant: clock.openHatVariant,
             agePhrases: clock.agePhrases,

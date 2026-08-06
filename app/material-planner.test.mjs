@@ -18,9 +18,12 @@ import {
   MaterialPlanner,
   OPEN_HAT_MODES,
   PHRASE_BARS,
+  PULSE_RELATION_IDS,
   SCORE_WEIGHTS,
   STEPS_PER_BAR,
   STEPS_PER_PHRASE,
+  TECHNO_RHYTHM_PRIORS,
+  TWO_BAR_RELATION_IDS,
   advanceMaterialState,
   createMaterialState,
   euclidean,
@@ -181,6 +184,15 @@ function assertPhraseSafety(candidate) {
     assert.ok(Number.isSafeInteger(clock.phaseOrigin));
     assert.ok(clock.holdPhrases >= 2 && clock.holdPhrases <= 8);
     assert.ok(clock.history.length <= 8);
+    if (lane === "hats" || lane === "percussion") {
+      assert.ok(TWO_BAR_RELATION_IDS.includes(clock.twoBarRelationId));
+      assert.ok(PULSE_RELATION_IDS.includes(clock.pulseRelationId));
+      assert.ok(clock.relationVariant >= 0 && clock.relationVariant <= 7);
+    } else {
+      assert.equal(clock.twoBarRelationId, null);
+      assert.equal(clock.pulseRelationId, null);
+      assert.equal(clock.relationVariant, null);
+    }
   }
 
   assert.ok(candidate.mutatedLanes.length <= 2);
@@ -307,7 +319,7 @@ test("canonical Euclidean patterns are immutable, even, rotated, and validated",
 });
 
 test("gesture grammar and candidate score weights preserve the authored contract", () => {
-  assert.equal(MATERIAL_VERSION, "2.3.1");
+  assert.equal(MATERIAL_VERSION, "2.4.0");
   assert.equal(MATERIAL_CANDIDATE_COUNT, 12);
   assert.equal(MATERIAL_SCORE_FLOOR, 0.55);
   assert.equal(MATERIAL_SCORE_BAND, 0.2);
@@ -358,6 +370,29 @@ test("gesture grammar and candidate score weights preserve the authored contract
     "offbeat-tail",
     "closed-only",
   ]);
+  assert.deepEqual(TWO_BAR_RELATION_IDS, [
+    "clock-locked",
+    "late-answer",
+    "counter-shift",
+    "second-bar-breath",
+  ]);
+  assert.deepEqual(PULSE_RELATION_IDS, [
+    "independent",
+    "pulse-layer",
+    "pulse-answer",
+  ]);
+  assert.equal(TECHNO_RHYTHM_PRIORS.schema, "aggregate-feature-priors-v1");
+  assert.equal(TECHNO_RHYTHM_PRIORS.cellBars, 2);
+  assert.equal(TECHNO_RHYTHM_PRIORS.maximumChangedStepsPerAnswerBar, 2);
+  for (const family of ["twoBar", "pulse"]) {
+    for (const lane of ["hats", "percussion"]) {
+      approximatelyEqual(
+        sum(TECHNO_RHYTHM_PRIORS[family][lane].weights),
+        1,
+      );
+    }
+  }
+  assertDeepFrozen(TECHNO_RHYTHM_PRIORS);
   assertDeepFrozen(OPEN_HAT_MODES);
   assert.deepEqual(KICK_PHRASE_IDS, [
     "anchor",
@@ -779,6 +814,37 @@ test("candidate validator rejects crafted unsafe material for every safety class
       unsafe.score = Number.NaN;
     }).includes("dsp-safety"),
   );
+  assert.ok(
+    reasonsFor((unsafe) => {
+      unsafe.clocks.hats.twoBarRelationId = "source-mask";
+    }).includes("two-bar-relation:hats"),
+  );
+  assert.ok(
+    reasonsFor((unsafe) => {
+      unsafe.clocks.percussion.pulseRelationId = "unbounded-stack";
+    }).includes("pulse-relation:percussion"),
+  );
+
+  const previous = createMaterialState(
+    plannerInput("secondary-rhythm-collapse", 0),
+  );
+  const next = generateMaterialCandidates(
+    previous,
+    plannerInput("secondary-rhythm-collapse", 1),
+  ).find((entry) => entry.valid);
+  assert.ok(next);
+  const relabelled = cloneCandidate(next);
+  relabelled.mutatedLanes = ["hats"];
+  relabelled.phrase.patterns.hats = [
+    ...previous.phrase.patterns.hats,
+  ];
+  relabelled.phrase.patterns.openHats = [
+    ...previous.phrase.patterns.openHats,
+  ];
+  assert.ok(
+    validateMaterialCandidate(relabelled, previous)
+      .includes("secondary-rhythm-collapse:hats"),
+  );
 });
 
 test("planner calls are pure, honor explicit zero profiles, and never freeze caller input", () => {
@@ -907,6 +973,14 @@ test("state creation, incremental advance, batch replay, summaries, and class wr
     assert.equal(
       summary.laneClocks.hats.openHatMode,
       state.clocks.hats.openHatMode,
+    );
+    assert.equal(
+      summary.laneClocks.hats.twoBarRelationId,
+      state.clocks.hats.twoBarRelationId,
+    );
+    assert.equal(
+      summary.laneClocks.percussion.pulseRelationId,
+      state.clocks.percussion.pulseRelationId,
     );
     assert.equal(summary.candidateCount, MATERIAL_CANDIDATE_COUNT);
   }
@@ -1076,6 +1150,95 @@ test("open-hat vocabulary is varied, deterministic, and resident with the hats c
   assert.equal(residentModeChanges, 0);
   assert.ok(fullPhrases / audiblePhrases > 0.1);
   assert.ok(fullPhrases / audiblePhrases < 0.4);
+});
+
+test("feature-only techno rhythm priors create resident bounded two-bar relationships", () => {
+  const reachedTwoBar = {
+    hats: new Set(),
+    percussion: new Set(),
+  };
+  const reachedPulse = {
+    hats: new Set(),
+    percussion: new Set(),
+  };
+  let transformedAnswerBars = 0;
+
+  for (let seed = 0; seed < 16; seed += 1) {
+    const input = plannerInput(`rhythm-prior-${seed}`, 0);
+    const candidates = generateMaterialCandidates(null, input);
+    for (const candidate of candidates) {
+      for (const lane of ["hats", "percussion"]) {
+        const clock = candidate.clocks[lane];
+        reachedTwoBar[lane].add(clock.twoBarRelationId);
+        reachedPulse[lane].add(clock.pulseRelationId);
+        const rendered = renderMaterialClock(clock, 0);
+        assert.deepEqual(renderMaterialClock(clock, 0), rendered);
+        const base = renderMaterialClock(
+          { ...clock, twoBarRelationId: "clock-locked" },
+          0,
+        );
+        for (let bar = 0; bar < PHRASE_BARS; bar += 1) {
+          const start = bar * STEPS_PER_BAR;
+          const changed = rendered
+            .slice(start, start + STEPS_PER_BAR)
+            .filter(
+              (active, step) =>
+                Boolean(active) !== Boolean(base[start + step]),
+            ).length;
+          if (bar % 2 === 0) assert.equal(changed, 0);
+          else {
+            assert.ok(
+              changed <=
+                TECHNO_RHYTHM_PRIORS.maximumChangedStepsPerAnswerBar,
+            );
+            transformedAnswerBars += Number(changed > 0);
+          }
+        }
+      }
+    }
+  }
+
+  for (const lane of ["hats", "percussion"]) {
+    assert.deepEqual(
+      [...reachedTwoBar[lane]].sort(),
+      [...TWO_BAR_RELATION_IDS].sort(),
+    );
+    assert.deepEqual(
+      [...reachedPulse[lane]].sort(),
+      [...PULSE_RELATION_IDS].sort(),
+    );
+  }
+  assert.ok(transformedAnswerBars > 100);
+
+  const priorArrays = [];
+  const collectArrays = (value) => {
+    if (Array.isArray(value)) priorArrays.push(value);
+    if (value && typeof value === "object") {
+      for (const child of Object.values(value)) collectArrays(child);
+    }
+  };
+  collectArrays(TECHNO_RHYTHM_PRIORS);
+  assert.ok(priorArrays.every((array) => array.length <= 4));
+
+  const trace = traceMaterial({
+    seed: "resident-rhythm-relations",
+    trackDNA: createTrackDNA("resident-rhythm-relations"),
+    phraseCount: 24,
+    formForPhrase: (phraseIndex) =>
+      derivePhraseState("resident-rhythm-relations", phraseIndex),
+    profile: PROFILE,
+    tonality: "minor",
+  });
+  for (let index = 1; index < trace.length; index += 1) {
+    for (const lane of ["hats", "percussion"]) {
+      const previous = trace[index - 1].clocks[lane];
+      const current = trace[index].clocks[lane];
+      if (current.id !== previous.id) continue;
+      assert.equal(current.twoBarRelationId, previous.twoBarRelationId);
+      assert.equal(current.pulseRelationId, previous.pulseRelationId);
+      assert.equal(current.relationVariant, previous.relationVariant);
+    }
+  }
 });
 
 test("Track DNA creates statistically distinct clock dialects and patient hold times", () => {
@@ -1514,6 +1677,10 @@ test("128 trajectories over 384 bars satisfy the material long-scan contract", (
         assert.ok(
           state.mutatedLanes.length <= allowance,
           `seed ${seed} phrase ${index} structurally mutated ${state.mutatedLanes.join(",")}`,
+        );
+        assert.ok(
+          state.mutatedLanes.length + state.renewedLanes.length <= 2,
+          `seed ${seed} phrase ${index} changed too many resident identities`,
         );
         if (state.renewedLanes.length > 0) {
           assert.deepEqual(state.renewedLanes, ["kick"]);

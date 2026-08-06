@@ -1,7 +1,8 @@
 # Claims and Validation
 
-Status: claim register for Infinite Techno `2.3.1` resident-open-hat,
-pulse-timbre, and structured-light implementation candidate; prior deployment
+Status: claim register for Infinite Techno `2.4.0` pattern-informed
+rhythm-relation, resident-open-hat, pulse-timbre, and structured-light
+implementation candidate; prior deployment
 evidence remains historical
 
 The named `2.1.0` deployment is verified at `b16c5dc`, Pages run `30631366177`, and
@@ -21,6 +22,13 @@ The application may claim that it:
 - deterministically assigns each trajectory a 12-field categorical macro
   phenotype covering groove, drums, low end, harmony, foreground synthesis, mix
   contour, and form tendency;
+- derives one of three abstract reference-listening tendencies from the complete
+  trajectory identity and recombines it with Track DNA plus recurrent form rather
+  than exposing a named-artist preset;
+- has a reproducible development listener that samples exact hashed windows,
+  measures grid-aligned structure and mix behavior, estimates
+  drums/bass/remaining stems, and stores pooled MERT-95M plus CLAP evidence without
+  shipping source audio or models in the product;
 - evaluates 16 fresh candidates for `New Trajectory`, ranks the macro-distinct
   candidates, and accepts the first whose emitted topology also clears the current
   and recent-start structural-distance gate;
@@ -43,6 +51,14 @@ The application may claim that it:
   multi-phrase vocabulary of full, paired, alternating-bar, tail, and closed-only
   modes, and gives hats, percussion, bass, and foreground engines distinct bounded
   grammars;
+- gives resident hats and percussion clocks an authored feature-only two-bar
+  relationship (clock-locked, late answer, counter-shift, or second-bar breath)
+  and quarter-pulse relationship (independent, layer, or answer), with no source
+  event sequence, sample, or waveform stored or fetched;
+- changes no first-bar steps and at most one answer-bar onset for those two-bar
+  transformations, includes the resulting delta shape in structural comparison,
+  and rejects a newly mutated hats or percussion identity that changes fewer than
+  two emitted steps;
 - selects track-level `off`, `short`, or `deep` kick rumble, with zero send and
   feedback when rumble is off;
 - relocates bass collisions caused by quiet pickup and rolling kick articulations
@@ -98,9 +114,11 @@ The application may claim that it:
 - authorizes an occasional phrase-frozen Echo Ascent only after rising tension,
   anticipation, density, readiness, a deterministic permission coordinate, and an
   eight-phrase cooldown converge;
-- realizes that authorization as one of three weighted bright-percussion contours
-  through a separate high-passed stereo cross-feedback path capped at `0.55`, while
-  excluding a simultaneous riser and competing high-register advanced parts;
+- realizes that authorization as one of three weighted macro variants whose
+  eight rotating contour identities transform resident material rather than replay
+  a literal hit array, through a separate high-passed stereo cross-feedback path
+  capped at `0.55`, while excluding a simultaneous riser and competing
+  high-register advanced parts;
 - emits bounded physical kick-timbre and low-end routing contracts;
 - routes kick, bass, rumble, and remaining music through separate buses before the
   shared master chain;
@@ -132,8 +150,8 @@ The application may claim that it:
   timbre handoff, never to rank the twelve musical-material candidates;
 - preserves `window.QuantumTechno.getSnapshot()`, `requestVibe()`, and
   `requestTonality()` while adding a frozen material snapshot with gesture, motif
-  lineage, lane-clock summaries, candidate diagnostics, temperature, and
-  kick-phrase status;
+  lineage, lane-clock summaries including resident two-bar and pulse relationships,
+  candidate diagnostics, temperature, and kick-phrase status;
 - drives one persistent causal field from a read-only event tape derived from the
   already-frozen phrase: future pressure, audio-clock crossing, and long visual
   residue are three phases of the same event; the visual does not rewrite the score;
@@ -161,7 +179,13 @@ The application does not claim:
 - that `2.1.0` has passed its fixed 96-bar renders, blinded listening comparison,
   complete browser-acceptance gate, 30–60-minute soak, or public-acceptance gate;
 - subjective equivalence to a named artist, professional producer, or top DJ;
-- machine learning, training on a music catalog, or artist imitation;
+- runtime machine learning, training the product generator on a music catalog, or
+  literal reproduction of an artist, melody, sample, or recording;
+- that machine measurements, separated stems, MERT, or CLAP mean that Codex or the
+  product literally hears, understands artist intent, or proves subjective
+  similarity;
+- that reviewing small public pattern corpora proves originality, genre coverage,
+  audible variability, groove quality, or freedom from similarity to existing music;
 - participation, endorsement, approval, or literal opinions from the named artistic
   council references;
 - cloud taste sync, identity inference, or personalization beyond explicit local
@@ -177,13 +201,15 @@ The application does not claim:
 
 | Evidence | Validates | Does not validate |
 | --- | --- | --- |
+| three-window reference corpus, Demucs stem estimates, pooled MERT-95M, and pooled CLAP reports | reproducible functional machine-listening evidence and distinct transferable set-level tendencies | literal hearing, clean studio stems, artist intent, originality, quality, endorsement, or human acceptance |
+| same-seed 32-bar full-mix and component captures before/after reference calibration | measured changes in spectral balance, offbeat detail, component levels, reference-scaled distance, and MERT/CLAP proximity for those exact fixtures; a planned bounded phrase contour is present | proof of the intended phrase slope (the measured value remained below the references), club translation, arbitrary-seed coverage, professional mastering, or subjective improvement |
 | Euclidean-clock tests | hit counts, evenness, rotation, invalid-input rejection, immutability, and absolute phase continuity | audible groove or long-run musical interest |
 | material-state tests | deterministic and order-independent creation/advancement/trace, bounded residency and mutation, no observation-window reset, and replay from the same intent history | subjective phrase quality |
 | gesture-grammar tests | normalized transition rows, state reachability, bounded rests, timely answers, 25% mutation cap, legal pitch, and attributable repeat/recall | whether calls and answers feel expressive |
 | candidate-selection tests | twelve-candidate construction, rejection bounds, normalized scoring, threshold and near-best filtering, deterministic softmax, and cross-seed choice diversity | that the selected candidate is musically best |
 | model tests | frozen phrase materialization, legal structure, bounded lanes and pitch families | subjective groove quality |
 | emergent-form distribution tests | bounded recurrent state, removal of fixed schedules, varied/absent and materially long climax windows, operative gates, causal gesture cooldowns, honest recall labels, non-causal derived sections, and safe replay bounds | whether the resulting long arc feels earned to a listener |
-| Echo Ascent planner and graph tests | all three phrase-frozen variants, rising density/send contours, eight-phrase cooldown, no simultaneous riser, high-register foreground exclusion, finite bright voices, bounded cross-feedback topology, and forecast visibility | whether frequency, timbre, stereo translation, and payoff feel right in long listening |
+| Echo Ascent planner and graph tests | all three phrase-frozen variants, eight rotating resident-material contour identities, no immediate contour replay, rising density/send contours, eight-phrase cooldown, no simultaneous riser, high-register foreground exclusion, finite bright voices, bounded cross-feedback topology, and forecast visibility | whether frequency, timbre, stereo translation, variation, and payoff feel right in long listening |
 | 128-seed, 384-bar material scan | kick clock remains bar-aligned in every phrase, all four curated kick families are reached with safe spacing and phrase-boundary transitions, secondary lanes retain persistent non-16 polymeter, no global lane reset, and exact repetition remains attributable | club-system translation or perceived low-end authority |
 | low-end planner tests | independent kick-family cooldown and phrase morph, track-level off/short/deep rumble, secondary-kick bass survival, character-dependent bass density, articulation-aware duck bounds, bounded physical fields, persistent clock/lineage continuity, and routing-contract bounds | club-system translation or perceived low-end authority |
 | same-seed real-engine captures | unnormalized browser-engine bass-solo and full-mix WAVs for rolling/off-rumble and acid/deep-rumble trajectories; bass RMS remains within 8.84–10.03 dB of the corresponding full mix | subjective audibility on the user's system, club translation, or parity with illustrative reference renders |

@@ -1,0 +1,342 @@
+{
+  "schema": "quantumsetup.reference-iteration-report.v1",
+  "report_version": "0.1.0",
+  "analyzer_version": "0.1.3",
+  "matched_capture_count": 6,
+  "direct_metric_means": {
+    "tempo_bpm": {
+      "baseline": 133.92857,
+      "candidate": 128.968253,
+      "delta": -4.960317,
+      "reference_group_min": 122.28261,
+      "reference_group_max": 131.89935
+    },
+    "onsets_per_beat": {
+      "baseline": 2.089697,
+      "candidate": 2.270143,
+      "delta": 0.180446,
+      "reference_group_min": 2.60958,
+      "reference_group_max": 3.42785
+    },
+    "kick_quarter_dominance": {
+      "baseline": 3.071262,
+      "candidate": 2.908025,
+      "delta": -0.163237,
+      "reference_group_min": 1.73479,
+      "reference_group_max": 2.09352
+    },
+    "hat_offbeat_dominance": {
+      "baseline": 0.339965,
+      "candidate": 0.979932,
+      "delta": 0.639967,
+      "reference_group_min": 1.07231,
+      "reference_group_max": 1.35868
+    },
+    "bar_repeat_similarity": {
+      "baseline": 0.296153,
+      "candidate": 0.337408,
+      "delta": 0.041255,
+      "reference_group_min": 0.41832,
+      "reference_group_max": 0.59614
+    },
+    "eight_bar_recurrence": {
+      "baseline": 0.302272,
+      "candidate": 0.313752,
+      "delta": 0.01148,
+      "reference_group_min": 0.32237,
+      "reference_group_max": 0.33485
+    },
+    "harmonic_change": {
+      "baseline": 0.975383,
+      "candidate": 0.92731,
+      "delta": -0.048073,
+      "reference_group_min": 0.53394,
+      "reference_group_max": 0.79103
+    },
+    "timbral_change": {
+      "baseline": 1.170202,
+      "candidate": 1.013967,
+      "delta": -0.156235,
+      "reference_group_min": 0.12983,
+      "reference_group_max": 0.60931
+    },
+    "section_changes_per_32_bars": {
+      "baseline": 3.33431,
+      "candidate": 2.598428,
+      "delta": -0.735882,
+      "reference_group_min": 2.01801,
+      "reference_group_max": 2.55666
+    },
+    "phrase_energy_arc": {
+      "baseline": 0.042018,
+      "candidate": 0.030958,
+      "delta": -0.01106,
+      "reference_group_min": 0.13899,
+      "reference_group_max": 0.21397
+    },
+    "spectral_centroid_hz": {
+      "baseline": 217.257725,
+      "candidate": 445.003678,
+      "delta": 227.745953,
+      "reference_group_min": 2037.0299,
+      "reference_group_max": 3009.67989
+    },
+    "spectral_rolloff_hz": {
+      "baseline": 160.15625,
+      "candidate": 369.140625,
+      "delta": 208.984375,
+      "reference_group_min": 4917.96875,
+      "reference_group_max": 6599.60938
+    },
+    "crest_db": {
+      "baseline": 10.621298,
+      "candidate": 11.463492,
+      "delta": 0.842194,
+      "reference_group_min": 11.03586,
+      "reference_group_max": 13.31313
+    },
+    "stereo_side_mid_ratio": {
+      "baseline": 0.003683,
+      "candidate": 0.011055,
+      "delta": 0.007372,
+      "reference_group_min": 0.00127,
+      "reference_group_max": 0.38199
+    },
+    "integrated_lufs": {
+      "baseline": -20.075322,
+      "candidate": -19.548272,
+      "delta": 0.52705,
+      "reference_group_min": -26.21782,
+      "reference_group_max": -10.14486
+    },
+    "band_sub": {
+      "baseline": 0.765178,
+      "candidate": 0.75038,
+      "delta": -0.014798,
+      "reference_group_min": 0.59511,
+      "reference_group_max": 0.72968
+    },
+    "band_bass": {
+      "baseline": 0.227263,
+      "candidate": 0.241102,
+      "delta": 0.013839,
+      "reference_group_min": 0.24757,
+      "reference_group_max": 0.37442
+    },
+    "band_body": {
+      "baseline": 6.5e-05,
+      "candidate": 0.00014,
+      "delta": 7.5e-05,
+      "reference_group_min": 0.00153,
+      "reference_group_max": 0.00192
+    },
+    "band_presence": {
+      "baseline": 3e-06,
+      "candidate": 1.5e-05,
+      "delta": 1.2e-05,
+      "reference_group_min": 0.00026,
+      "reference_group_max": 0.00056
+    },
+    "band_air": {
+      "baseline": 0.0,
+      "candidate": 1e-05,
+      "delta": 1e-05,
+      "reference_group_min": 7e-05,
+      "reference_group_max": 0.00016
+    }
+  },
+  "structural_distance": {
+    "baseline_mean_nearest_distance": 2.898727,
+    "candidate_mean_nearest_distance": 2.88347,
+    "matched_captures": [
+      {
+        "candidate": "quantumsetup-00000000-bar-128-full.wav",
+        "baseline_distance": 3.09331,
+        "candidate_distance": 2.65206,
+        "delta": -0.44125,
+        "baseline_nearest_reference": "sven-vath-time-warp-2023",
+        "candidate_nearest_reference": "sven-vath-time-warp-2023"
+      },
+      {
+        "candidate": "quantumsetup-00000000-bar-32-full.wav",
+        "baseline_distance": 2.90369,
+        "candidate_distance": 2.607,
+        "delta": -0.29669,
+        "baseline_nearest_reference": "sven-vath-time-warp-2023",
+        "candidate_nearest_reference": "sven-vath-time-warp-2023"
+      },
+      {
+        "candidate": "quantumsetup-6e789e6a-bar-128-full.wav",
+        "baseline_distance": 3.59322,
+        "candidate_distance": 3.65277,
+        "delta": 0.05955,
+        "baseline_nearest_reference": "sven-vath-time-warp-2023",
+        "candidate_nearest_reference": "sven-vath-time-warp-2023"
+      },
+      {
+        "candidate": "quantumsetup-6e789e6a-bar-32-full.wav",
+        "baseline_distance": 3.56165,
+        "candidate_distance": 3.76054,
+        "delta": 0.19889,
+        "baseline_nearest_reference": "sven-vath-time-warp-2023",
+        "candidate_nearest_reference": "sven-vath-time-warp-2023"
+      },
+      {
+        "candidate": "quantumsetup-d81a8d2b-bar-128-full.wav",
+        "baseline_distance": 2.04516,
+        "candidate_distance": 2.04228,
+        "delta": -0.00288,
+        "baseline_nearest_reference": "sven-vath-time-warp-2023",
+        "candidate_nearest_reference": "sven-vath-time-warp-2023"
+      },
+      {
+        "candidate": "quantumsetup-d81a8d2b-bar-32-full.wav",
+        "baseline_distance": 2.19533,
+        "candidate_distance": 2.58617,
+        "delta": 0.39084,
+        "baseline_nearest_reference": "sven-vath-time-warp-2023",
+        "candidate_nearest_reference": "ann-clue-cercle-2024"
+      }
+    ],
+    "delta": -0.015257
+  },
+  "embedding_similarity": {
+    "mert": {
+      "ann-clue-cercle-2024": {
+        "baseline": 0.738611,
+        "candidate": 0.746176,
+        "delta": 0.007565
+      },
+      "dixon-cercle-2024": {
+        "baseline": 0.745128,
+        "candidate": 0.75373,
+        "delta": 0.008602
+      },
+      "sven-vath-time-warp-2023": {
+        "baseline": 0.720721,
+        "candidate": 0.728602,
+        "delta": 0.007881
+      }
+    },
+    "clap": {
+      "ann-clue-cercle-2024": {
+        "baseline": 0.639036,
+        "candidate": 0.650101,
+        "delta": 0.011065
+      },
+      "dixon-cercle-2024": {
+        "baseline": 0.601042,
+        "candidate": 0.624393,
+        "delta": 0.023351
+      },
+      "sven-vath-time-warp-2023": {
+        "baseline": 0.631027,
+        "candidate": 0.633257,
+        "delta": 0.00223
+      }
+    }
+  },
+  "candidate_component_evidence": {
+    "bass": {
+      "capture_count": 2,
+      "metrics": {
+        "integrated_lufs": -34.4016,
+        "onsets_per_beat": 0.662045,
+        "spectral_centroid_hz": 917.34605,
+        "bar_repeat_similarity": 0.427355,
+        "harmonic_change": 0.68113,
+        "timbral_change": 0.87362,
+        "band_sub": 0.045025,
+        "band_bass": 0.79872,
+        "band_body": 0.000285,
+        "band_presence": 0.0,
+        "band_air": 0.0
+      }
+    },
+    "drums": {
+      "capture_count": 2,
+      "metrics": {
+        "integrated_lufs": -19.54824,
+        "onsets_per_beat": 2.224235,
+        "spectral_centroid_hz": 184.10931,
+        "bar_repeat_similarity": 0.33395,
+        "harmonic_change": 1.01811,
+        "timbral_change": 1.09448,
+        "band_sub": 0.75211,
+        "band_bass": 0.24259,
+        "band_body": 3e-05,
+        "band_presence": 2e-05,
+        "band_air": 1.5e-05
+      }
+    },
+    "harmony": {
+      "capture_count": 2,
+      "metrics": {
+        "integrated_lufs": -39.840165,
+        "onsets_per_beat": 0.22566,
+        "spectral_centroid_hz": 0.0,
+        "bar_repeat_similarity": 0.376325,
+        "harmonic_change": 0.690555,
+        "timbral_change": 1.21871,
+        "band_sub": 0.01003,
+        "band_bass": 0.048705,
+        "band_body": 0.12566,
+        "band_presence": 0.001735,
+        "band_air": 0.0
+      }
+    },
+    "non-anchors": {
+      "capture_count": 2,
+      "metrics": {
+        "integrated_lufs": -31.845105,
+        "onsets_per_beat": 1.30086,
+        "spectral_centroid_hz": 1459.717175,
+        "bar_repeat_similarity": 0.35854,
+        "harmonic_change": 0.90877,
+        "timbral_change": 0.88226,
+        "band_sub": 0.04711,
+        "band_bass": 0.71431,
+        "band_body": 0.022905,
+        "band_presence": 0.00154,
+        "band_air": 0.000155
+      }
+    },
+    "secondary-percussion": {
+      "capture_count": 2,
+      "metrics": {
+        "integrated_lufs": -47.42877,
+        "onsets_per_beat": 0.94951,
+        "spectral_centroid_hz": 3500.206235,
+        "bar_repeat_similarity": 0.37525,
+        "harmonic_change": 0.913295,
+        "timbral_change": 0.73969,
+        "band_sub": 0.0273,
+        "band_bass": 0.02874,
+        "band_body": 0.67858,
+        "band_presence": 0.08617,
+        "band_air": 0.048755
+      }
+    },
+    "synth": {
+      "capture_count": 2,
+      "metrics": {
+        "integrated_lufs": -31.924535,
+        "onsets_per_beat": 0.71459,
+        "spectral_centroid_hz": 2626.266855,
+        "bar_repeat_similarity": 0.352575,
+        "harmonic_change": 1.09269,
+        "timbral_change": 1.03092,
+        "band_sub": 0.058945,
+        "band_bass": 0.041925,
+        "band_body": 0.20567,
+        "band_presence": 0.0143,
+        "band_air": 0.00103
+      }
+    }
+  },
+  "evidence_boundaries": {
+    "comparison": "Same-seed, same-bar-window full mixes; lower structural distance and higher embedding cosine mean closer only on the selected evidence.",
+    "components": "Exact engine component captures, not source-separated estimates.",
+    "quality": "Neither feature movement nor learned embeddings establish musical quality, originality, or human acceptance."
+  }
+}

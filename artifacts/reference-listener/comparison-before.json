@@ -1,0 +1,89 @@
+{
+  "schema": "quantumsetup.reference-comparison.v1",
+  "analyzer_version": "0.1.0",
+  "feature_keys": [
+    "tempo_bpm",
+    "tempo_stability",
+    "integrated_lufs",
+    "crest_db",
+    "stereo_side_mid_ratio",
+    "percussive_energy_ratio",
+    "onsets_per_beat",
+    "kick_quarter_dominance",
+    "hat_offbeat_dominance",
+    "backbeat_dominance",
+    "bar_repeat_similarity",
+    "eight_bar_recurrence",
+    "harmonic_change",
+    "timbral_change",
+    "section_changes_per_32_bars",
+    "phrase_energy_arc",
+    "band_sub",
+    "band_bass",
+    "band_body",
+    "band_air"
+  ],
+  "comparisons": [
+    {
+      "candidate": "quantumsetup-00000000-bar-128-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 1.70552,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 1.70552,
+        "dixon-cercle-2024": 2.06193,
+        "ann-clue-cercle-2024": 2.18786
+      }
+    },
+    {
+      "candidate": "quantumsetup-00000000-bar-32-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 1.60962,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 1.60962,
+        "dixon-cercle-2024": 2.01671,
+        "ann-clue-cercle-2024": 2.14869
+      }
+    },
+    {
+      "candidate": "quantumsetup-6e789e6a-bar-128-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 1.73042,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 1.73042,
+        "dixon-cercle-2024": 2.07626,
+        "ann-clue-cercle-2024": 2.27926
+      }
+    },
+    {
+      "candidate": "quantumsetup-6e789e6a-bar-32-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 1.71281,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 1.71281,
+        "dixon-cercle-2024": 2.04448,
+        "ann-clue-cercle-2024": 2.28142
+      }
+    },
+    {
+      "candidate": "quantumsetup-d81a8d2b-bar-128-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 1.33985,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 1.33985,
+        "dixon-cercle-2024": 1.61473,
+        "ann-clue-cercle-2024": 1.78441
+      }
+    },
+    {
+      "candidate": "quantumsetup-d81a8d2b-bar-32-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 1.4194,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 1.4194,
+        "dixon-cercle-2024": 1.75508,
+        "ann-clue-cercle-2024": 1.96158
+      }
+    }
+  ],
+  "claim_boundary": "Relative feature distance only; lower is closer, not better or more original."
+}

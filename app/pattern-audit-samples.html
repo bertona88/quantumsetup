@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QuantumSetup non-anchor pattern samples</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      body { margin: 0; background: #080b0d; color: #e8eee9; }
+      main { width: min(960px, calc(100% - 2rem)); margin: 0 auto; padding: 3rem 0 5rem; }
+      h1 { max-width: 720px; margin: 0 0 .6rem; font-size: clamp(2rem, 6vw, 4.8rem); line-height: .94; letter-spacing: -.055em; }
+      .lede { max-width: 700px; color: #aebbb3; line-height: 1.55; }
+      button, a { border: 1px solid #8ad6ae55; border-radius: 999px; background: #9de3bd; color: #07110c; padding: .7rem 1rem; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; }
+      button { margin: 1rem 0 2rem; }
+      button:disabled { opacity: .5; cursor: wait; }
+      #samples { display: grid; gap: 1px; background: #223029; border: 1px solid #223029; }
+      .sample { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, .55fr); gap: 1.25rem 2rem; padding: 1.35rem; background: #0d1210; }
+      h2 { margin: 0; font-size: 1.05rem; }
+      p { margin: .45rem 0; color: #aebbb3; line-height: 1.45; }
+      small, [data-status] { color: #7f9187; }
+      audio { width: 100%; align-self: center; }
+      .sample-actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+      .sample-actions a { padding: .45rem .8rem; font-size: .85rem; }
+      @media (max-width: 680px) { .sample { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Everything except the anchors.</h1>
+      <p class="lede">These are deterministic captures of the real QuantumSetup Web Audio engine. Kick, clap/snare, and closed/open hats are muted. Nothing is hand-composed or normalized per clip.</p>
+      <button id="render-all" type="button">Render all isolated WAVs</button>
+      <button id="save-all" type="button" disabled>Save all WAVs locally</button>
+      <section id="samples" aria-label="Audit samples"></section>
+    </main>
+    <script type="module" src="./pattern-audit-samples.js"></script>
+  </body>
+</html>

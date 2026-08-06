@@ -1,0 +1,110 @@
+{
+  "schema": "quantumsetup.reference-comparison.v1",
+  "analyzer_version": "0.1.3",
+  "feature_keys": [
+    "tempo_bpm",
+    "tempo_stability",
+    "crest_db",
+    "percussive_energy_ratio",
+    "onsets_per_beat",
+    "kick_quarter_dominance",
+    "hat_offbeat_dominance",
+    "backbeat_dominance",
+    "bar_repeat_similarity",
+    "eight_bar_recurrence",
+    "harmonic_change",
+    "timbral_change",
+    "section_changes_per_32_bars",
+    "phrase_energy_arc",
+    "spectral_centroid_hz",
+    "spectral_rolloff_hz",
+    "band_sub",
+    "band_bass",
+    "band_body",
+    "band_air"
+  ],
+  "scaler": "reference-corpus excerpts only",
+  "comparisons": [
+    {
+      "candidate": "quantumsetup-00000000-bar-128-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 2.82799,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 2.82799,
+        "dixon-cercle-2024": 3.26138,
+        "ann-clue-cercle-2024": 3.26916
+      }
+    },
+    {
+      "candidate": "quantumsetup-00000000-bar-32-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 3.21266,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 3.21266,
+        "dixon-cercle-2024": 3.76814,
+        "ann-clue-cercle-2024": 3.80859
+      }
+    },
+    {
+      "candidate": "quantumsetup-00000001-bar-128-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 1.94617,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 1.94617,
+        "ann-clue-cercle-2024": 2.36865,
+        "dixon-cercle-2024": 2.45144
+      }
+    },
+    {
+      "candidate": "quantumsetup-00000001-bar-32-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 1.97452,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 1.97452,
+        "ann-clue-cercle-2024": 2.26826,
+        "dixon-cercle-2024": 2.31908
+      }
+    },
+    {
+      "candidate": "quantumsetup-6e789e6a-bar-128-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 3.77705,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 3.77705,
+        "ann-clue-cercle-2024": 4.17083,
+        "dixon-cercle-2024": 4.17242
+      }
+    },
+    {
+      "candidate": "quantumsetup-6e789e6a-bar-32-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 3.7943,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 3.7943,
+        "dixon-cercle-2024": 4.14323,
+        "ann-clue-cercle-2024": 4.16843
+      }
+    },
+    {
+      "candidate": "quantumsetup-d81a8d2b-bar-128-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 2.10345,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 2.10345,
+        "ann-clue-cercle-2024": 2.59792,
+        "dixon-cercle-2024": 2.65634
+      }
+    },
+    {
+      "candidate": "quantumsetup-d81a8d2b-bar-32-full.wav",
+      "nearest_reference": "sven-vath-time-warp-2023",
+      "normalized_distance": 2.22399,
+      "all_distances": {
+        "sven-vath-time-warp-2023": 2.22399,
+        "ann-clue-cercle-2024": 2.76383,
+        "dixon-cercle-2024": 2.76761
+      }
+    }
+  ],
+  "claim_boundary": "Relative feature distance only; lower is closer, not better or more original."
+}

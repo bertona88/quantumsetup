@@ -1,9 +1,19 @@
 import { clamp } from "./generative-utils.js";
 
-export const AUDIO_SIMILARITY_VERSION = "1.1.0";
+export const AUDIO_SIMILARITY_VERSION = "1.2.0";
 export const AUDIO_FFT_SIZE = 512;
 export const AUDIO_HOP_SIZE = 256;
 export const AUDIO_STRUCTURE_MIN_DISTANCE = 0.08;
+export const AUDIO_RENDER_MIXES = Object.freeze([
+  "full",
+  "non-anchors",
+  "bass",
+  "harmony",
+  "synth",
+  "secondary-percussion",
+  "transitions",
+  "drums",
+]);
 
 const FREQUENCY_BANDS = Object.freeze([
   Object.freeze({ id: "sub", low: 28, high: 90 }),
@@ -248,41 +258,57 @@ export function audioStructuralDistance(left, right) {
 }
 
 function silenceForMix(engine, mix) {
-  if (mix === "bass") {
-    for (const method of [
-      "kick",
-      "clap",
-      "hat",
+  const methods = [
+    "kick",
+    "clap",
+    "hat",
+    "shaker",
+    "ride",
+    "rim",
+    "metallic",
+    "tom",
+    "echoAscentHit",
+    "bass",
+    "scheduleSynthNote",
+    "chord",
+    "pad",
+    "texture",
+    "riser",
+    "downlifter",
+  ];
+  const allowed = {
+    full: methods,
+    "non-anchors": [
       "shaker",
       "ride",
       "rim",
       "metallic",
       "tom",
       "echoAscentHit",
-      "chord",
-      "pad",
-      "texture",
-      "riser",
-      "downlifter",
-    ]) {
-      engine[method] = () => {};
-    }
-  } else if (mix === "drums") {
-    for (const method of [
       "bass",
+      "scheduleSynthNote",
       "chord",
       "pad",
       "texture",
       "riser",
       "downlifter",
-    ]) {
-      engine[method] = () => {};
-    }
+    ],
+    bass: ["bass"],
+    harmony: ["chord", "pad"],
+    synth: ["scheduleSynthNote"],
+    "secondary-percussion": ["shaker", "ride", "rim", "metallic", "tom"],
+    transitions: ["echoAscentHit", "riser", "downlifter"],
+    drums: ["kick", "clap", "hat", "shaker", "ride", "rim", "metallic", "tom"],
+  }[mix];
+  const keep = new Set(allowed);
+  for (const method of methods) {
+    if (!keep.has(method)) engine[method] = () => {};
   }
 }
 
 export async function renderCoreTrajectoryAudio({
   seed,
+  startBar = 0,
   bars = 4,
   vibe = "hypnotic",
   tonality = "minor",
@@ -297,8 +323,11 @@ export async function renderCoreTrajectoryAudio({
   if (!Number.isSafeInteger(bars) || bars < 1 || bars > 32) {
     throw new RangeError("bars must be an integer from 1 to 32");
   }
-  if (!["full", "bass", "drums"].includes(mix)) {
-    throw new RangeError("mix must be full, bass, or drums");
+  if (!Number.isSafeInteger(startBar) || startBar < 0 || startBar > 767) {
+    throw new RangeError("startBar must be an integer from 0 to 767");
+  }
+  if (!AUDIO_RENDER_MIXES.includes(mix)) {
+    throw new RangeError(`mix must be one of: ${AUDIO_RENDER_MIXES.join(", ")}`);
   }
   const maximumSeconds = bars * 4 * 60 / 105 + 4;
   const context = new OfflineAudioContextClass(
@@ -307,7 +336,7 @@ export async function renderCoreTrajectoryAudio({
     sampleRate,
   );
   const { InfiniteTechnoEngine } = await import(
-    "./audio-engine.js?v=2.3.1-resident-open-hat-1"
+    "./audio-engine.js?v=2.4.0-reference-listener-3"
   );
   const engine = new InfiniteTechnoEngine(() => {}, { seed, vibe, tonality });
   engine.ctx = context;
@@ -321,9 +350,18 @@ export async function renderCoreTrajectoryAudio({
   engine.masterGain.gain.cancelScheduledValues(0);
   engine.masterGain.gain.setValueAtTime(0.46, 0);
 
+  for (let bar = 0; bar < startBar; bar += 1) {
+    engine.bar = bar;
+    engine.step = 0;
+    engine.preparePlan(bar, engine.resolveMusicalState(bar));
+  }
+  if (["full", "non-anchors", "synth"].includes(mix)) {
+    await engine.loadSynthBank(context);
+  }
+
   let time = 0.1;
   const stepDurations = [];
-  for (let bar = 0; bar < bars; bar += 1) {
+  for (let bar = startBar; bar < startBar + bars; bar += 1) {
     const state = engine.resolveMusicalState(bar);
     const bpm = engine.profileTempo(state.profile, bar);
     const stepDuration = 60 / bpm / 4;
@@ -340,6 +378,7 @@ export async function renderCoreTrajectoryAudio({
   return Object.freeze({
     buffer: rendered,
     sampleRate,
+    startBar,
     bars,
     mix,
     stepDuration: mean(stepDurations),

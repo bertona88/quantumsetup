@@ -14,7 +14,7 @@ import {
   FORM_RULES,
   derivePhraseState,
   traceEmergentForm,
-} from "./emergent-form.js?v=2.3.1-resident-open-hat-1";
+} from "./emergent-form.js?v=2.4.0-pattern-priors-1";
 import {
   advanceMaterialState,
   createMaterialState,
@@ -22,8 +22,8 @@ import {
   materialStructuralDistance,
   materialStructuralProfile,
   summarizeMaterialState,
-} from "./material-planner.js?v=2.3.1-resident-open-hat-1";
-import { createTrackDNA } from "./track-dna.js?v=2.3.1-resident-open-hat-1";
+} from "./material-planner.js?v=2.4.0-pattern-priors-1";
+import { createTrackDNA } from "./track-dna.js?v=2.4.0-pattern-priors-1";
 
 export {
   FORM_RULES,
@@ -41,7 +41,7 @@ export {
   summarizeMaterialState,
 };
 
-export const GENERATOR_VERSION = "2.3.1";
+export const GENERATOR_VERSION = "2.4.0";
 export const STEPS_PER_BAR = 16;
 export const PHRASE_BARS = 8;
 export const MOVEMENT_BARS = 192;
@@ -465,10 +465,70 @@ const FORM_PHENOTYPE_OFFSETS = Object.freeze({
   }),
 });
 
+export const REFERENCE_TENDENCIES = Object.freeze({
+  "patient-pressure": Object.freeze({
+    id: "patient-pressure",
+    bpmOffset: -1,
+    profile: Object.freeze({
+      density: -0.05,
+      drive: -0.02,
+      syncopation: -0.04,
+      breakDepth: 0.1,
+      texture: 0.04,
+    }),
+    offbeatAccent: 0.075,
+    phraseArcScale: 1.24,
+    chordBarBonus: 0,
+    textureSlots: 1,
+  }),
+  "spatial-weave": Object.freeze({
+    id: "spatial-weave",
+    bpmOffset: -3,
+    profile: Object.freeze({
+      density: 0.05,
+      space: 0.12,
+      syncopation: 0.1,
+      chords: 0.12,
+      texture: 0.14,
+    }),
+    offbeatAccent: 0.105,
+    phraseArcScale: 1.06,
+    chordBarBonus: 1,
+    textureSlots: 2,
+  }),
+  "kinetic-mutation": Object.freeze({
+    id: "kinetic-mutation",
+    bpmOffset: 2,
+    profile: Object.freeze({
+      density: 0.08,
+      drive: 0.1,
+      metallic: 0.14,
+      syncopation: 0.06,
+      breakDepth: -0.05,
+    }),
+    offbeatAccent: 0.15,
+    phraseArcScale: 0.78,
+    chordBarBonus: 0,
+    textureSlots: 2,
+  }),
+});
+
+const REFERENCE_TENDENCY_IDS = Object.freeze(Object.keys(REFERENCE_TENDENCIES));
+
+export function referenceTendencyFor(trackDNA) {
+  const seedKey = String(trackDNA?.seedKey || "0");
+  return REFERENCE_TENDENCIES[
+    REFERENCE_TENDENCY_IDS[
+      hash32("reference-listener-v1", seedKey) % REFERENCE_TENDENCY_IDS.length
+    ]
+  ];
+}
+
 function shapeProfileForTrack(profile, trackDNA) {
+  const referenceTendency = referenceTendencyFor(trackDNA);
   const shaped = {
     ...profile,
-    bpm: [...profile.bpm],
+    bpm: profile.bpm.map((value) => value + referenceTendency.bpmOffset),
   };
   for (const offsets of [
     SPECTRAL_OFFSETS[trackDNA.spectralProfile],
@@ -476,6 +536,7 @@ function shapeProfileForTrack(profile, trackDNA) {
     HARMONY_OFFSETS[trackDNA.harmonyBehavior],
     GROOVE_OFFSETS[trackDNA.grooveFamily],
     FORM_PHENOTYPE_OFFSETS[trackDNA.formPhenotype],
+    referenceTendency.profile,
   ]) {
     for (const [key, value] of Object.entries(offsets || {})) {
       shaped[key] = clamp(shaped[key] + value, 0, 1);
@@ -2079,11 +2140,16 @@ function hasLaneEvents(lane) {
   return lane.some(Boolean);
 }
 
+function wrapStep(step) {
+  return ((step % STEPS_PER_BAR) + STEPS_PER_BAR) % STEPS_PER_BAR;
+}
+
 export function buildEchoAscentPlan({
   seed,
   phraseIndex,
   barInPhrase,
   form,
+  materialState,
 }) {
   const variant = form.allowEchoAscent
     ? ECHO_ASCENT_VARIANTS[form.echoAscentVariant]
@@ -2101,9 +2167,120 @@ export function buildEchoAscentPlan({
         ),
       )
     : 0;
+  const contourCount = 8;
+  const contourSerial = Math.max(1, Number(form.echoAscentSerial) || 1);
+  const contourIndex =
+    (hash32(seed, "echo-ascent-contour-origin") + contourSerial - 1) %
+    contourCount;
+  const sourceDefinitions = [
+    ["percussion", materialState?.phrase?.patterns?.percussion],
+    ["fm", materialState?.phrase?.patterns?.synth?.fm],
+    ["modal", materialState?.phrase?.patterns?.synth?.modal],
+    ["string", materialState?.phrase?.patterns?.synth?.string],
+    ["bass-answer", materialState?.phrase?.patterns?.bassVacatedByAnchor],
+  ].filter(([, lane]) => Array.isArray(lane));
+  const preferredSource =
+    sourceDefinitions[contourIndex % Math.max(1, sourceDefinitions.length)] ||
+    ["coordinate", null];
+  const mirror = (contourIndex & 1) === 1;
+  const shifts = [0, 2, -2, 1, -1, 3, -3, 4];
+  const shift = shifts[contourIndex];
+  const drift = [-1, 0, 1][
+    hash32(seed, phraseIndex, "echo-ascent-drift") % 3
+  ];
+  const delaySteps = clamp(
+    variant.delaySteps +
+      (hash32(seed, phraseIndex, contourIndex, "echo-delay-shape") % 3 - 1),
+    2,
+    3,
+  );
+  const feedback = clamp(
+    variant.feedback +
+      (unitHash(seed, phraseIndex, contourIndex, "echo-feedback-shape") - 0.5) *
+        0.14,
+    0.24,
+    0.55,
+  );
+  const wet = clamp(
+    variant.wet +
+      (unitHash(seed, phraseIndex, contourIndex, "echo-wet-shape") - 0.5) *
+        0.12,
+    0.5,
+    0.74,
+  );
+  const maxSend = clamp(
+    variant.maxSend +
+      (unitHash(seed, phraseIndex, contourIndex, "echo-send-shape") - 0.5) *
+        0.12,
+    0.36,
+    0.6,
+  );
   const hits = emptyPattern(null);
   if (active) {
     const relativeBar = barInPhrase - variant.startBar;
+    const sourceSteps = (lane) =>
+      lane
+        ? materialBarSlice(lane, barInPhrase).flatMap((event, step) =>
+            event ? [step] : [],
+          )
+        : [];
+    const preferredSteps = sourceSteps(preferredSource[1]);
+    const fallbackSteps = sourceDefinitions.flatMap(([, lane]) => sourceSteps(lane));
+    const rawSteps = preferredSteps.length > 0 ? preferredSteps : fallbackSteps;
+    const transform = (step) =>
+      wrapStep(
+        (mirror ? STEPS_PER_BAR - 1 - step : step) +
+          shift +
+          relativeBar * drift,
+      );
+    const candidates = new Set(rawSteps.map(transform));
+    const answerOffset = [3, 5, 7, 9][contourIndex % 4];
+    for (const step of [...candidates]) {
+      candidates.add(wrapStep(step + answerOffset));
+    }
+    const fallbackOrigin =
+      hash32(seed, phraseIndex, barInPhrase, contourIndex, "echo-contour-origin") %
+      STEPS_PER_BAR;
+    const fallbackStride = [3, 5, 7, 9][
+      hash32(seed, phraseIndex, contourIndex, "echo-contour-stride") % 4
+    ];
+    for (let index = 0; index < STEPS_PER_BAR; index += 1) {
+      candidates.add(wrapStep(fallbackOrigin + index * fallbackStride));
+    }
+    const minimumDensity = {
+      restrained: 6,
+      widening: 6,
+      "late-throw": 7,
+    }[form.echoAscentVariant];
+    const targetCount = clamp(
+      minimumDensity + relativeBar + (contourIndex % 3 === 0 ? 1 : 0),
+      6,
+      10,
+    );
+    const selectedSteps = [...candidates]
+      .sort(
+        (left, right) =>
+          Number(preferredSteps.includes(right)) -
+            Number(preferredSteps.includes(left)) ||
+          hash32(
+            seed,
+            phraseIndex,
+            barInPhrase,
+            contourIndex,
+            left,
+            "echo-contour-priority",
+          ) -
+            hash32(
+              seed,
+              phraseIndex,
+              barInPhrase,
+              contourIndex,
+              right,
+              "echo-contour-priority",
+            ),
+      )
+      .slice(0, targetCount)
+      .sort((left, right) => left - right);
     const occupied = new Set();
     const add = (voice, step, velocity, sendScale, pan) => {
       if (occupied.has(step)) return;
@@ -2126,76 +2303,72 @@ export function buildEchoAscentPlan({
           0,
           1,
         ),
-        send: clamp(variant.maxSend * progress * sendScale, 0, 0.6),
+        send: clamp(maxSend * progress * sendScale, 0, 0.6),
         pan: clamp(pan, -0.68, 0.68),
       });
     };
-
-    const rimSteps =
-      form.echoAscentVariant === "restrained" && relativeBar === 0
-        ? [7, 14]
-        : form.echoAscentVariant === "restrained" && relativeBar === 1
-          ? [3, 11, 14]
-          : [3, 7, 11, 14];
-    rimSteps.forEach((step, index) =>
+    const voiceRotation = contourIndex % 3;
+    const baseVoices = ["rim", "metallic", "shaker"];
+    const voices = [
+      ...baseVoices.slice(voiceRotation),
+      ...baseVoices.slice(0, voiceRotation),
+    ];
+    selectedSteps.forEach((step, index) => {
+      const admitsRide = progress > 0.72 &&
+        unitHash(seed, phraseIndex, contourIndex, step, "echo-ride") > 0.56;
+      const voice = admitsRide
+        ? "ride"
+        : voices[
+            hash32(seed, phraseIndex, contourIndex, step, "echo-voice") %
+              voices.length
+          ];
+      const voiceVelocity = {
+        rim: 0.17,
+        metallic: 0.16,
+        shaker: 0.08,
+        ride: 0.085,
+      }[voice];
+      const sendScale = {
+        rim: 0.82,
+        metallic: 1,
+        shaker: 0.52,
+        ride: 0.72,
+      }[voice];
+      const panMagnitude = {
+        rim: 0.38,
+        metallic: 0.48,
+        shaker: 0.58,
+        ride: 0.24,
+      }[voice];
+      const panDirection = (index + contourIndex + relativeBar) % 2 ? 1 : -1;
       add(
-        "rim",
+        voice,
         step,
-        0.18 + progress * 0.08,
-        0.82,
-        index % 2 ? 0.38 : -0.38,
-      ),
-    );
-
-    [6, 13].forEach((step, index) =>
-      add(
-        "metallic",
-        step,
-        0.17 + progress * 0.1,
-        1,
-        index % 2 ? -0.48 : 0.48,
-      ),
-    );
-
-    const shakerSteps = progress > 0.5 ? [1, 5, 9] : [1, 9];
-    shakerSteps.forEach((step, index) =>
-      add(
-        "shaker",
-        step,
-        0.08 + progress * 0.04,
-        0.52,
-        index % 2 ? 0.58 : -0.58,
-      ),
-    );
-
-    const admitsRide =
-      barInPhrase >= 6 &&
-      (form.echoAscentVariant !== "restrained" || barInPhrase === 7);
-    if (admitsRide) {
-      [2, 10].forEach((step, index) =>
-        add(
-          "ride",
-          step,
-          0.085 + progress * 0.05,
-          0.72,
-          index % 2 ? -0.24 : 0.24,
-        ),
+        voiceVelocity + progress * (voice === "shaker" ? 0.04 : 0.1),
+        sendScale,
+        panDirection * panMagnitude,
       );
-    }
+    });
   }
 
   return Object.freeze({
     id: "echo-ascent",
     label: variant.label,
     variant: form.echoAscentVariant,
+    contourId: `resident-${contourIndex + 1}`,
+    contourSerial,
+    sourceLane: preferredSource[0],
+    mirror,
+    shift,
+    drift,
     authorized: true,
     active,
     progress,
     startBar: variant.startBar,
-    delaySteps: variant.delaySteps,
-    feedback: variant.feedback,
-    wet: variant.wet,
-    maxSend: variant.maxSend,
+    delaySteps,
+    feedback,
+    wet,
+    maxSend,
     hits: Object.freeze(hits),
   });
 }
@@ -2348,6 +2521,62 @@ function buildInstrumentation({
 
 function unitHash(...values) {
   return (hash32(...values) >>> 0) / 0xffffffff;
+}
+
+// Reference listening showed that the generator's eight-bar phrases were
+// dynamically much flatter than real long-form sets. This contour is not an
+// artist preset or a fixed automation lane: it is rebuilt from the phrase's
+// form direction, motif identity, and coordinate-addressed variation. It only
+// steers the non-anchor detail bus, leaving kick and bass authority independent.
+export function detailContourForBar({
+  seed,
+  phraseIndex,
+  barInPhrase,
+  form,
+  tendency = null,
+}) {
+  const safeBar = clamp(Math.floor(barInPhrase), 0, PHRASE_BARS - 1);
+  const progress = safeBar / (PHRASE_BARS - 1);
+  const formDirection = clamp(
+    Number(form?.energyTo ?? 0.5) - Number(form?.energyFrom ?? 0.5),
+    -0.5,
+    0.5,
+  );
+  const latentDirection =
+    (unitHash(seed, phraseIndex, form?.motifLineageId, "detail-direction") -
+      0.5) *
+    0.18;
+  const direction = clamp(formDirection * 0.72 + latentDirection, -0.28, 0.32);
+  const arcScale = clamp(Number(tendency?.phraseArcScale) || 1, 0.7, 1.35);
+  const archDepth =
+    (0.035 +
+      unitHash(seed, phraseIndex, form?.formEpochId, "detail-arch") * 0.075) *
+    arcScale;
+  const waveDepth =
+    (unitHash(seed, phraseIndex, form?.motifLineageId, "detail-wave") - 0.5) *
+    0.075;
+  const wavePhase =
+    unitHash(seed, phraseIndex, form?.formEpochId, "detail-phase") * Math.PI;
+  const localVariation =
+    (unitHash(seed, phraseIndex, safeBar, "detail-bar") - 0.5) * 0.035;
+  const boundaryTurn = safeBar === PHRASE_BARS - 1
+    ? form?.release
+      ? -0.12
+      : form?.climax
+        ? 0.08
+        : -0.045 +
+          unitHash(seed, phraseIndex, "detail-boundary") * 0.09
+    : 0;
+  return clamp(
+    1 +
+      (progress - 0.5) * direction * 1.7 * arcScale +
+      Math.sin(progress * Math.PI) * archDepth +
+      Math.sin(progress * Math.PI * 2 + wavePhase) * waveDepth +
+      localVariation +
+      boundaryTurn,
+    0.78,
+    1.26,
+  );
 }
 
 function selectBassVoice(seed, movement, form, profile) {
@@ -2826,6 +3055,7 @@ export function buildBarPlan({
   const movementIndex = Math.floor(Math.max(0, bar) / MOVEMENT_BARS);
   const movementWindow = createMovement(seed, movementIndex, tonality);
   const trackDNA = movementWindow.trackDNA || createTrackDNA(seed);
+  const referenceTendency = referenceTendencyFor(trackDNA);
   profile = shapeProfileForTrack(profile, trackDNA);
   instrumentProfile = shapeProfileForTrack(
     instrumentProfile,
@@ -2874,6 +3104,13 @@ export function buildBarPlan({
     0.12,
     1,
   );
+  const detailEnergy = detailContourForBar({
+    seed,
+    phraseIndex,
+    barInPhrase,
+    form,
+    tendency: referenceTendency,
+  });
   const effectiveDensity =
     form.density * 0.66 + profile.density * 0.34;
   const effectiveSpace =
@@ -2912,6 +3149,7 @@ export function buildBarPlan({
     phraseIndex,
     barInPhrase,
     form,
+    materialState,
   });
   const lowEndDropout =
     form.lowEndDropout === true &&
@@ -3015,9 +3253,14 @@ export function buildBarPlan({
   materialBarSlice(phrasePatterns.hats, barInPhrase).forEach(
     (active, step) => {
       if (!active) return;
+      const offbeatAccent =
+        step % 4 === 2 ? referenceTendency.offbeatAccent : 0;
+      const quarterRestraint = step % 4 === 0 ? -0.035 : 0;
       const velocity =
         0.22 +
         energy * 0.34 +
+        offbeatAccent +
+        quarterRestraint +
         unitHash(
           seed,
           phraseIndex,
@@ -3026,23 +3269,28 @@ export function buildBarPlan({
           "material-hat-velocity",
         ) *
           0.16;
-      hat[step] = velocity;
+      hat[step] = clamp(velocity * detailEnergy, 0.18, 0.94);
     },
   );
   materialBarSlice(phrasePatterns.openHats, barInPhrase).forEach(
     (active, step) => {
       if (!active || form.intentionalRest) return;
-      openHat[step] =
-        0.24 +
-        energy * 0.32 +
-        unitHash(
-          seed,
-          phraseIndex,
-          barInPhrase,
-          step,
-          "material-open-hat-velocity",
-        ) *
-          0.16;
+      openHat[step] = clamp(
+        (0.3 +
+          energy * 0.32 +
+          (step % 4 === 2 ? referenceTendency.offbeatAccent + 0.025 : 0) +
+          unitHash(
+            seed,
+            phraseIndex,
+            barInPhrase,
+            step,
+            "material-open-hat-velocity",
+          ) *
+            0.16) *
+          detailEnergy,
+        0.22,
+        0.98,
+      );
     },
   );
 
@@ -3061,18 +3309,23 @@ export function buildBarPlan({
       const voice = percussionVoiceSlice[step];
       const lane = { shaker, rim, ride, metallic, tom }[voice];
       if (!lane) return;
-      lane[step] =
-        0.14 +
-        energy * 0.2 +
-        unitHash(
-          seed,
-          phraseIndex,
-          barInPhrase,
-          step,
-          voice,
-          "material-percussion-velocity",
-        ) *
-          0.16;
+      lane[step] = clamp(
+        (0.2 +
+          energy * 0.24 +
+          (step % 4 === 2 ? 0.065 : 0) +
+          unitHash(
+            seed,
+            phraseIndex,
+            barInPhrase,
+            step,
+            voice,
+            "material-percussion-velocity",
+          ) *
+            0.18) *
+          detailEnergy,
+        0.16,
+        0.88,
+      );
     },
   );
 
@@ -3171,6 +3424,13 @@ export function buildBarPlan({
     vibeId === "detroit"
   ) {
     chordBars.add((firstChordBar + 3 + (phraseIndex % 2)) % PHRASE_BARS);
+  }
+  if (referenceTendency.chordBarBonus > 0) {
+    chordBars.add(
+      (firstChordBar + 5 +
+        (hash32(seed, phraseIndex, "reference-chord-offset") % 2)) %
+        PHRASE_BARS,
+    );
   }
   if (
     chordBars.has(barInPhrase) &&
@@ -3353,11 +3613,21 @@ export function buildBarPlan({
       ),
     ),
   });
+  const textureBars = new Set([
+    hash32(seed, phraseIndex, form.motifLineageId, "texture-slot-a") %
+      PHRASE_BARS,
+  ]);
+  if (referenceTendency.textureSlots > 1) {
+    textureBars.add(
+      (hash32(seed, phraseIndex, form.formEpochId, "texture-slot-b") + 3) %
+        PHRASE_BARS,
+    );
+  }
   let texture =
-    barInPhrase === 0 &&
+    textureBars.has(barInPhrase) &&
     !form.intentionalRest &&
     barRng() <
-      0.08 + profile.texture * 0.44 + form.space * 0.18;
+      0.12 + profile.texture * 0.5 + form.space * 0.18;
   const editedLayers = editOptionalLayers({
     councilVerdict,
     trackDNA,
@@ -3527,6 +3797,8 @@ export function buildBarPlan({
     vibeId,
     tonality,
     energy,
+    detailEnergy,
+    referenceTendency,
     profile,
     materialState,
     material: summarizeMaterialState(materialState),

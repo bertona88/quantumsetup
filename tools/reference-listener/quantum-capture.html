@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QuantumSetup reference-listener captures</title>
+    <style>
+      :root { color-scheme: dark; font: 16px/1.45 system-ui, sans-serif; }
+      body { max-width: 880px; margin: 48px auto; padding: 0 24px; background: #090b10; color: #e8ebf1; }
+      button { padding: 12px 18px; border: 1px solid #65708a; border-radius: 999px; background: #171c29; color: inherit; cursor: pointer; }
+      button:disabled { opacity: .5; cursor: wait; }
+      article { margin: 18px 0; padding: 16px 0; border-top: 1px solid #282f40; }
+      code, small { color: #9faac1; }
+      audio { width: 100%; margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>QuantumSetup reference-listener captures</h1>
+    <p>Eight deterministic 32-bar full mixes plus same-seed bass, drums, harmony, synth, secondary-percussion, and non-anchor renders for masking evidence.</p>
+    <button id="capture-all">Render and save all</button>
+    <p id="status">Ready</p>
+    <main id="captures"></main>
+    <script type="module" src="/tools/reference-listener/quantum-capture.js?v=reference-listener-4"></script>
+  </body>
+</html>

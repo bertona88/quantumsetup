@@ -1,7 +1,7 @@
 # Acceptance Tests
 
-Current gate: Infinite Techno `2.3.1` resident-open-hat, pulse-timbre, and
-structured-light implementation candidate; prior
+Current gate: Infinite Techno `2.4.0` pattern-informed rhythm-relation,
+resident-open-hat, pulse-timbre, and structured-light implementation candidate; prior
 deployment evidence remains historical; public acceptance remains open
 
 Passing one gate does not imply another. Deterministic structure, rendered audio,
@@ -24,6 +24,8 @@ carried forward across the material-planner rewrite.
 - [x] every structural rhythmic lane has a frozen clock summary containing loop
   length, hit count, rotation, absolute phase origin, residence age, and mutation
   history.
+- [x] hats and percussion clocks additionally own frozen two-bar relation,
+  quarter-pulse relation, and relation-variant fields for their full residence.
 - [x] absolute phase continues across bars, eight-bar phrases, derived sections, and
   192-bar observation boundaries.
 - [x] Track DNA biases near-16, triplet-related, prime, odd, and patient clock
@@ -31,6 +33,8 @@ carried forward across the material-planner rewrite.
 - [x] clock identities remain resident for two to eight phrases.
 - [x] ordinary phrases mutate at most one structural lane; earned climax, release,
   or recall phrases mutate at most two.
+- [x] kick renewal plus structural mutation never changes more than two resident
+  identities at one phrase boundary.
 - [x] kick always retains a bar-aligned `E(4,16)` foundation and never enters a
   non-16 clock.
 - [x] anchor, turnaround-pickup, breathing, and rolling-pressure phrases retain
@@ -41,6 +45,13 @@ carried forward across the material-planner rewrite.
   full-offbeat, paired, alternating-bar, tail, and closed-only modes resident with
   the hats clock; and hats/percussion/bass/foreground voices use distinct grammar
   families rather than one universal Euclidean constructor.
+- [x] the feature-only rhythm prior contains no 16- or 32-step source mask; its
+  clock-locked, late-answer, counter-shift, and second-bar-breath relations alter
+  only answer bars and no more than two Boolean steps per bar.
+- [x] pulse-layer and pulse-answer identities bias secondary rhythm toward stable
+  co-onset relationships without changing the four-floor kick authority.
+- [x] structural comparison includes two-bar delta shape and balance; a mutated
+  hats or percussion identity that changes fewer than two emitted steps is rejected.
 - [x] Track DNA selects `off`, `short`, or `deep` rumble for the trajectory; `off`
   produces zero rumble send and feedback.
 - [x] pickup and rolling collisions relocate bass to an adjacent safe step; only
@@ -74,7 +85,7 @@ carried forward across the material-planner rewrite.
   rules are deterministic and bounded.
 - [x] normalized candidate weights are 22% groove continuity, 18% macro/profile fit,
   16% kick/bass separation, 14% motif conversation, 12% novelty, 10% orchestration,
-  and 8% polymetric phase interest.
+  and 8% polymetric phase plus multi-bar relation interest.
 - [x] only candidates scoring at least `0.55` and within `0.20` of the best enter
   structural near-duplicate pruning and seeded softmax selection.
 - [x] all twelve constructed candidates have distinct core signatures; candidates
@@ -95,8 +106,9 @@ carried forward across the material-planner rewrite.
   exclusive with a riser, and protected by an eight-phrase cooldown rather than a
   bar-modulo schedule.
 - [x] restrained, widening, and late-throw variants freeze complete bounded
-  high-percussion contours; their council verdict limits optional competition and
-  excludes high-register advanced parts.
+  high-percussion contours derived from resident material; eight contour identities
+  rotate without immediate replay, while their council verdict limits optional
+  competition and excludes high-register advanced parts.
 - [x] derived labels and section RLE remain diagnostic and cannot reset material
   clocks, motif memory, or call obligations.
 - [x] only an accepted New Trajectory resets material memory; a rejected trajectory
@@ -123,7 +135,7 @@ carried forward across the material-planner rewrite.
 - [x] every audible Echo Ascent hit enters the frozen read-only visual forecast.
 - [x] the complete deterministic, DSP, worklet, lifecycle, transition, trajectory,
   performance-control, taste, FFT, and syntax suite passes together on the current
-  local `2.3.1` source state.
+  local `2.4.0` source state.
 
 ## Gate 4 — Deterministic population evidence
 
@@ -137,10 +149,10 @@ carried forward across the material-planner rewrite.
 - [x] settled Vibe endpoints change future phrases without rewriting an already
   frozen phrase.
 
-Current local evidence: `npm --prefix app run check` passes all 190 tests. The
-13-trajectory first-48-bar manifest passes all 78 pairs; the minimum observed
-composite distance is `0.213345`, with rhythm and phrase-grammar separation plus at
-least one of orchestration, timbre, or harmony for every pair.
+Current local evidence: the final local test invocation passes all 196 tests. The
+13-trajectory first-48-bar manifest passes all 78 pairs; every pair clears the
+`0.20` composite floor, separates in rhythm and phrase grammar, and separates in
+at least one of orchestration, timbre, or harmony.
 
 ## Gate 5 — Render and listening evidence
 
@@ -149,6 +161,20 @@ least one of orchestration, timbre, or harmony for every pair.
   `0.08`, with nearest combined distance `0.108876` (`0.118072` full mix,
   `0.102216` bass solo). This excludes advanced AudioWorklet voices and is not a
   listening result.
+- [x] three exact, hashed 72-second interior windows from each supplied Ann Clue,
+  Dixon, and Sven Väth set have direct beat/grid, groove, spectrum, dynamics,
+  stereo, harmonic, recurrence, section, and phrase measurements.
+- [x] the VM evidence includes deterministic Demucs drums/bass/remaining estimates,
+  pinned MERT-95M and CLAP embeddings, exact excerpt/model provenance, and explicit
+  uncertainty and non-hearing boundaries.
+- [x] six matched same-seed before/after 32-bar full mixes, two additional
+  seed-tendency full mixes, and twelve current-byte component-bus renders were
+  captured through the real offline browser engine. Mean nearest reference-scaled
+  distance moved `2.8987 -> 2.8835`; MERT increased for all three reference groups
+  and CLAP increased for all three on these fixtures.
+- [ ] the phrase-energy-slope measurement reaches reference scale. The final
+  fixture mean is `0.031` versus `0.139–0.214` for the three reference groups, so
+  the planned bounded contour is not accepted as audible phrase development.
 - [ ] fixed-seed real-engine Echo Ascent captures confirm the intended density rise,
   bright articulation, audible left/right motion, finite tail, and acceptable mix
   balance against nearby non-event phrases.
@@ -165,11 +191,12 @@ least one of orchestration, timbre, or harmony for every pair.
 
 ## Gate 6 — Interface, browser, and soak
 
-- [x] `window.QuantumTechno` is versioned `2.3.1`, preserves `getSnapshot()`,
+- [x] `window.QuantumTechno` is versioned `2.4.0`, preserves `getSnapshot()`,
   `requestVibe()`, and `requestTonality()`, and adds bounded mix, direction, and
   bass-character methods.
 - [x] snapshots add a deeply frozen material section with gesture, motif lineage,
-  lane-clock summaries including the resident open-hat mode and variant,
+  lane-clock summaries including resident open-hat, two-bar relation, pulse
+  relation, and relation-variant fields,
   selected-candidate score, candidate count, temperature, and kick-phrase status.
 - [x] the performance console exposes bounded three-band EQ, next-beat Kick and
   Bassline cuts, nine phrase-direction controls, and five bassline characters while
@@ -191,9 +218,15 @@ least one of orchestration, timbre, or harmony for every pair.
   bass-character targets, and verified durable-control reload plus nonpersistent
   cuts with no console warnings or errors; `390×844` and `320×568` both had zero
   horizontal overflow and a visible phrase target.
-- [x] the local `2.3.1` in-app-browser smoke loaded the cache-busted module graph,
-  started the real Web Audio engine from a user gesture, stopped it cleanly, and
-  produced no console warnings or errors.
+- [x] a local `2.4.0` in-app-browser smoke loaded
+  `main.js?v=2.4.0-pattern-priors-1`, started the real Web Audio engine from the
+  transport gesture, advanced the material readout, stopped it cleanly, and
+  produced no console warnings or errors. This preceded the final behavior-neutral
+  validator render-cache cleanup.
+- [x] an exact-final-worktree in-app-browser smoke loaded the reference-calibrated
+  module graph, started the Web Audio engine from the user gesture, advanced to
+  `ASCENT` with a populated six-part ensemble, stopped cleanly, and produced no
+  app-console warnings or errors.
 - [x] the local WebGL2 terrain smoke rendered phrase-resident structured projection
   with high-contrast gaps and saturated light; the deterministic vocabulary reaches
   eleven pattern families and ten palettes, preserves the Canvas2D fallback, and

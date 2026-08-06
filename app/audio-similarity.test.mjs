@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   AUDIO_FFT_SIZE,
+  AUDIO_RENDER_MIXES,
   AUDIO_STRUCTURE_MIN_DISTANCE,
   audioStructuralDistance,
   extractAudioStructure,
@@ -102,4 +103,14 @@ test("rendered audit manifest is bounded and uses a non-zero rejection gate", ()
   assert.equal(new Set(AUDIO_AUDIT_SEEDS).size, AUDIO_AUDIT_SEEDS.length);
   assert.ok(AUDIO_STRUCTURE_MIN_DISTANCE > 0);
   assert.ok(AUDIO_STRUCTURE_MIN_DISTANCE < 0.5);
+  assert.deepEqual(AUDIO_RENDER_MIXES, [
+    "full",
+    "non-anchors",
+    "bass",
+    "harmony",
+    "synth",
+    "secondary-percussion",
+    "transitions",
+    "drums",
+  ]);
 });

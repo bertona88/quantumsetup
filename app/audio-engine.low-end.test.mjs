@@ -243,9 +243,15 @@ test("the graph keeps kick, bass, rumble, and music on distinct bounded buses", 
     engine.lowEndArrangementGain,
   ]);
   assert.deepEqual(connectionTargets(engine.lowEndArrangementGain), [
-    engine.preMaster,
+    engine.phraseContourGain,
   ]);
   assert.deepEqual(connectionTargets(engine.musicBus), [engine.toneFilter]);
+  assert.deepEqual(connectionTargets(engine.toneFilter), [
+    engine.phraseContourGain,
+  ]);
+  assert.deepEqual(connectionTargets(engine.phraseContourGain), [
+    engine.preMaster,
+  ]);
   assert.deepEqual(connectionTargets(engine.rumbleWet), [engine.rumbleBus]);
   assert.deepEqual(connectionTargets(engine.echoAscentIn), [
     engine.echoAscentHighpass,
@@ -371,7 +377,7 @@ test("live EQ applies in dB and beat-quantized cuts preserve separate gain stage
   assert.equal(engine.midEq.gain.value, 0);
   assert.equal(engine.highEq.gain.value, 0);
   assert.ok(engine.bassPerformanceGain.gain.value > 1);
-  assert.equal(engine.bassBus.gain.value, 0.96);
+  assert.equal(engine.bassBus.gain.value, 0.82);
 
   engine.running = true;
   engine.bar = 2;
@@ -399,7 +405,7 @@ test("live EQ applies in dB and beat-quantized cuts preserve separate gain stage
     lastEvent(engine.kickPerformanceGain.gain, "target").value,
     0.0001,
   );
-  assert.equal(engine.kickBus.gain.value, 0.84);
+  assert.equal(engine.kickBus.gain.value, 0.66);
   assert.ok(
     [engine.lowEq, engine.midEq, engine.highEq].every((filter) =>
       filter.gain.events.every((event) =>
@@ -651,8 +657,8 @@ test("music and bass duck independently and restore their declared bus levels", 
   const { context, engine } = makeEngine();
   engine.musicBus = context.createGain();
   engine.bassBus = context.createGain();
-  engine.musicBus.gain.value = 1;
-  engine.bassBus.gain.value = 0.96;
+  engine.musicBus.gain.value = 1.2;
+  engine.bassBus.gain.value = 0.82;
 
   engine.duck(3, 0.9, {
     musicDuckDepth: 0.5,
@@ -665,14 +671,14 @@ test("music and bass duck independently and restore their declared bus levels", 
   const bassRamps = engine.bassBus.gain.events.filter(
     (event) => event.type === "ramp",
   );
-  approximatelyEqual(musicRamps[0].value, 0.55);
+  approximatelyEqual(musicRamps[0].value, 1.2 * 0.55);
   approximatelyEqual(musicRamps[0].time, 3.008);
-  assert.equal(musicRamps[1].value, 1);
+  assert.equal(musicRamps[1].value, 1.2);
   approximatelyEqual(musicRamps[1].time, 3.14);
 
-  approximatelyEqual(bassRamps[0].value, 0.96 * (1 - 0.72 * 0.9));
+  approximatelyEqual(bassRamps[0].value, 0.82 * (1 - 0.72 * 0.9));
   approximatelyEqual(bassRamps[0].time, 3.006);
-  assert.equal(bassRamps[1].value, 0.96);
+  assert.equal(bassRamps[1].value, 0.82);
   approximatelyEqual(bassRamps[1].time, 3.105);
   assert.ok(0.105 < 60 / 140 / 4);
   assert.ok(musicRamps[0].value > 0);
@@ -693,10 +699,10 @@ test("music and bass duck independently and restore their declared bus levels", 
   const pickupBassRamps = engine.bassBus.gain.events.filter(
     (event) => event.type === "ramp",
   );
-  approximatelyEqual(pickupMusicRamps[0].value, 1 - 0.5 * 0.32 * 0.9);
+  approximatelyEqual(pickupMusicRamps[0].value, 1.2 * (1 - 0.5 * 0.32 * 0.9));
   approximatelyEqual(
     pickupBassRamps[0].value,
-    0.96 * (1 - 0.72 * 0.32 * 0.9),
+    0.82 * (1 - 0.72 * 0.32 * 0.9),
   );
   approximatelyEqual(pickupMusicRamps[1].time, 4.065);
   approximatelyEqual(pickupBassRamps[1].time, 4.055);
@@ -715,13 +721,36 @@ test("music and bass duck independently and restore their declared bus levels", 
   const rollBassRamps = engine.bassBus.gain.events.filter(
     (event) => event.type === "ramp",
   );
-  approximatelyEqual(rollMusicRamps[0].value, 1 - 0.5 * 0.5 * 0.9);
+  approximatelyEqual(rollMusicRamps[0].value, 1.2 * (1 - 0.5 * 0.5 * 0.9));
   approximatelyEqual(
     rollBassRamps[0].value,
-    0.96 * (1 - 0.72 * 0.5 * 0.9),
+    0.82 * (1 - 0.72 * 0.5 * 0.9),
   );
   approximatelyEqual(rollMusicRamps[1].time, 5.085);
   approximatelyEqual(rollBassRamps[1].time, 5.075);
+});
+
+test("phrase detail contours survive kick ducking and remain bounded", () => {
+  const { engine } = makeEngine();
+  engine.buildGraph();
+  engine.syncDetailMix(2, { detailEnergy: 1.9 });
+  approximatelyEqual(engine.detailBusTarget, 1.2 * 1.26);
+  approximatelyEqual(
+    lastEvent(engine.musicBus.gain, "target").value,
+    1.2 * 1.26,
+  );
+  approximatelyEqual(
+    lastEvent(engine.phraseContourGain.gain, "target").value,
+    1.42,
+  );
+
+  engine.musicBus.gain.events.length = 0;
+  engine.duck(3, 0.8, { musicDuckDepth: 0.5, bassDuckDepth: 0.7 });
+  const ramps = engine.musicBus.gain.events.filter(
+    (event) => event.type === "ramp",
+  );
+  approximatelyEqual(ramps[0].value, 1.2 * 1.26 * 0.6);
+  approximatelyEqual(ramps[1].value, 1.2 * 1.26);
 });
 
 test("dense bass dynamically opens bounded space in the rumble bus", () => {
@@ -732,9 +761,9 @@ test("dense bass dynamically opens bounded space in the rumble bus", () => {
   const ramps = engine.rumbleBus.gain.events.filter(
     (event) => event.type === "ramp",
   );
-  approximatelyEqual(ramps[0].value, 0.92 * 0.38);
+  approximatelyEqual(ramps[0].value, 0.56 * 0.38);
   approximatelyEqual(ramps[0].time, 2.005);
-  approximatelyEqual(ramps[1].value, 0.92);
+  approximatelyEqual(ramps[1].value, 0.56);
   approximatelyEqual(ramps[1].time, 2 + 0.12 * 0.82);
 
   engine.rumbleBus.gain.events.length = 0;

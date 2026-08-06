@@ -1,0 +1,558 @@
+{
+  "schema": "quantumsetup.reference-report.v1",
+  "report_version": "0.1.0",
+  "analyzer_version": "0.1.3",
+  "groups": {
+    "ann-clue-cercle-2024": {
+      "sample_count": 3,
+      "direct_measurement": {
+        "tempo_bpm": 127.84091,
+        "tempo_stability": 0.81249,
+        "onsets_per_beat": 2.60958,
+        "kick_quarter_dominance": 1.73479,
+        "hat_offbeat_dominance": 1.07231,
+        "bar_repeat_similarity": 0.59614,
+        "eight_bar_recurrence": 0.33485,
+        "harmonic_change": 0.53394,
+        "timbral_change": 0.12983,
+        "section_changes_per_32_bars": 2.55666,
+        "phrase_energy_arc": 0.21397,
+        "spectral_centroid_hz": 2037.0299,
+        "crest_db": 11.03586,
+        "stereo_side_mid_ratio": 0.27912,
+        "band_sub": 0.59511,
+        "band_bass": 0.37442
+      },
+      "style_heuristics": {
+        "four_floor_authority": 0.5,
+        "bass_authority": 0.86153,
+        "offbeat_motor": 0.21863,
+        "syncopated_detail": 0.5358,
+        "harmonic_motion": 0.35597,
+        "timbral_motion": 0.12983,
+        "sectional_dramaturgy": 0.4952,
+        "spatial_openness": 0.37217,
+        "restraint": 0.44633
+      },
+      "embedding_inference": {
+        "mert": {
+          "model": "m-a-p/MERT-v1-95M",
+          "revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+          "sample_count": 3,
+          "within_group_cosine": 0.966964,
+          "mean_chunk_cosine": 0.905794
+        },
+        "clap": {
+          "model": "laion/clap-htsat-unfused",
+          "revision": "8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a",
+          "sample_count": 3,
+          "within_group_cosine": 0.967216,
+          "mean_chunk_cosine": 0.919279,
+          "top_text_inferences": [
+            {
+              "prompt": "progressive club music with an eight-bar energy rise and boundary release",
+              "mean_cosine": 0.554483
+            },
+            {
+              "prompt": "syncopated machine funk with active secondary percussion",
+              "mean_cosine": 0.40853
+            },
+            {
+              "prompt": "hypnotic four-on-the-floor techno with patient repetition",
+              "mean_cosine": 0.386922
+            },
+            {
+              "prompt": "driving peak-time techno with a forceful kick and bright rides",
+              "mean_cosine": 0.379369
+            }
+          ]
+        }
+      },
+      "estimated_stems": {
+        "bass": {
+          "sample_count": 3,
+          "metrics": {
+            "tempo_bpm": 119.9495,
+            "tempo_stability": 0.69715,
+            "onsets_per_beat": 1.49392,
+            "kick_quarter_dominance": 1.32886,
+            "hat_offbeat_dominance": 0.24515,
+            "bar_repeat_similarity": 0.5988,
+            "eight_bar_recurrence": 0.29347,
+            "harmonic_change": 0.29106,
+            "timbral_change": 0.32854,
+            "section_changes_per_32_bars": 2.72913,
+            "phrase_energy_arc": 0.23375,
+            "spectral_centroid_hz": 297.82327,
+            "crest_db": 14.4406,
+            "stereo_side_mid_ratio": 0.01751,
+            "band_sub": 0.49548,
+            "band_bass": 0.48155
+          },
+          "uncertainty": "Demucs-estimated stem; bleed and reassignment remain possible."
+        },
+        "drums": {
+          "sample_count": 3,
+          "metrics": {
+            "tempo_bpm": 127.84091,
+            "tempo_stability": 0.81789,
+            "onsets_per_beat": 2.30756,
+            "kick_quarter_dominance": 2.85826,
+            "hat_offbeat_dominance": 0.71587,
+            "bar_repeat_similarity": 0.57956,
+            "eight_bar_recurrence": 0.31918,
+            "harmonic_change": 0.4262,
+            "timbral_change": 0.09556,
+            "section_changes_per_32_bars": 2.54908,
+            "phrase_energy_arc": 0.29196,
+            "spectral_centroid_hz": 3850.53696,
+            "crest_db": 14.2324,
+            "stereo_side_mid_ratio": 0.24041,
+            "band_sub": 0.70255,
+            "band_bass": 0.27881
+          },
+          "uncertainty": "Demucs-estimated stem; bleed and reassignment remain possible."
+        },
+        "remaining": {
+          "sample_count": 3,
+          "metrics": {
+            "tempo_bpm": 127.84091,
+            "tempo_stability": 0.78888,
+            "onsets_per_beat": 2.32277,
+            "kick_quarter_dominance": 1.12221,
+            "hat_offbeat_dominance": 0.24928,
+            "bar_repeat_similarity": 0.49429,
+            "eight_bar_recurrence": 0.28841,
+            "harmonic_change": 0.62678,
+            "timbral_change": 0.46237,
+            "section_changes_per_32_bars": 2.83736,
+            "phrase_energy_arc": 0.21368,
+            "spectral_centroid_hz": 1260.5978,
+            "crest_db": 20.5247,
+            "stereo_side_mid_ratio": 0.85684,
+            "band_sub": 0.0201,
+            "band_bass": 0.40548
+          },
+          "uncertainty": "Demucs-estimated stem; bleed and reassignment remain possible."
+        }
+      },
+      "runtime_translation": {
+        "id": "patient-pressure",
+        "interpretation": "Preserve a stable floor and resident rhythmic identity while letting upper-detail energy draw a stronger eight-bar arc; mutate secondary layers more slowly than anchors."
+      }
+    },
+    "dixon-cercle-2024": {
+      "sample_count": 3,
+      "direct_measurement": {
+        "tempo_bpm": 122.28261,
+        "tempo_stability": 0.86578,
+        "onsets_per_beat": 3.42785,
+        "kick_quarter_dominance": 1.99532,
+        "hat_offbeat_dominance": 1.09328,
+        "bar_repeat_similarity": 0.53475,
+        "eight_bar_recurrence": 0.32237,
+        "harmonic_change": 0.73284,
+        "timbral_change": 0.21052,
+        "section_changes_per_32_bars": 2.01801,
+        "phrase_energy_arc": 0.19096,
+        "spectral_centroid_hz": 3009.67989,
+        "crest_db": 11.45515,
+        "stereo_side_mid_ratio": 0.38199,
+        "band_sub": 0.72968,
+        "band_bass": 0.24757
+      },
+      "style_heuristics": {
+        "four_floor_authority": 0.5929,
+        "bass_authority": 0.8966,
+        "offbeat_motor": 0.12887,
+        "syncopated_detail": 0.74347,
+        "harmonic_motion": 0.4886,
+        "timbral_motion": 0.21053,
+        "sectional_dramaturgy": 0.41293,
+        "spatial_openness": 0.5093,
+        "restraint": 0.28907
+      },
+      "embedding_inference": {
+        "mert": {
+          "model": "m-a-p/MERT-v1-95M",
+          "revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+          "sample_count": 3,
+          "within_group_cosine": 0.952486,
+          "mean_chunk_cosine": 0.909117
+        },
+        "clap": {
+          "model": "laion/clap-htsat-unfused",
+          "revision": "8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a",
+          "sample_count": 3,
+          "within_group_cosine": 0.973905,
+          "mean_chunk_cosine": 0.890429,
+          "top_text_inferences": [
+            {
+              "prompt": "progressive club music with an eight-bar energy rise and boundary release",
+              "mean_cosine": 0.516784
+            },
+            {
+              "prompt": "syncopated machine funk with active secondary percussion",
+              "mean_cosine": 0.427473
+            },
+            {
+              "prompt": "hypnotic four-on-the-floor techno with patient repetition",
+              "mean_cosine": 0.34352
+            },
+            {
+              "prompt": "wide atmospheric electronic music with evolving stereo texture",
+              "mean_cosine": 0.338672
+            }
+          ]
+        }
+      },
+      "estimated_stems": {
+        "bass": {
+          "sample_count": 3,
+          "metrics": {
+            "tempo_bpm": 122.28261,
+            "tempo_stability": 0.86259,
+            "onsets_per_beat": 2.09442,
+            "kick_quarter_dominance": 1.12503,
+            "hat_offbeat_dominance": 0.86023,
+            "bar_repeat_similarity": 0.52869,
+            "eight_bar_recurrence": 0.3893,
+            "harmonic_change": 0.6085,
+            "timbral_change": 0.2877,
+            "section_changes_per_32_bars": 3.18719,
+            "phrase_energy_arc": 0.4411,
+            "spectral_centroid_hz": 1144.74294,
+            "crest_db": 13.35282,
+            "stereo_side_mid_ratio": 0.01599,
+            "band_sub": 0.63728,
+            "band_bass": 0.34719
+          },
+          "uncertainty": "Demucs-estimated stem; bleed and reassignment remain possible."
+        },
+        "drums": {
+          "sample_count": 3,
+          "metrics": {
+            "tempo_bpm": 122.28261,
+            "tempo_stability": 0.88716,
+            "onsets_per_beat": 2.76681,
+            "kick_quarter_dominance": 2.50728,
+            "hat_offbeat_dominance": 1.05477,
+            "bar_repeat_similarity": 0.53284,
+            "eight_bar_recurrence": 0.32053,
+            "harmonic_change": 0.52914,
+            "timbral_change": 0.19993,
+            "section_changes_per_32_bars": 2.88288,
+            "phrase_energy_arc": 0.36663,
+            "spectral_centroid_hz": 3899.86554,
+            "crest_db": 14.76209,
+            "stereo_side_mid_ratio": 0.22464,
+            "band_sub": 0.77123,
+            "band_bass": 0.21482
+          },
+          "uncertainty": "Demucs-estimated stem; bleed and reassignment remain possible."
+        },
+        "remaining": {
+          "sample_count": 3,
+          "metrics": {
+            "tempo_bpm": 109.09527,
+            "tempo_stability": 0.74775,
+            "onsets_per_beat": 2.86054,
+            "kick_quarter_dominance": 1.04617,
+            "hat_offbeat_dominance": 0.77053,
+            "bar_repeat_similarity": 0.40489,
+            "eight_bar_recurrence": 0.23582,
+            "harmonic_change": 0.77393,
+            "timbral_change": 0.43833,
+            "section_changes_per_32_bars": 2.63111,
+            "phrase_energy_arc": 0.25965,
+            "spectral_centroid_hz": 2315.96517,
+            "crest_db": 20.16204,
+            "stereo_side_mid_ratio": 1.05722,
+            "band_sub": 0.04406,
+            "band_bass": 0.38746
+          },
+          "uncertainty": "Demucs-estimated stem; bleed and reassignment remain possible."
+        }
+      },
+      "runtime_translation": {
+        "id": "spatial-weave",
+        "interpretation": "Allow slower tempo envelopes, denser syncopated detail, wider upper material, and more frequent harmonic/texture entrances without copying melodic content."
+      }
+    },
+    "sven-vath-time-warp-2023": {
+      "sample_count": 3,
+      "direct_measurement": {
+        "tempo_bpm": 131.89935,
+        "tempo_stability": 0.89129,
+        "onsets_per_beat": 3.07625,
+        "kick_quarter_dominance": 2.09352,
+        "hat_offbeat_dominance": 1.35868,
+        "bar_repeat_similarity": 0.41832,
+        "eight_bar_recurrence": 0.32394,
+        "harmonic_change": 0.79103,
+        "timbral_change": 0.60931,
+        "section_changes_per_32_bars": 2.47059,
+        "phrase_energy_arc": 0.13899,
+        "spectral_centroid_hz": 2250.07591,
+        "crest_db": 13.31313,
+        "stereo_side_mid_ratio": 0.00127,
+        "band_sub": 0.66712,
+        "band_bass": 0.31211
+      },
+      "style_heuristics": {
+        "four_floor_authority": 0.63183,
+        "bass_authority": 0.9056,
+        "offbeat_motor": 0.31803,
+        "syncopated_detail": 0.71853,
+        "harmonic_motion": 0.52733,
+        "timbral_motion": 0.60933,
+        "sectional_dramaturgy": 0.41077,
+        "spatial_openness": 0.00167,
+        "restraint": 0.27297
+      },
+      "embedding_inference": {
+        "mert": {
+          "model": "m-a-p/MERT-v1-95M",
+          "revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+          "sample_count": 3,
+          "within_group_cosine": 0.963403,
+          "mean_chunk_cosine": 0.945943
+        },
+        "clap": {
+          "model": "laion/clap-htsat-unfused",
+          "revision": "8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a",
+          "sample_count": 3,
+          "within_group_cosine": 0.95762,
+          "mean_chunk_cosine": 0.933942,
+          "top_text_inferences": [
+            {
+              "prompt": "hypnotic four-on-the-floor techno with patient repetition",
+              "mean_cosine": 0.491428
+            },
+            {
+              "prompt": "progressive club music with an eight-bar energy rise and boundary release",
+              "mean_cosine": 0.490849
+            },
+            {
+              "prompt": "syncopated machine funk with active secondary percussion",
+              "mean_cosine": 0.431938
+            },
+            {
+              "prompt": "acid techno with a resonant articulated bass line",
+              "mean_cosine": 0.395347
+            }
+          ]
+        }
+      },
+      "estimated_stems": {
+        "bass": {
+          "sample_count": 3,
+          "metrics": {
+            "tempo_bpm": 131.89935,
+            "tempo_stability": 0.85519,
+            "onsets_per_beat": 1.9835,
+            "kick_quarter_dominance": 2.06776,
+            "hat_offbeat_dominance": 0.13873,
+            "bar_repeat_similarity": 0.42396,
+            "eight_bar_recurrence": 0.33304,
+            "harmonic_change": 0.83048,
+            "timbral_change": 0.66151,
+            "section_changes_per_32_bars": 3.03734,
+            "phrase_energy_arc": 0.17412,
+            "spectral_centroid_hz": 373.45432,
+            "crest_db": 14.39668,
+            "stereo_side_mid_ratio": 0.00118,
+            "band_sub": 0.5423,
+            "band_bass": 0.44483
+          },
+          "uncertainty": "Demucs-estimated stem; bleed and reassignment remain possible."
+        },
+        "drums": {
+          "sample_count": 3,
+          "metrics": {
+            "tempo_bpm": 131.89935,
+            "tempo_stability": 0.88615,
+            "onsets_per_beat": 2.9517,
+            "kick_quarter_dominance": 2.33669,
+            "hat_offbeat_dominance": 1.79362,
+            "bar_repeat_similarity": 0.45072,
+            "eight_bar_recurrence": 0.28371,
+            "harmonic_change": 0.58756,
+            "timbral_change": 0.59604,
+            "section_changes_per_32_bars": 2.45542,
+            "phrase_energy_arc": 0.20107,
+            "spectral_centroid_hz": 2580.32774,
+            "crest_db": 13.42038,
+            "stereo_side_mid_ratio": 0.00254,
+            "band_sub": 0.70627,
+            "band_bass": 0.27692
+          },
+          "uncertainty": "Demucs-estimated stem; bleed and reassignment remain possible."
+        },
+        "remaining": {
+          "sample_count": 3,
+          "metrics": {
+            "tempo_bpm": 109.10964,
+            "tempo_stability": 0.72903,
+            "onsets_per_beat": 2.67022,
+            "kick_quarter_dominance": 0.8217,
+            "hat_offbeat_dominance": 0.61724,
+            "bar_repeat_similarity": 0.45692,
+            "eight_bar_recurrence": 0.2793,
+            "harmonic_change": 0.76321,
+            "timbral_change": 0.69389,
+            "section_changes_per_32_bars": 3.53019,
+            "phrase_energy_arc": 0.32255,
+            "spectral_centroid_hz": 2229.92031,
+            "crest_db": 20.61448,
+            "stereo_side_mid_ratio": 0.01025,
+            "band_sub": 0.01181,
+            "band_bass": 0.23289
+          },
+          "uncertainty": "Demucs-estimated stem; bleed and reassignment remain possible."
+        }
+      },
+      "runtime_translation": {
+        "id": "kinetic-mutation",
+        "interpretation": "Favor faster pressure, stronger offbeat articulation, brighter secondary percussion, and more timbral turnover while keeping phrase loudness motion comparatively restrained."
+      }
+    }
+  },
+  "sample_provenance": [
+    {
+      "group": "ann-clue-cercle-2024",
+      "label": "Ann Clue at Cercle Festival 2024",
+      "sample": "ann-clue-cercle-2024--p20.wav",
+      "source_path": "/Users/andreabertoncini/Downloads/Ann Clue at Cercle Festival 2024 (Concorde Stage)/Ann Clue at Cercle Festival 2024 (Concorde Stage) (96kbit_AAC).m4a",
+      "source_duration_seconds": 5339.0,
+      "start_seconds": 1053.4,
+      "duration_seconds": 72.0,
+      "fraction": 0.2,
+      "source_sha256": "29be9d62a6c4cc7b3eb1dde3bbd3546e271ee46410ddd5ac9c49e660346614d5",
+      "sample_sha256": "8a9fb812ce83057b5564414ba164624f4035543e09155a657f4bd78191e6eb08"
+    },
+    {
+      "group": "ann-clue-cercle-2024",
+      "label": "Ann Clue at Cercle Festival 2024",
+      "sample": "ann-clue-cercle-2024--p50.wav",
+      "source_path": "/Users/andreabertoncini/Downloads/Ann Clue at Cercle Festival 2024 (Concorde Stage)/Ann Clue at Cercle Festival 2024 (Concorde Stage) (96kbit_AAC).m4a",
+      "source_duration_seconds": 5339.0,
+      "start_seconds": 2633.5,
+      "duration_seconds": 72.0,
+      "fraction": 0.5,
+      "source_sha256": "29be9d62a6c4cc7b3eb1dde3bbd3546e271ee46410ddd5ac9c49e660346614d5",
+      "sample_sha256": "3afda19e4506e90a25c18c93e8134006dfa9b2a67ed8edef2c5227f6874d598c"
+    },
+    {
+      "group": "ann-clue-cercle-2024",
+      "label": "Ann Clue at Cercle Festival 2024",
+      "sample": "ann-clue-cercle-2024--p80.wav",
+      "source_path": "/Users/andreabertoncini/Downloads/Ann Clue at Cercle Festival 2024 (Concorde Stage)/Ann Clue at Cercle Festival 2024 (Concorde Stage) (96kbit_AAC).m4a",
+      "source_duration_seconds": 5339.0,
+      "start_seconds": 4213.6,
+      "duration_seconds": 72.0,
+      "fraction": 0.8,
+      "source_sha256": "29be9d62a6c4cc7b3eb1dde3bbd3546e271ee46410ddd5ac9c49e660346614d5",
+      "sample_sha256": "5bd9cd9cecf277ea3f9a71bed3b22306a8a18ba12d6b7a5481d4aa652218cbb5"
+    },
+    {
+      "group": "sven-vath-time-warp-2023",
+      "label": "Sven V\u00e4th at Time Warp 2D2S 2023",
+      "sample": "sven-vath-time-warp-2023--p20.wav",
+      "source_path": "/Users/andreabertoncini/Downloads/Sven V\u00e4th Live at Time Warp - 2D2S [DE] 2023/Sven V\u00e4th Live at Time Warp - 2D2S [DE] 2023 (96kbit_AAC).m4a",
+      "source_duration_seconds": 6975.855,
+      "start_seconds": 1380.771,
+      "duration_seconds": 72.0,
+      "fraction": 0.2,
+      "source_sha256": "a1e0fbeca1df71beb4e9a3b3d597394c77ed88997472454366347ca5bc7a5257",
+      "sample_sha256": "f05ecb1111b0fd48a4e991683a64449f973d5442d5c4a8355b0f4d44523a5f41"
+    },
+    {
+      "group": "sven-vath-time-warp-2023",
+      "label": "Sven V\u00e4th at Time Warp 2D2S 2023",
+      "sample": "sven-vath-time-warp-2023--p50.wav",
+      "source_path": "/Users/andreabertoncini/Downloads/Sven V\u00e4th Live at Time Warp - 2D2S [DE] 2023/Sven V\u00e4th Live at Time Warp - 2D2S [DE] 2023 (96kbit_AAC).m4a",
+      "source_duration_seconds": 6975.855,
+      "start_seconds": 3451.927,
+      "duration_seconds": 72.0,
+      "fraction": 0.5,
+      "source_sha256": "a1e0fbeca1df71beb4e9a3b3d597394c77ed88997472454366347ca5bc7a5257",
+      "sample_sha256": "05b6c506cc3a67ecf3ed55db1b6f1fb44f6d1e20554920b319a5c58a21dc66c0"
+    },
+    {
+      "group": "sven-vath-time-warp-2023",
+      "label": "Sven V\u00e4th at Time Warp 2D2S 2023",
+      "sample": "sven-vath-time-warp-2023--p80.wav",
+      "source_path": "/Users/andreabertoncini/Downloads/Sven V\u00e4th Live at Time Warp - 2D2S [DE] 2023/Sven V\u00e4th Live at Time Warp - 2D2S [DE] 2023 (96kbit_AAC).m4a",
+      "source_duration_seconds": 6975.855,
+      "start_seconds": 5523.084,
+      "duration_seconds": 72.0,
+      "fraction": 0.8,
+      "source_sha256": "a1e0fbeca1df71beb4e9a3b3d597394c77ed88997472454366347ca5bc7a5257",
+      "sample_sha256": "972e0360fdb72f10ec329a72094b18b0b34894d364c3b7ce0b9174a5b859a98b"
+    },
+    {
+      "group": "dixon-cercle-2024",
+      "label": "Dixon at Cercle Festival 2024",
+      "sample": "dixon-cercle-2024--p20.wav",
+      "source_path": "/Users/andreabertoncini/Downloads/Dixon at Cercle Festival 2024 (Ariane Stage)/Dixon at Cercle Festival 2024 (Ariane Stage) (96kbit_AAC).m4a",
+      "source_duration_seconds": 5312.0,
+      "start_seconds": 1048.0,
+      "duration_seconds": 72.0,
+      "fraction": 0.2,
+      "source_sha256": "b42269b1dbd1be304c6796600568e6a30502ae3d5d8f912dc38339ea16b21890",
+      "sample_sha256": "e95735a797eefd71818aed0c8d2aa249359149f5269d50c248864411aa2c475d"
+    },
+    {
+      "group": "dixon-cercle-2024",
+      "label": "Dixon at Cercle Festival 2024",
+      "sample": "dixon-cercle-2024--p50.wav",
+      "source_path": "/Users/andreabertoncini/Downloads/Dixon at Cercle Festival 2024 (Ariane Stage)/Dixon at Cercle Festival 2024 (Ariane Stage) (96kbit_AAC).m4a",
+      "source_duration_seconds": 5312.0,
+      "start_seconds": 2620.0,
+      "duration_seconds": 72.0,
+      "fraction": 0.5,
+      "source_sha256": "b42269b1dbd1be304c6796600568e6a30502ae3d5d8f912dc38339ea16b21890",
+      "sample_sha256": "f18581ebc455071a10c33c362dcc89165501e9d1a2d46da3f88e970a4848b64c"
+    },
+    {
+      "group": "dixon-cercle-2024",
+      "label": "Dixon at Cercle Festival 2024",
+      "sample": "dixon-cercle-2024--p80.wav",
+      "source_path": "/Users/andreabertoncini/Downloads/Dixon at Cercle Festival 2024 (Ariane Stage)/Dixon at Cercle Festival 2024 (Ariane Stage) (96kbit_AAC).m4a",
+      "source_duration_seconds": 5312.0,
+      "start_seconds": 4192.0,
+      "duration_seconds": 72.0,
+      "fraction": 0.8,
+      "source_sha256": "b42269b1dbd1be304c6796600568e6a30502ae3d5d8f912dc38339ea16b21890",
+      "sample_sha256": "f3549994ff6822cb28c94025819d97a88cacef167c9955d31515aa299918ecc4"
+    }
+  ],
+  "reference_embedding_pairs": [
+    {
+      "left": "ann-clue-cercle-2024",
+      "right": "dixon-cercle-2024",
+      "mert_cosine": 0.942425,
+      "clap_cosine": 0.936154
+    },
+    {
+      "left": "ann-clue-cercle-2024",
+      "right": "sven-vath-time-warp-2023",
+      "mert_cosine": 0.849975,
+      "clap_cosine": 0.794898
+    },
+    {
+      "left": "dixon-cercle-2024",
+      "right": "sven-vath-time-warp-2023",
+      "mert_cosine": 0.891421,
+      "clap_cosine": 0.805989
+    }
+  ],
+  "evidence_boundaries": {
+    "direct_measurement": "Signal and inferred-grid measurements from exact hashed excerpts.",
+    "estimated_stems": "Demucs estimates, not isolated studio multitracks.",
+    "embedding_inference": "MERT and CLAP cosine evidence, not semantic truth or quality.",
+    "runtime_translation": "Authored abstraction from the evidence; no melody, sample, or artist preset is copied.",
+    "acceptance": "Human listening acceptance remains unresolved by this report."
+  }
+}

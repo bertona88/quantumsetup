@@ -10,6 +10,7 @@ import {
   ENSEMBLE_SCENES,
   GENERATOR_VERSION,
   MOVEMENT_BARS,
+  REFERENCE_TENDENCIES,
   VIBES,
   blendProfileObjects,
   blendProfiles,
@@ -17,6 +18,8 @@ import {
   buildEnsemblePhrase,
   conveneCouncil,
   createMovement,
+  detailContourForBar,
+  derivePhraseState,
   hash32,
   makeRng,
   nextPhraseBoundary,
@@ -25,6 +28,7 @@ import {
   planPatternSignature,
   profileDistance,
   profileForVibe,
+  referenceTendencyFor,
   selectEnsembleScene,
   stageEnsembleRoles,
   transitionDurationFor,
@@ -50,7 +54,7 @@ test("canonical supplied generator remains byte-identical", () => {
 });
 
 test("the versioned high-level browser API remains source-compatible", () => {
-  assert.equal(GENERATOR_VERSION, "2.3.1");
+  assert.equal(GENERATOR_VERSION, "2.4.0");
   const source = readFileSync(
     new URL("./main.js", import.meta.url),
     "utf8",
@@ -413,10 +417,61 @@ test("bar plans are stable, bounded, and harmonically legal", () => {
   assert.ok(planNotesBelongToMode(first));
 });
 
+test("reference-informed detail contours create bounded eight-bar motion and favor offbeats", () => {
+  const contourSignatures = new Set();
+  const offbeats = [];
+  const quarters = [];
+  for (let seed = 0; seed < 32; seed += 1) {
+    const plans = Array.from({ length: 8 }, (_, bar) =>
+      buildBarPlan({ seed, bar: 32 + bar }),
+    );
+    const contour = plans.map((plan) => plan.detailEnergy);
+    contour.forEach((value) => assert.ok(value >= 0.78 && value <= 1.26));
+    assert.ok(Math.max(...contour) - Math.min(...contour) >= 0.025);
+    contourSignatures.add(contour.map((value) => value.toFixed(3)).join(":"));
+
+    for (const plan of plans) {
+      plan.hat.forEach((velocity, step) => {
+        if (!velocity) return;
+        if (step % 4 === 2) offbeats.push(velocity / plan.detailEnergy);
+        if (step % 4 === 0) quarters.push(velocity / plan.detailEnergy);
+      });
+      assert.equal(
+        plan.detailEnergy,
+        detailContourForBar({
+          seed,
+          phraseIndex: plan.phraseIndex,
+          barInPhrase: plan.barInPhrase,
+          form: plan.form,
+          tendency: plan.referenceTendency,
+        }),
+      );
+    }
+  }
+  assert.ok(contourSignatures.size >= 24);
+  assert.ok(offbeats.length > 100);
+  assert.ok(quarters.length > 40);
+  const mean = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
+  assert.ok(mean(offbeats) > mean(quarters) + 0.08);
+});
+
+test("three abstract reference tendencies are deterministic and broadly reachable", () => {
+  const counts = Object.fromEntries(
+    Object.keys(REFERENCE_TENDENCIES).map((id) => [id, 0]),
+  );
+  for (let seed = 0; seed < 192; seed += 1) {
+    const plan = buildBarPlan({ seed, bar: 0 });
+    assert.equal(plan.referenceTendency, referenceTendencyFor(plan.trackDNA));
+    assert.equal(Object.isFrozen(plan.referenceTendency), true);
+    counts[plan.referenceTendency.id] += 1;
+  }
+  assert.ok(Object.values(counts).every((count) => count >= 40));
+});
+
 test("earned echo ascents freeze a bounded bright-percussion phrase contour", () => {
   const fixtures = [
     { seed: 0, phraseIndex: 5, variant: "restrained" },
-    { seed: 1, phraseIndex: 40, variant: "widening" },
+    { seed: 0, phraseIndex: 65, variant: "widening" },
     { seed: 0, phraseIndex: 46, variant: "late-throw" },
   ];
   for (const fixture of fixtures) {
@@ -435,6 +490,10 @@ test("earned echo ascents freeze a bounded bright-percussion phrase contour", ()
       assert.equal(plan.form.echoAscentVariant, fixture.variant);
       assert.equal(plan.councilVerdict.echoAscent, true);
       assert.equal(plan.echoAscent.variant, fixture.variant);
+      assert.match(plan.echoAscent.contourId, /^resident-[1-8]$/);
+      assert.ok(["percussion", "fm", "modal", "string", "bass-answer"].includes(
+        plan.echoAscent.sourceLane,
+      ));
       assert.equal(plan.echoAscent.startBar, variant.startBar);
       assert.ok(plan.echoAscent.feedback > 0);
       assert.ok(plan.echoAscent.feedback <= 0.55);
@@ -487,6 +546,8 @@ test("rendered bar lanes preserve their selected material provenance", () => {
     { seed: 0, bar: 1, vibeId: "hypnotic" },
     { seed: 0, bar: 103, vibeId: "hypnotic" },
     { seed: 33, bar: 55, vibeId: "hypnotic" },
+    { seed: 20, bar: 120, vibeId: "peak" },
+    { seed: 0, bar: 575, vibeId: "peak" },
   ];
   const directLanes = {
     kick: "kick",
@@ -636,6 +697,45 @@ test("legacy fixed rhythm vocabularies and authored onset masks stay absent", ()
       assert.equal(Object.hasOwn(role, "pattern"), false);
     }
   }
+});
+
+test("successive echo ascents rotate resident-material contours instead of replaying a fixed hit array", () => {
+  const events = [];
+  for (let seed = 0; seed < 8; seed += 1) {
+    let priorContour = null;
+    for (let phraseIndex = 0; phraseIndex < 96; phraseIndex += 1) {
+      const form = derivePhraseState(seed, phraseIndex);
+      if (!form.allowEchoAscent) continue;
+      const activeBars = Array.from({ length: 8 }, (_, barInPhrase) =>
+        buildBarPlan({ seed, bar: phraseIndex * 8 + barInPhrase }),
+      ).filter((plan) => plan.echoAscent?.active);
+      const first = activeBars[0].echoAscent;
+      assert.notEqual(first.contourId, priorContour);
+      priorContour = first.contourId;
+      events.push({
+        variant: first.variant,
+        contourId: first.contourId,
+        sourceLane: first.sourceLane,
+        delaySteps: first.delaySteps,
+        feedback: first.feedback,
+        signature: activeBars
+          .map((plan) =>
+            plan.echoAscent.hits
+              .map((hit, step) => (hit ? `${hit.voice}:${step}` : "-"))
+              .join("|"),
+          )
+          .join("/"),
+      });
+    }
+  }
+  assert.ok(events.length >= 20);
+  assert.ok(new Set(events.map((event) => event.contourId)).size >= 7);
+  assert.ok(new Set(events.map((event) => event.sourceLane)).size >= 4);
+  assert.ok(new Set(events.map((event) => event.signature)).size >= events.length * 0.9);
+  assert.ok(
+    new Set(events.map((event) => `${event.delaySteps}:${event.feedback.toFixed(3)}`))
+      .size >= 8,
+  );
 });
 
 test("all vibe and tonality combinations survive a long scan", () => {

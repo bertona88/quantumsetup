@@ -18,8 +18,8 @@ import {
   summarizeMaterialState,
   transitionDurationFor,
   transitionProgress,
-} from "./techno-model.js?v=2.3.1-pulse-timbres-1";
-import { SYNTH_VOICE_LIMIT } from "./synth-dsp.js?v=2.3.1-square-timbre-1";
+} from "./techno-model.js?v=2.4.0-reference-listener-1";
+import { SYNTH_VOICE_LIMIT } from "./synth-dsp.js?v=2.4.0-pattern-priors-1";
 import { stageSynthPalette } from "./synth-genomes.js";
 import {
   PULSE_BASS_PROCESSORS,
@@ -46,7 +46,7 @@ import {
 import {
   createTrackDNA,
   rankDistinctTrajectorySeeds,
-} from "./track-dna.js?v=2.3.1-resident-open-hat-1";
+} from "./track-dna.js?v=2.4.0-pattern-priors-1";
 import {
   formatTrajectoryId,
   freshTrajectoryId,
@@ -59,15 +59,26 @@ const AudioWorkletNodeClass =
   window.AudioWorkletNode || globalThis.AudioWorkletNode;
 const NATIVE_VOICE_LIMIT = 72;
 const NATIVE_SOURCE_LIMIT = 144;
-const KICK_BUS_LEVEL = 0.84;
-const BASS_BUS_LEVEL = 0.96;
-const RUMBLE_BUS_LEVEL = 0.92;
-const MUSIC_BUS_LEVEL = 1;
+// Calibrated against interior excerpts from three long-form techno sets. The
+// low end remains the anchor, but it no longer consumes nearly the entire
+// rendered spectrum before the upper rhythmic and harmonic layers arrive.
+const KICK_BUS_LEVEL = 0.66;
+const BASS_BUS_LEVEL = 0.82;
+const RUMBLE_BUS_LEVEL = 0.56;
+const MUSIC_BUS_LEVEL = 1.2;
 const SYNTH_MESSAGE_LEAD_SECONDS = 0.05;
 const TRAJECTORY_CANDIDATE_COUNT = 16;
 export const TRAJECTORY_STRUCTURE_MIN_DISTANCE = 0.075;
 const DIRECTION_MORPH_BARS = 8;
 const SILENT_GAIN = 0.0001;
+
+export function audioLatencyHintFor(device = globalThis.navigator) {
+  const touchPoints = Number(device?.maxTouchPoints) || 0;
+  const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile/i.test(
+    String(device?.userAgent || ""),
+  );
+  return touchPoints > 1 || mobileUserAgent ? "playback" : "interactive";
+}
 
 function freshSeed() {
   return freshTrajectoryId(window.crypto);
@@ -805,7 +816,11 @@ export class InfiniteTechnoEngine {
       if (this.contextReleasing) await this.waitForContextRelease();
       if (token !== this.runToken || !this.starting || this.running) return;
 
-      context = new AudioContextClass({ latencyHint: "interactive" });
+      // Phones benefit more from underrun resistance than input-like latency:
+      // every musical event is already placed ahead on the hardware clock.
+      context = new AudioContextClass({
+        latencyHint: audioLatencyHintFor(globalThis.navigator),
+      });
       if (token !== this.runToken) {
         await this.disposeContext(context, voices);
         return;
@@ -954,6 +969,7 @@ export class InfiniteTechnoEngine {
     this.kickPerformanceGain = context.createGain();
     this.bassPerformanceGain = context.createGain();
     this.lowEndArrangementGain = context.createGain();
+    this.phraseContourGain = context.createGain();
     this.toneFilter = context.createBiquadFilter();
     this.preMaster = context.createGain();
     this.highpass = context.createBiquadFilter();
@@ -970,14 +986,16 @@ export class InfiniteTechnoEngine {
     this.bassBus.gain.value = BASS_BUS_LEVEL;
     this.rumbleBus.gain.value = RUMBLE_BUS_LEVEL;
     this.musicBus.gain.value = MUSIC_BUS_LEVEL;
+    this.detailBusTarget = MUSIC_BUS_LEVEL;
     this.kickPerformanceGain.gain.value = 1;
     this.bassPerformanceGain.gain.value = 1;
     this.lowEndArrangementGain.gain.value = 1;
+    this.phraseContourGain.gain.value = 1;
     this.plannedLowEndMuted = false;
     this.toneFilter.type = "lowpass";
-    this.toneFilter.frequency.value = 6500;
+    this.toneFilter.frequency.value = 9200;
     this.toneFilter.Q.value = 0.7;
-    this.preMaster.gain.value = 0.67;
+    this.preMaster.gain.value = 0.72;
     this.highpass.type = "highpass";
     this.highpass.frequency.value = 26;
     this.highpass.Q.value = 0.65;
@@ -993,11 +1011,11 @@ export class InfiniteTechnoEngine {
     this.highEq.gain.value = this.mixControls.high;
     this.softClip.curve = driveCurve(2.05, 2048);
     this.softClip.oversample = "2x";
-    this.compressor.threshold.value = -14;
+    this.compressor.threshold.value = -12;
     this.compressor.knee.value = 8;
-    this.compressor.ratio.value = 6;
-    this.compressor.attack.value = 0.003;
-    this.compressor.release.value = 0.2;
+    this.compressor.ratio.value = 4;
+    this.compressor.attack.value = 0.008;
+    this.compressor.release.value = 0.16;
     this.transientAnalyser.fftSize = 1024;
     this.transientAnalyser.smoothingTimeConstant = 0.35;
     this.analyser.fftSize = 4096;
@@ -1009,9 +1027,10 @@ export class InfiniteTechnoEngine {
     this.bassBus.connect(this.bassPerformanceGain);
     this.bassPerformanceGain.connect(this.lowEndArrangementGain);
     this.rumbleBus.connect(this.lowEndArrangementGain);
-    this.lowEndArrangementGain.connect(this.preMaster);
+    this.lowEndArrangementGain.connect(this.phraseContourGain);
     this.musicBus.connect(this.toneFilter);
-    this.toneFilter.connect(this.preMaster);
+    this.toneFilter.connect(this.phraseContourGain);
+    this.phraseContourGain.connect(this.preMaster);
     this.preMaster.connect(this.highpass);
     this.highpass.connect(this.lowEq);
     this.lowEq.connect(this.midEq);
@@ -1136,7 +1155,7 @@ export class InfiniteTechnoEngine {
     }
     try {
       const workletUrl = new URL(
-        "./synth-worklet.js?v=2.3.1-square-timbre-1",
+        "./synth-worklet.js?v=2.4.0-pattern-priors-1",
         import.meta.url,
       );
       workletUrl.searchParams.set("v", GENERATOR_VERSION);
@@ -1151,9 +1170,9 @@ export class InfiniteTechnoEngine {
       this.synthDry = context.createGain();
       this.synthDelaySend = context.createGain();
       this.synthReverbSend = context.createGain();
-      this.synthDry.gain.value = 0.92;
-      this.synthDelaySend.gain.value = 0.86;
-      this.synthReverbSend.gain.value = 0.84;
+      this.synthDry.gain.value = 1.34;
+      this.synthDelaySend.gain.value = 1.06;
+      this.synthReverbSend.gain.value = 1.02;
       node.connect(this.synthDry, 0, 0);
       node.connect(this.synthDelaySend, 1, 0);
       node.connect(this.synthReverbSend, 2, 0);
@@ -1238,6 +1257,33 @@ export class InfiniteTechnoEngine {
       right[index] = (rng() * 2 - 1) * envelope;
     }
     return buffer;
+  }
+
+  syncDetailMix(time, plan, immediate = false) {
+    if (!this.ctx || !this.musicBus) return;
+    const at = Number.isFinite(time) ? time : this.ctx.currentTime;
+    const contour = clamp(Number(plan?.detailEnergy) || 1, 0.78, 1.26);
+    const target = MUSIC_BUS_LEVEL * contour;
+    this.detailBusTarget = target;
+    // The reference excerpts carry clearly legible eight-bar energy slopes.
+    // Keep the planner's deterministic contour shape, but let it reach the
+    // shared anchor/detail bus strongly enough to survive master compression.
+    const phraseTarget = clamp(1 + (contour - 1) * 1.8, 0.64, 1.42);
+    if (immediate) {
+      this.musicBus.gain.setValueAtTime(target, at);
+      this.phraseContourGain?.gain.setValueAtTime(phraseTarget, at);
+      return;
+    }
+    holdParamAtTime(this.musicBus.gain, at);
+    this.musicBus.gain.setTargetAtTime(target, at, 0.11);
+    if (this.phraseContourGain?.gain) {
+      holdParamAtTime(this.phraseContourGain.gain, at);
+      this.phraseContourGain.gain.setTargetAtTime(
+        phraseTarget,
+        at,
+        0.16,
+      );
+    }
   }
 
   syncPerformanceMix(time = this.ctx?.currentTime, immediate = false, profile = null) {
@@ -1383,7 +1429,11 @@ export class InfiniteTechnoEngine {
     this.rumbleFilter.frequency.setTargetAtTime(rumbleCutoff, now, constant);
     this.rumbleFeedback.gain.setTargetAtTime(rumbleFeedback, now, constant);
     this.toneFilter.frequency.setTargetAtTime(
-      680 + filterOpen * 10600 + profile.warmth * 900,
+      clamp(
+        2500 + filterOpen * 13000 + profile.warmth * 600,
+        3600,
+        Math.min(16000, this.ctx.sampleRate * 0.46),
+      ),
       now,
       constant,
     );
@@ -1803,6 +1853,7 @@ export class InfiniteTechnoEngine {
 
     if (step === 0) {
       this.syncPlannedLowEnd(eventTime, plan.lowEnd?.dropoutActive === true);
+      this.syncDetailMix(eventTime, plan);
     }
 
     if (step === 0) {
@@ -2147,10 +2198,15 @@ export class InfiniteTechnoEngine {
         : articulation === "roll"
           ? 0.075
           : 0.105;
+    const musicLevel = clamp(
+      Number(this.detailBusTarget) || MUSIC_BUS_LEVEL,
+      MUSIC_BUS_LEVEL * 0.78,
+      MUSIC_BUS_LEVEL * 1.26,
+    );
     const musicFloor = clamp(
-      MUSIC_BUS_LEVEL * (1 - musicDepth * impact),
+      musicLevel * (1 - musicDepth * impact),
       0.18,
-      MUSIC_BUS_LEVEL,
+      musicLevel,
     );
     const bassFloor = clamp(
       BASS_BUS_LEVEL * (1 - bassDepth * impact),
@@ -2158,13 +2214,13 @@ export class InfiniteTechnoEngine {
       BASS_BUS_LEVEL,
     );
 
-    holdParamAtTime(this.musicBus.gain, time, MUSIC_BUS_LEVEL);
+    holdParamAtTime(this.musicBus.gain, time, musicLevel);
     this.musicBus.gain.exponentialRampToValueAtTime(
       musicFloor,
       time + 0.008,
     );
     this.musicBus.gain.exponentialRampToValueAtTime(
-      MUSIC_BUS_LEVEL,
+      musicLevel,
       time + musicRecovery,
     );
 
@@ -2325,7 +2381,7 @@ export class InfiniteTechnoEngine {
     panStage.pan.value =
       ((hash32(this.seed, this.bar, this.step, open ? 3 : 2) % 200) / 100 - 1) * 0.42;
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(0.15 * velocity, time + 0.0015);
+    gain.gain.exponentialRampToValueAtTime(0.48 * velocity, time + 0.0015);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
     source.connect(highpass);
     highpass.connect(bandpass);
@@ -2392,7 +2448,7 @@ export class InfiniteTechnoEngine {
       (offset, index) => {
       gain.gain.setValueAtTime(0.0001, time + offset);
       gain.gain.linearRampToValueAtTime(
-        Math.max(0.055, 0.18 - index * 0.028) * velocity,
+        Math.max(0.11, 0.38 - index * 0.058) * velocity,
         time + offset + 0.002,
       );
       gain.gain.exponentialRampToValueAtTime(0.003, time + offset + 0.009);
@@ -2431,6 +2487,7 @@ export class InfiniteTechnoEngine {
     const oscillator = context.createOscillator();
     const gain = context.createGain();
     const bandpass = context.createBiquadFilter();
+    const panStage = this.createPanStage();
     oscillator.type = "triangle";
     oscillator.frequency.setValueAtTime(470 + tone * 370 + velocity * 260, time);
     oscillator.frequency.exponentialRampToValueAtTime(340 + tone * 120, time + 0.045);
@@ -2438,12 +2495,20 @@ export class InfiniteTechnoEngine {
     bandpass.frequency.value = 1050 + tone * 620;
     bandpass.Q.value = 1.3;
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(0.1 * velocity, time + 0.001);
+    gain.gain.exponentialRampToValueAtTime(0.3 * velocity, time + 0.001);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.065);
     oscillator.connect(bandpass);
     bandpass.connect(gain);
-    const routes = this.route(gain, 0.72, 0.09, 0.07);
-    if (!this.registerVoice([oscillator], [bandpass, gain, ...routes])) return;
+    panStage.pan.value =
+      ((hash32(this.seed, this.bar, this.step, 0x5249) % 180) / 90 - 1) * 0.46;
+    gain.connect(panStage.node);
+    const routes = this.route(panStage.node, 0.78, 0.09, 0.08);
+    if (
+      !this.registerVoice(
+        [oscillator],
+        [bandpass, gain, panStage.node, ...routes],
+      )
+    ) return;
     oscillator.start(time);
     oscillator.stop(time + 0.08);
   }
@@ -2463,7 +2528,7 @@ export class InfiniteTechnoEngine {
     panStage.pan.value =
       ((hash32(this.seed, this.bar, this.step, 0x5348) % 180) / 90 - 1) * 0.52;
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.linearRampToValueAtTime(0.1 * velocity, time + 0.004);
+    gain.gain.linearRampToValueAtTime(0.34 * velocity, time + 0.004);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.052);
     source.connect(bandpass);
     bandpass.connect(gain);
@@ -2490,7 +2555,7 @@ export class InfiniteTechnoEngine {
     bandpass.frequency.value = 7600 + color * 2600;
     bandpass.Q.value = 2.2;
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(0.09 * velocity, time + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.28 * velocity, time + 0.002);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
     source.connect(highpass);
     highpass.connect(bandpass);
@@ -2524,7 +2589,7 @@ export class InfiniteTechnoEngine {
     bandpass.frequency.value = 900 + color * 2800;
     bandpass.Q.value = 2 + color * 4;
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(0.08 * velocity, time + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.26 * velocity, time + 0.002);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
     panStage.pan.value =
       ((hash32(this.seed, this.bar, this.step, 0x504e) % 200) / 100 - 1) * 0.64;
@@ -2666,7 +2731,7 @@ export class InfiniteTechnoEngine {
     oscillator.frequency.setValueAtTime(frequency * 1.7, time);
     oscillator.frequency.exponentialRampToValueAtTime(frequency, time + 0.055);
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(0.16 * velocity, time + 0.003);
+    gain.gain.exponentialRampToValueAtTime(0.24 * velocity, time + 0.003);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.19);
     panStage.pan.value = (step % 2 ? 1 : -1) * 0.22;
     // High-drive toms use a square source for weight, but never expose its raw
@@ -3150,7 +3215,7 @@ export class InfiniteTechnoEngine {
     filter.frequency.exponentialRampToValueAtTime(1700 + profile.space * 1900, time + 0.018);
     filter.frequency.exponentialRampToValueAtTime(360, time + event.length);
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(0.048 * event.velocity, time + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.14 * event.velocity, time + 0.006);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + event.length);
     panStage.pan.value =
       ((hash32(this.seed, this.bar, this.step, 0x4348) % 160) / 100 - 0.8) * 0.7;
@@ -3245,11 +3310,11 @@ export class InfiniteTechnoEngine {
     modulatorDepth.connect(modulatedGain.gain);
     gain.gain.setValueAtTime(0.0001, time);
     gain.gain.exponentialRampToValueAtTime(
-      event.velocity * 0.032,
+      event.velocity * 0.09,
       time + duration * attackRatio,
     );
     gain.gain.setValueAtTime(
-      event.velocity * 0.032,
+      event.velocity * 0.09,
       time + duration * releaseStartRatio,
     );
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
@@ -3297,7 +3362,7 @@ export class InfiniteTechnoEngine {
     filter.frequency.exponentialRampToValueAtTime(2100 + energy * 2100, time + duration * 0.62);
     filter.frequency.exponentialRampToValueAtTime(520, time + duration);
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(0.018 + profile.texture * 0.04, time + duration * 0.34);
+    gain.gain.exponentialRampToValueAtTime(0.05 + profile.texture * 0.12, time + duration * 0.34);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
     panStage.pan.setValueAtTime(pan, time);
     panStage.pan.linearRampToValueAtTime(-pan * 0.7, time + duration);
@@ -3323,7 +3388,7 @@ export class InfiniteTechnoEngine {
     highpass.frequency.setValueAtTime(420, time);
     highpass.frequency.exponentialRampToValueAtTime(7800, time + duration);
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(0.018 + profile.space * 0.028, time + duration * 0.72);
+    gain.gain.exponentialRampToValueAtTime(0.026 + profile.space * 0.05, time + duration * 0.72);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
     panStage.pan.linearRampToValueAtTime(0.34, time + duration);
     source.connect(highpass);

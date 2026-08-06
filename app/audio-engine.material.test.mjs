@@ -395,7 +395,7 @@ test("snapshots expose the frozen material summary instead of mutable planner st
   const snapshot = engine.getSnapshot();
   const expected = summarizeMaterialState(engine.materialState);
 
-  assert.equal(snapshot.version, "2.3.1");
+  assert.equal(snapshot.version, "2.4.0");
   assert.equal(snapshot.material === engine.materialState, false);
   assert.deepEqual(snapshot.material, expected);
   assertDeepFrozen(snapshot, new Set(), "snapshot");
@@ -449,6 +449,14 @@ test("snapshots expose the frozen material summary instead of mutable planner st
     assert.equal(
       snapshot.material.laneClocks[lane].phaseOrigin,
       clock.phaseOrigin,
+    );
+    assert.equal(
+      snapshot.material.laneClocks[lane].twoBarRelationId,
+      clock.twoBarRelationId,
+    );
+    assert.equal(
+      snapshot.material.laneClocks[lane].pulseRelationId,
+      clock.pulseRelationId,
     );
   }
   for (const field of [

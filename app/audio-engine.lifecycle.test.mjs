@@ -23,7 +23,7 @@ class FakeAudioParam {
 }
 
 class FakeAudioContext {
-  constructor() {
+  constructor(options) {
     contextConstructions += 1;
     this.state = "suspended";
     this.currentTime = 0;
@@ -69,7 +69,13 @@ globalThis.window = {
   },
 };
 
-const { InfiniteTechnoEngine } = await import("./audio-engine.js");
+const { InfiniteTechnoEngine, audioLatencyHintFor } = await import("./audio-engine.js");
+
+test("mobile devices request a playback-sized audio buffer", () => {
+  assert.equal(audioLatencyHintFor({ maxTouchPoints: 5, userAgent: "Safari" }), "playback");
+  assert.equal(audioLatencyHintFor({ maxTouchPoints: 0, userAgent: "Android" }), "playback");
+  assert.equal(audioLatencyHintFor({ maxTouchPoints: 0, userAgent: "Desktop" }), "interactive");
+});
 
 function installMinimalStartGraph(engine) {
   engine.buildGraph = () => {

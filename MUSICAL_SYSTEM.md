@@ -1,10 +1,10 @@
 # Infinite Techno Musical System
 
-Status: `2.3.1` resident-open-hat, pulse-timbre, and structured-light implementation
-candidate; deterministic and browser/audio
+Status: `2.4.0` pattern-informed rhythm-relation, resident-open-hat,
+pulse-timbre, and structured-light implementation candidate; deterministic and browser/audio
 validation remain separate from listening, soak, deployment, and
 public-acceptance gates
-Generator version: `2.3.1` (`2.3.1` material-state schema)
+Generator version: `2.4.0` (`2.4.0` material-state schema)
 Primary product: music  
 Quantum role: visual and poetic contour only
 
@@ -69,6 +69,58 @@ every pair of the five settled Vibe endpoints on one trajectory; that result doe
 validate the rewritten material planner. In-flight Vibe requests still morph over
 64–128 bars rather than replacing Track DNA.
 
+### Reference-listening tendencies
+
+The development-only listener under `tools/reference-listener/` analyzes exact,
+hashed interior excerpts and real engine renders. It combines inferred beat/bar
+structure, groove profiles, spectral and spatial measurements, recurrence and
+phrase motion, Demucs-estimated drums/bass/remaining stems, pooled MERT-95M music
+representations, and pooled CLAP audio/text representations. Raw reference audio,
+derived stems, and model caches are not product or repository assets.
+
+Three 72-second windows at 20%, 50%, and 80% of each supplied set produced
+different aggregate signatures. The Ann Clue windows were about `127.8 BPM`, had
+the strongest bar repeat (`0.60`) and phrase-energy arc (`0.21`), and the least
+timbral change (`0.13`). Dixon was slower (`122.3 BPM`), denser in inferred onsets
+(`3.43` per beat), brighter (`3010 Hz` median centroid), wider in the supplied
+recording, and more harmonically active (`0.73`). Sven Väth was fastest (about
+`131.9 BPM`), had the strongest offbeat-high profile (`1.36`), lower bar repeat
+(`0.42`), and much greater timbral change (`0.61`). Recording loudness and Sven's
+near-mono source image remain excluded from similarity because they are likely
+capture/mastering properties rather than transferable composition rules.
+
+The runtime does not expose artist presets. Each trajectory instead selects one of
+three seed-derived abstract priors and recombines it with all existing Track DNA,
+Vibe, form, and resident-material choices:
+
+| Tendency | Transferable behavior |
+| --- | --- |
+| `patient-pressure` | slower mutation, a stronger planned upper-detail contour, resident pressure, and restrained syncopation |
+| `spatial-weave` | a slower tempo envelope, denser syncopated detail, more harmonic/texture entrances, and greater effect space |
+| `kinetic-mutation` | faster pressure, stronger offbeat articulation, brighter secondary percussion, and more timbral turnover with a flatter loudness arc |
+
+The tendency changes biases and event opportunities, never an onset mask, melody,
+sample, recording, or fixed arrangement. Upper-detail energy follows a bounded
+`0.78–1.26` eight-bar contour derived from current form direction, motif identity,
+and coordinate-addressed variation. Kick and bass remain on independent anchor
+buses. Reference calibration also opens the prior overly dark master filter,
+reduces rumble masking, raises native percussion/harmony audibility, and preserves
+the detail contour through kick ducking.
+
+Across the six exact same-seed full-mix fixtures shared by the before/after sets,
+the final calibration moved mean inferred tempo from `133.93` to `128.97 BPM`,
+onsets per beat from `2.09` to `2.27`, offbeat-high dominance from `0.34` to
+`0.98`, spectral centroid from `217` to `445 Hz`, and reference-scaled nearest
+distance from `2.8987` to `2.8835`. Mean MERT cosine increased by
+`0.0076–0.0086` and CLAP cosine by `0.0022–0.0234` across the three reference
+groups. Those are modest, fixture-bounded movements; the final measured phrase
+energy slope was `0.031` versus the reference-group range `0.139–0.214`, so
+audible phrase development remains an unresolved listening and measurement gate.
+
+These measurements and embeddings approximate functional listening; they do not
+establish artist intent, originality, professional-DJ quality, or human listening
+acceptance.
+
 ## Historical and practical basis
 
 The implemented grammar follows several recurring findings:
@@ -115,7 +167,7 @@ observation window about six minutes.
 
 ## Phrase-sequential generative material
 
-The `2.3.1` material planner is a second recurrent layer downstream of emergent
+The `2.4.0` material planner is a second recurrent layer downstream of emergent
 form. At every eight-bar boundary it accepts the trajectory seed, Track DNA, current
 form snapshot, Vibe profile settled for that phrase boundary, tonality, and previous
 material state. It plans and freezes the complete eight-bar symbolic phrase once.
@@ -126,6 +178,8 @@ Each rhythmic lane carries a persistent clock with:
 
 - loop length, target hit count, and a lane-specific grammar identity;
 - rotation and absolute phase origin;
+- for hats and secondary percussion, resident two-bar and quarter-pulse
+  relationship identities;
 - residence age;
 - bounded mutation history.
 
@@ -138,6 +192,11 @@ identities normally remain resident for two to eight phrases. An ordinary phrase
 mutate at most one structural lane; an earned climax, release, or recall may mutate
 at most two. Velocity, articulation, and a permitted one-shot fill do not count as
 structural clock mutations.
+
+Across kick renewal and structural mutation together, no phrase changes more than
+two resident identities. An ordinary kick renewal may therefore coexist with one
+secondary-lane mutation, while a two-lane climax mutation cannot also create a
+third identity change.
 
 The bounded loop domains are:
 
@@ -154,6 +213,44 @@ Straight Track DNA prefers near-16 clocks; triplet families prefer 6/9/12/18
 relationships; broken families prefer prime lengths; swung families prefer odd
 lengths; patient phenotypes hold material longer. These are weighted dialects, not
 fixed patterns.
+
+### Pattern-informed boundary
+
+The `2.4.0` rhythm prior is a small, authored feature model informed by a read-only
+review of public symbolic and audio-loop libraries. The immediate symbolic sample
+was the nine 32-step techno-labelled entries in GiantSteps'
+[`drum-pattern-datasets`](https://github.com/GiantSteps/drum-pattern-datasets): it
+showed a stable kick foundation, high first/second-bar stability in hats and
+percussion, sparse bar-two deviations, and track-specific choices about whether
+secondary hits layer with or answer the quarter-note pulse. That nine-pattern
+sample is directional evidence, not a genre-wide estimate. The repository exposes
+no explicit licence, so no event row, name, pattern, or file is copied into this
+project.
+
+The wider research set includes Hydrogen's individually licensed
+[`hydrogen-drumkits`](https://github.com/hydrogen-music/hydrogen-drumkits), the
+CC-BY-4.0 [Groove MIDI Dataset](https://magenta.withgoogle.com/datasets/groove),
+and the CC-BY-4.0 [WaivOps EDM-TECH corpus](https://zenodo.org/records/17198251).
+Those sources motivate later velocity, microtiming, and audio-transcription work;
+their MIDI, XML, metadata, samples, and waveforms are not runtime or repository
+assets here.
+
+Only aggregate ideas are retained in code. A resident hats or percussion clock
+chooses one of four two-bar relations—clock-locked, one late answer, one
+counter-shift, or one second-bar breath—and one of three pulse relations—independent,
+layered with the quarter pulse, or answering it. The authored weights favour
+stability. A relation may change no steps on the first bar of a cell and at most
+one onset on the answer bar; a relocation therefore changes at most two Boolean
+steps. It remains attached to the clock across phrases and observation windows.
+No runtime lookup, corpus playback, sample loading, model training, nearest-source
+retrieval, or source-pattern fallback exists.
+
+The structural profile now records two-bar delta shape and second-bar density
+balance as well as step, gap, and phrase density. A newly mutated hats or
+percussion identity is rejected if it changes fewer than two emitted steps from
+the prior phrase. This source-independent originality guard prevents identity-only
+rerolls while deliberate `repeat` and `recall` remain legal. It is not evidence
+that generated audio is unprecedented or perceptually distinct from every work.
 
 The open hat is trustworthy vocabulary, not a permanent watermark. Its mode and
 variant belong to the resident hats-clock identity, so a full classic offbeat,
@@ -197,12 +294,12 @@ safety bounds. Eligible candidates receive normalized scores:
 | Motif and call/response continuity | 14% |
 | Novelty against recent phrases | 12% |
 | Orchestration and spectral budget | 10% |
-| Polymetric phase interest | 8% |
+| Polymetric phase and multi-bar relation interest | 8% |
 
 Only candidates scoring at least `0.55` and within `0.20` of the best remain in the
 initial selection pool. The planner greedily removes candidates closer than `0.045`
-in emitted rhythm/melody topology before a named seed coordinate samples a softmax
-over the remaining pool. All twelve constructed candidates retain different core
+in emitted rhythm/melody topology—including two-bar delta shape—before a named seed
+coordinate samples a softmax over the remaining pool. All twelve constructed candidates retain different core
 signatures. Temperature stays between `0.35` and `0.85` according to novelty debt
 and trajectory phenotype. Candidate construction and selection are
 coordinate-addressed and replayable: the same seed plus the same intent history
@@ -414,11 +511,16 @@ the remaining instruments wait. See
 An earned **Echo Ascent** is a phrase-frozen transition foreground, not a global
 delay preset. Rising tension, anticipation, density, readiness, a named seed
 coordinate, and an eight-phrase cooldown authorize one of three weighted variants:
-restrained dotted-eighth ascent, widening eighth-note ascent, or a rare late
-dotted-eighth throw. The selected variant adds a bounded four-bar or two-bar contour
-of bright rim, metallic, shaker, and late ride articulations. The council limits
-other optional layers to one and removes competing high-register advanced parts for
-that phrase. Persistent percussion clocks are not mutated by the transition part.
+restrained, widening, or a rarer late throw. The variant controls the broad span and
+intensity envelope; it no longer owns a literal hit array. Each occurrence rotates
+through one of eight contour identities and transforms the current resident
+percussion, FM, modal, String, or vacated-bass material into a bounded bright rim,
+metallic, shaker, and late-ride ascent. Mirror, shift, drift, delay, feedback, wet
+level, send, voice allocation, and stereo alternation are frozen per occurrence.
+Successive Echo Ascents in one trajectory cannot reuse the immediately prior
+contour identity. The council limits other optional layers to one and removes
+competing high-register advanced parts for that phrase. Persistent material clocks
+are read but not mutated by the transition part.
 
 Ordinary council phrases use one advanced engine and at most two advanced starts per
 bar. Sparse phrases use at most one. Intentional rests use none. A developed

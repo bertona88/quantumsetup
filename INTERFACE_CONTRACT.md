@@ -27,8 +27,10 @@ indirect timbre preference, not an instrument selector or mixer.
 
 Echo Ascent is likewise generator-owned. It may appear only after an emergent
 phrase-state authorization and consists of a coordinated bright-percussion density
-contour plus bounded stereo motion. It introduces no new mode, button, effect-send
-control, or scheduled section type.
+contour derived from resident material plus bounded stereo motion. Eight contour
+identities rotate without immediate replay inside a trajectory; the user never
+selects their hit arrays. It introduces no new mode, button, effect-send control,
+or scheduled section type.
 
 The opening viewport is an immersive visual field. Its only visible interaction is
 the icon-only transport gesture required to start browser audio; readouts and music
@@ -124,12 +126,12 @@ state-dependent lens scores. It normally exposes one advanced voice, may expose 
 for intentional rest, and admits a second only when the current phenotype and
 recurrent phrase state justify dialogue. It never exposes all three together.
 
-Persistent Euclidean secondary-lane clocks, polymetric phase, material gestures, candidate
-selection, curated kick-phrase state, bass lineage, independent kick-family timbre,
+Persistent secondary-lane clocks, resident two-bar/pulse relationships, polymetric
+phase, material gestures, candidate selection, curated kick-phrase state, bass lineage, independent kick-family timbre,
 physical kick parameters, duck depths, and rumble settings remain generator-owned.
-Cooldown-earned Echo Ascent variant, high-percussion articulations, and stereo
-cross-feedback parameters also remain generator-owned and appear in the passive
-phrase instrumentation union when active.
+Cooldown-earned Echo Ascent variant, rotating resident-material contour,
+high-percussion articulations, and stereo cross-feedback parameters also remain
+generator-owned and appear in the passive phrase instrumentation union when active.
 The performance layer can trim rendered buses or bias future phrases, but never
 edits a frozen onset mask. The kick clock is always bar-aligned four-on-the-floor;
 its anchor, turnaround-pickup, breathing, and rolling-pressure phrase families are
@@ -176,7 +178,7 @@ After startup:
 
 ```js
 window.QuantumTechno = Object.freeze({
-  version: "2.2.1",
+  version: "2.4.0",
   getSnapshot,
   requestVibe,
   requestTonality,
@@ -192,8 +194,8 @@ tonality, derived form label, 192-bar observation-window index, active transitio
 summary, current ensemble scene, current instrumentation, council verdict, bounded
 taste summary, advanced-synth availability/voice statistics, active/target
 performance state, and a frozen `material` summary. The material summary contains
-the current gesture, motif
-lineage, bounded lane-clock summaries, selected-candidate score, candidate count,
+the current gesture, motif lineage, bounded lane-clock summaries—including
+resident open-hat, two-bar relation, pulse relation, and relation variant—selected-candidate score, candidate count,
 sampling temperature, and curated kick-phrase status. It is diagnostic telemetry, not a
 control surface. The object is a local application API, not a versioned Setup
 Universe interface.

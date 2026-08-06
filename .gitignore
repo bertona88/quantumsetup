@@ -1,3 +1,9 @@
 .DS_Store
 node_modules/
 prototype/node_modules/
+tools/reference-listener/.venv/
+tools/reference-listener/__pycache__/
+tools/reference-listener/reference_sets.local.json
+artifacts/reference-listener/audio/
+artifacts/reference-listener/stems/
+artifacts/reference-listener/ml-cache/

@@ -1,0 +1,9 @@
+{
+  "sets": [
+    {
+      "id": "artist-set",
+      "label": "Artist live set",
+      "path": "/absolute/path/to/artist-set.m4a"
+    }
+  ]
+}

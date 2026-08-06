@@ -1,7 +1,7 @@
 import {
   CanvasSpectrumMountainFallback,
   SpectrumMountainRenderer,
-} from "./spectrum-mountain.js?v=2.3.1-structured-light-3";
+} from "./spectrum-mountain.js?v=2.4.0-pattern-priors-1";
 import { clamp } from "./techno-model.js";
 
 export const VISUAL_QUALITY_LEVELS = Object.freeze([

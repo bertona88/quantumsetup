@@ -1,0 +1,481 @@
+{
+  "schema": "quantumsetup.embedding-comparison.v1",
+  "adapter_version": "0.1.0",
+  "comparisons": [
+    {
+      "candidate": "quantumsetup-00000000-bar-128-full.wav",
+      "mert": [
+        {
+          "reference": "ann-clue-cercle-2024--p20.wav",
+          "cosine": 0.814622
+        },
+        {
+          "reference": "dixon-cercle-2024--p20.wav",
+          "cosine": 0.792122
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p50.wav",
+          "cosine": 0.773001
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p80.wav",
+          "cosine": 0.769458
+        },
+        {
+          "reference": "dixon-cercle-2024--p80.wav",
+          "cosine": 0.74224
+        },
+        {
+          "reference": "dixon-cercle-2024--p50.wav",
+          "cosine": 0.729507
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p80.wav",
+          "cosine": 0.709421
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p20.wav",
+          "cosine": 0.705225
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p50.wav",
+          "cosine": 0.672042
+        }
+      ],
+      "clap": [
+        {
+          "reference": "sven-vath-time-warp-2023--p80.wav",
+          "cosine": 0.693633
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p80.wav",
+          "cosine": 0.687032
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p20.wav",
+          "cosine": 0.680673
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p50.wav",
+          "cosine": 0.666121
+        },
+        {
+          "reference": "dixon-cercle-2024--p20.wav",
+          "cosine": 0.643533
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p50.wav",
+          "cosine": 0.621264
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p20.wav",
+          "cosine": 0.619116
+        },
+        {
+          "reference": "dixon-cercle-2024--p50.wav",
+          "cosine": 0.584375
+        },
+        {
+          "reference": "dixon-cercle-2024--p80.wav",
+          "cosine": 0.578551
+        }
+      ]
+    },
+    {
+      "candidate": "quantumsetup-00000000-bar-32-full.wav",
+      "mert": [
+        {
+          "reference": "ann-clue-cercle-2024--p20.wav",
+          "cosine": 0.824179
+        },
+        {
+          "reference": "dixon-cercle-2024--p20.wav",
+          "cosine": 0.80987
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p80.wav",
+          "cosine": 0.784065
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p50.wav",
+          "cosine": 0.782992
+        },
+        {
+          "reference": "dixon-cercle-2024--p80.wav",
+          "cosine": 0.763202
+        },
+        {
+          "reference": "dixon-cercle-2024--p50.wav",
+          "cosine": 0.748556
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p80.wav",
+          "cosine": 0.729444
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p20.wav",
+          "cosine": 0.708606
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p50.wav",
+          "cosine": 0.691791
+        }
+      ],
+      "clap": [
+        {
+          "reference": "ann-clue-cercle-2024--p80.wav",
+          "cosine": 0.686486
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p80.wav",
+          "cosine": 0.684659
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p20.wav",
+          "cosine": 0.684571
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p50.wav",
+          "cosine": 0.663638
+        },
+        {
+          "reference": "dixon-cercle-2024--p20.wav",
+          "cosine": 0.662758
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p20.wav",
+          "cosine": 0.648596
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p50.wav",
+          "cosine": 0.626576
+        },
+        {
+          "reference": "dixon-cercle-2024--p50.wav",
+          "cosine": 0.606527
+        },
+        {
+          "reference": "dixon-cercle-2024--p80.wav",
+          "cosine": 0.606488
+        }
+      ]
+    },
+    {
+      "candidate": "quantumsetup-6e789e6a-bar-128-full.wav",
+      "mert": [
+        {
+          "reference": "dixon-cercle-2024--p20.wav",
+          "cosine": 0.791656
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p20.wav",
+          "cosine": 0.784425
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p50.wav",
+          "cosine": 0.733865
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p20.wav",
+          "cosine": 0.724101
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p80.wav",
+          "cosine": 0.720519
+        },
+        {
+          "reference": "dixon-cercle-2024--p80.wav",
+          "cosine": 0.674239
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p80.wav",
+          "cosine": 0.673999
+        },
+        {
+          "reference": "dixon-cercle-2024--p50.wav",
+          "cosine": 0.646826
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p50.wav",
+          "cosine": 0.603299
+        }
+      ],
+      "clap": [
+        {
+          "reference": "ann-clue-cercle-2024--p80.wav",
+          "cosine": 0.616088
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p20.wav",
+          "cosine": 0.603222
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p80.wav",
+          "cosine": 0.60294
+        },
+        {
+          "reference": "dixon-cercle-2024--p20.wav",
+          "cosine": 0.599932
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p20.wav",
+          "cosine": 0.589078
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p50.wav",
+          "cosine": 0.588392
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p50.wav",
+          "cosine": 0.580606
+        },
+        {
+          "reference": "dixon-cercle-2024--p80.wav",
+          "cosine": 0.54577
+        },
+        {
+          "reference": "dixon-cercle-2024--p50.wav",
+          "cosine": 0.521258
+        }
+      ]
+    },
+    {
+      "candidate": "quantumsetup-6e789e6a-bar-32-full.wav",
+      "mert": [
+        {
+          "reference": "dixon-cercle-2024--p20.wav",
+          "cosine": 0.769136
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p20.wav",
+          "cosine": 0.748378
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p50.wav",
+          "cosine": 0.707973
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p80.wav",
+          "cosine": 0.702161
+        },
+        {
+          "reference": "dixon-cercle-2024--p80.wav",
+          "cosine": 0.69383
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p80.wav",
+          "cosine": 0.673645
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p20.wav",
+          "cosine": 0.661793
+        },
+        {
+          "reference": "dixon-cercle-2024--p50.wav",
+          "cosine": 0.649114
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p50.wav",
+          "cosine": 0.600834
+        }
+      ],
+      "clap": [
+        {
+          "reference": "dixon-cercle-2024--p20.wav",
+          "cosine": 0.598348
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p80.wav",
+          "cosine": 0.586723
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p20.wav",
+          "cosine": 0.57801
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p50.wav",
+          "cosine": 0.566808
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p20.wav",
+          "cosine": 0.564239
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p80.wav",
+          "cosine": 0.54261
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p50.wav",
+          "cosine": 0.54244
+        },
+        {
+          "reference": "dixon-cercle-2024--p80.wav",
+          "cosine": 0.535689
+        },
+        {
+          "reference": "dixon-cercle-2024--p50.wav",
+          "cosine": 0.49967
+        }
+      ]
+    },
+    {
+      "candidate": "quantumsetup-d81a8d2b-bar-128-full.wav",
+      "mert": [
+        {
+          "reference": "ann-clue-cercle-2024--p20.wav",
+          "cosine": 0.821058
+        },
+        {
+          "reference": "dixon-cercle-2024--p20.wav",
+          "cosine": 0.786727
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p80.wav",
+          "cosine": 0.775597
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p50.wav",
+          "cosine": 0.773451
+        },
+        {
+          "reference": "dixon-cercle-2024--p80.wav",
+          "cosine": 0.751365
+        },
+        {
+          "reference": "dixon-cercle-2024--p50.wav",
+          "cosine": 0.7425
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p80.wav",
+          "cosine": 0.721365
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p20.wav",
+          "cosine": 0.697551
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p50.wav",
+          "cosine": 0.682525
+        }
+      ],
+      "clap": [
+        {
+          "reference": "ann-clue-cercle-2024--p80.wav",
+          "cosine": 0.686475
+        },
+        {
+          "reference": "dixon-cercle-2024--p20.wav",
+          "cosine": 0.674677
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p80.wav",
+          "cosine": 0.66761
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p20.wav",
+          "cosine": 0.667202
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p20.wav",
+          "cosine": 0.663354
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p50.wav",
+          "cosine": 0.660442
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p50.wav",
+          "cosine": 0.638925
+        },
+        {
+          "reference": "dixon-cercle-2024--p50.wav",
+          "cosine": 0.615946
+        },
+        {
+          "reference": "dixon-cercle-2024--p80.wav",
+          "cosine": 0.611495
+        }
+      ]
+    },
+    {
+      "candidate": "quantumsetup-d81a8d2b-bar-32-full.wav",
+      "mert": [
+        {
+          "reference": "ann-clue-cercle-2024--p20.wav",
+          "cosine": 0.822377
+        },
+        {
+          "reference": "dixon-cercle-2024--p20.wav",
+          "cosine": 0.791754
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p80.wav",
+          "cosine": 0.779939
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p50.wav",
+          "cosine": 0.777519
+        },
+        {
+          "reference": "dixon-cercle-2024--p80.wav",
+          "cosine": 0.769715
+        },
+        {
+          "reference": "dixon-cercle-2024--p50.wav",
+          "cosine": 0.759942
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p80.wav",
+          "cosine": 0.729353
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p50.wav",
+          "cosine": 0.697734
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p20.wav",
+          "cosine": 0.689667
+        }
+      ],
+      "clap": [
+        {
+          "reference": "dixon-cercle-2024--p20.wav",
+          "cosine": 0.687251
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p80.wav",
+          "cosine": 0.684149
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p20.wav",
+          "cosine": 0.6684
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p20.wav",
+          "cosine": 0.658532
+        },
+        {
+          "reference": "ann-clue-cercle-2024--p50.wav",
+          "cosine": 0.653159
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p50.wav",
+          "cosine": 0.649292
+        },
+        {
+          "reference": "sven-vath-time-warp-2023--p80.wav",
+          "cosine": 0.640079
+        },
+        {
+          "reference": "dixon-cercle-2024--p80.wav",
+          "cosine": 0.63152
+        },
+        {
+          "reference": "dixon-cercle-2024--p50.wav",
+          "cosine": 0.614963
+        }
+      ]
+    }
+  ],
+  "claim_boundary": "Cosine proximity is model evidence only; it is neither a quality score nor human acceptance."
+}

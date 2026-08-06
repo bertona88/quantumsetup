@@ -405,6 +405,7 @@ function initialState(seed) {
     echoAscentCooldown: Math.floor(
       coordinate(seed, 0, "origin-echo-ascent-cooldown") * 7,
     ),
+    echoAscentSerial: 0,
     dialogueCooldown: 0,
     lastEnergyDelta: 0,
     lastTensionDelta: 0,
@@ -1151,11 +1152,12 @@ function advanceState(state, seed, phraseIndex) {
   );
   const echoAscentVariant = !allowEchoAscent
     ? null
-    : echoAscentVariantCoordinate < 0.7
+    : echoAscentVariantCoordinate < 0.52
       ? "restrained"
-      : echoAscentVariantCoordinate < 0.93
+      : echoAscentVariantCoordinate < 0.85
         ? "widening"
         : "late-throw";
+  const echoAscentSerial = state.echoAscentSerial + Number(allowEchoAscent);
   const echoAscentCooldown = allowEchoAscent
     ? FORM_RULES.echoAscent.cooldownPhrases
     : availableEchoAscentCooldown;
@@ -1234,6 +1236,7 @@ function advanceState(state, seed, phraseIndex) {
     riserCooldown,
     allowEchoAscent,
     echoAscentVariant,
+    echoAscentSerial,
     echoAscentReadiness,
     echoAscentCooldown,
     kickPolicy,
@@ -1328,6 +1331,7 @@ function advanceState(state, seed, phraseIndex) {
       fillCooldown,
       riserCooldown,
       echoAscentCooldown,
+      echoAscentSerial,
       dialogueCooldown,
       lastEnergyDelta: energyDelta,
       lastTensionDelta: tensionDelta,
