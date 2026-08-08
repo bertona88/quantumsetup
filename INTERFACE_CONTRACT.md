@@ -1,6 +1,6 @@
 # Interface Contract
 
-Browser API contract: `window.QuantumTechno/2.2.1`
+Browser API contract: `window.QuantumTechno/2.4.0`
 Scope: one audio-first generative techno instrument
 Release boundary: deployed production interface from `b16c5dc`; local and public
 focused performance smoke recorded; full browser, soak, listening, render, and
@@ -20,6 +20,8 @@ The interface exposes only high-level musical direction:
 - Direction: Energy, Density, Brightness, Space, Swing, Acid, Bass Presence,
   Change Rate, Breakdown Depth, and Bassline Character;
 - Signal Deck: Hear, Pass, or Keep one generated timbre while transport is stopped.
+- Claim This Moment: save the exact running coordinate and phrase cast in a
+  device-local offline ledger.
 
 Tempo, note masks, effect sends, fades, bridges, fills, detailed arrangement, and
 individual synthesis parameters remain generator-owned. Signal Deck feedback is an
@@ -32,10 +34,12 @@ identities rotate without immediate replay inside a trajectory; the user never
 selects their hit arrays. It introduces no new mode, button, effect-send control,
 or scheduled section type.
 
-The opening viewport is an immersive visual field. Its only visible interaction is
-the icon-only transport gesture required to start browser audio; readouts and music
-controls begin below the fold and appear through ordinary scrolling. Once audio is
-running, the opening transport glyph withdraws and the visual owns that viewport.
+The opening viewport is an immersive visual field. Before playback, its only visible
+interaction is the icon-only transport gesture required to start browser audio;
+readouts and music controls begin below the fold and appear through ordinary
+scrolling. Once audio is running, the opening transport glyph withdraws and a
+single white `Claim This Moment` action appears over the spectrum without pausing,
+navigating, or changing the music.
 
 The visual is one continuously evolving spectrum landscape, not a slideshow of
 scenes or a stack of visualizer presets. A native WebGL2 renderer resamples the live
@@ -172,6 +176,33 @@ generator-version mismatch falls back to the full trajectory ID without claiming
 exact moment replay. Matching planner state does not promise sample-identical output
 across browsers, audio devices, sample rates, or later generator versions.
 
+## Device-local claim
+
+While the set is running, one tap freezes the latest hardware-time audible step
+event before asynchronous hashing and stores a bounded record in local browser
+storage. The record includes
+the installation-scoped random identity, trajectory, generator version, bar, step,
+phrase fingerprint, core signature, ensemble scene, and sorted instrumentation
+identifiers. The displayed `LOCAL-…` code is deterministic for the same installation
+and canonical moment, so a repeated tap on that exact coordinate is idempotent.
+
+The ledger contains at most 256 records and falls back to page-lifetime memory when
+storage throws. The interface labels that fallback `SESSION ONLY`; it does not claim
+that an in-memory record survived a reload. The ledger is not a blockchain
+transaction, transferable token, legal-rights
+grant, global timestamp authority, or proof that no other device encountered the
+same material first. Clearing site data removes the persistent installation identity
+and claims.
+
+## Install and offline shell
+
+The page advertises a standalone web-app manifest and installs a same-origin service
+worker after load. Once that worker has activated and its app shell has cached
+successfully, the interface, generator modules, AudioWorklet, icons, and local claim
+ledger can load without a network connection. The footer distinguishes installed,
+offline-ready, and currently offline states. The first uncached visit still requires
+network access, and browser or operating-system eviction can remove cached assets.
+
 ## Global object
 
 After startup:
@@ -186,6 +217,8 @@ window.QuantumTechno = Object.freeze({
   setDirectionControl,
   setBassCharacter,
   getShareUrl,
+  claimCurrentMoment,
+  getLocalClaims,
 });
 ```
 
@@ -219,6 +252,8 @@ individual synthesis controls and are not announced as a repeating live region.
 - audio failure produces readable status;
 - missing Canvas 2D does not disable audio;
 - reduced-motion preference removes decorative motion where practical.
+- the claim action is keyboard accessible, reports success or failure in the live
+  region, and never makes audio failure depend on claim storage or Web Crypto.
 
 ## Lifecycle limitation
 

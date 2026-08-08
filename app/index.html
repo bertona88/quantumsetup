@@ -8,7 +8,13 @@
       content="An endlessly evolving, locally synthesized techno set with slow musical transitions."
     />
     <meta name="theme-color" content="#070609" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Infinite Techno" />
     <title>Infinite Techno — QuantumSetup</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/quantumsetup-mark.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/quantumsetup-192.png" />
     <link rel="stylesheet" href="./styles.css?v=2.2.0-spectrum-mountain" />
   </head>
   <body>
@@ -31,6 +37,20 @@
         >
           <span aria-hidden="true">▶</span>
         </button>
+        <section class="moment-claim" aria-label="Device-local moment claim">
+          <button
+            class="moment-claim-button"
+            id="claim-moment-button"
+            type="button"
+            data-state="idle"
+            aria-describedby="claim-meta"
+            disabled
+          >
+            <span id="claim-moment-label">CLAIM THIS MOMENT</span>
+            <strong id="claim-token-code">LOCAL TOKEN</strong>
+            <small id="claim-meta">OFFLINE LEDGER · THIS DEVICE</small>
+          </button>
+        </section>
         <span class="scroll-cue" aria-hidden="true"><i></i></span>
       </section>
 
@@ -338,6 +358,7 @@
           </button>
         </div>
         <p>
+          <span class="offline-status" id="offline-status">PREPARING OFFLINE</span> ·
           SYNTHESIZED LOCALLY IN YOUR BROWSER · START WITH DEVICE VOLUME LOW ·
           THE QUANTUM CONTOUR IS AN ARTISTIC METAPHOR, NOT A PHYSICS SIMULATION
         </p>
@@ -350,5 +371,12 @@
       <div class="sr-only" id="live-region" aria-live="polite"></div>
     </main>
     <script type="module" src="./main.js?v=2.4.0-reference-listener-3"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>

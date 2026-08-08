@@ -42,6 +42,10 @@ quantum-random.
   state. A compatible link reconstructs that deterministic history and waits for a
   fresh user gesture before continuing audio. The visible trajectory label remains
   abbreviated; the full ID stays in the URL.
+- **Claim this moment** hashes the exact running bar, step, phrase identity, scene,
+  and sorted instrument cast into an installation-scoped `LOCAL-…` code. The
+  bounded ledger stays on this device and works offline; it is not a blockchain or
+  ownership record.
 - **Signal Deck** previews one stopped-transport timbre and records an explicit
   local Pass/Keep preference by button, keyboard, or swipe.
 
@@ -50,6 +54,13 @@ bars according to profile distance. Major/minor changes use a neutral suspended
 field between the two tonal families rather than replacing the scale immediately.
 Direction changes begin at the next phrase and glide for eight bars. EQ responds
 immediately; cuts enter at the next beat and do not rewrite planned notes.
+
+The app includes a standalone manifest and versioned service-worker shell. After one
+successful online activation, every runtime module, the AudioWorklet, styles, and
+icons are available for offline reload. Clean launches sample a fresh trajectory;
+only an explicit seed or Share Moment URL requests deterministic replay. Visual
+quality can step down to a paced economy tier under sustained render pressure or
+optional low-power device signals without changing the audio plan.
 
 ## Musical architecture
 

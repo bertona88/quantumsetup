@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   AdaptiveVisualQuality,
   VISUAL_QUALITY_LEVELS,
+  initialVisualQualityForDevice,
+  maximumVisualQualityForBattery,
 } from "./quantum-visual.js";
 
 function feed(controller, {
@@ -29,11 +31,14 @@ function feed(controller, {
 }
 
 test("quality levels trade pixel and shadow cost monotonically", () => {
-  const [low, balanced, high] = VISUAL_QUALITY_LEVELS;
+  const [economy, low, balanced, high] = VISUAL_QUALITY_LEVELS;
+  assert.ok(economy.pixelRatioScale < low.pixelRatioScale);
   assert.ok(low.pixelRatioScale < balanced.pixelRatioScale);
   assert.ok(balanced.pixelRatioScale < high.pixelRatioScale);
+  assert.ok(economy.shadowSteps < low.shadowSteps);
   assert.ok(low.shadowSteps < balanced.shadowSteps);
   assert.ok(balanced.shadowSteps < high.shadowSteps);
+  assert.ok(economy.frameIntervalMs > low.frameIntervalMs);
 });
 
 test("sustained headroom upgrades slowly", () => {
@@ -43,7 +48,7 @@ test("sustained headroom upgrades slowly", () => {
   assert.equal(controller.quality.id, "high");
 });
 
-test("sustained missed frames downgrade quickly and can continue to low", () => {
+test("sustained missed frames downgrade quickly and can continue to economy", () => {
   const controller = new AdaptiveVisualQuality({ initialQuality: "high" });
   const warmup = feed(controller, {
     durationMs: 2000,
@@ -59,12 +64,20 @@ test("sustained missed frames downgrade quickly and can continue to low", () => 
   assert.equal(first.change?.id, "balanced");
   const second = feed(controller, {
     startAt: first.now,
-    durationMs: 1500,
+    durationMs: 2800,
     frameIntervalMs: 30,
     renderMs: 15,
   });
   assert.equal(second.change?.id, "low");
   assert.equal(controller.quality.id, "low");
+  const third = feed(controller, {
+    startAt: second.now,
+    durationMs: 3000,
+    frameIntervalMs: 50,
+    renderMs: 24,
+  });
+  assert.equal(third.change?.id, "economy");
+  assert.equal(controller.quality.id, "economy");
 });
 
 test("a renderer that starts slow is not mistaken for a slow display", () => {
@@ -90,4 +103,24 @@ test("background-sized pauses do not lower quality", () => {
     });
   }
   assert.equal(controller.quality.id, "high");
+});
+
+test("device signals choose a conservative initial visual budget", () => {
+  assert.equal(initialVisualQualityForDevice(), "balanced");
+  assert.equal(initialVisualQualityForDevice({ hardwareConcurrency: 4 }), "low");
+  assert.equal(initialVisualQualityForDevice({ deviceMemory: 2 }), "economy");
+  assert.equal(initialVisualQualityForDevice({ saveData: true }), "economy");
+  assert.equal(initialVisualQualityForDevice({ reducedMotion: true }), "economy");
+});
+
+test("battery state caps upgrades without affecting audio", () => {
+  assert.equal(maximumVisualQualityForBattery({ charging: false, level: 0.1 }), "economy");
+  assert.equal(maximumVisualQualityForBattery({ charging: false, level: 0.25 }), "low");
+  assert.equal(maximumVisualQualityForBattery({ charging: false, level: 0.8 }), "high");
+
+  const controller = new AdaptiveVisualQuality({ initialQuality: "high" });
+  assert.equal(controller.setMaximumQuality("economy")?.id, "economy");
+  const { change } = feed(controller, { durationMs: 12000, frameIntervalMs: 40, renderMs: 3 });
+  assert.equal(change, null);
+  assert.equal(controller.quality.id, "economy");
 });

@@ -18,6 +18,7 @@ globalThis.window = {
 
 const {
   createShareMomentUrl,
+  clearReplayStateUrl,
   decodeMomentCapsule,
   encodeMomentCapsule,
   normalizeMomentCapsule,
@@ -115,6 +116,19 @@ test("share URLs expose the full current seed and contain only replay state", ()
   assert.equal(url.searchParams.get("utm_source"), null);
   assert.equal(url.searchParams.get("seed"), CURRENT_SEED);
   assert.ok(decodeMomentCapsule(url.searchParams.get("moment")));
+});
+
+test("leaving replay mode removes seed and moment without dropping unrelated URL state", () => {
+  const url = new URL(
+    clearReplayStateUrl(
+      "https://quantumsetup.ai/?seed=abc123&moment=v1.fake&utm_source=install#controls",
+    ),
+  );
+
+  assert.equal(url.searchParams.get("seed"), null);
+  assert.equal(url.searchParams.get("moment"), null);
+  assert.equal(url.searchParams.get("utm_source"), "install");
+  assert.equal(url.hash, "#controls");
 });
 
 test("invalid or incomplete capsules are rejected without throwing on decode", () => {

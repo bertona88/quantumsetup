@@ -6,11 +6,20 @@ import { clamp } from "./techno-model.js";
 
 export const VISUAL_QUALITY_LEVELS = Object.freeze([
   Object.freeze({
+    id: "economy",
+    pixelRatioScale: 0.58,
+    desktopPixelRatioCap: 0.82,
+    mobilePixelRatioCap: 0.72,
+    shadowSteps: 2,
+    frameIntervalMs: 40,
+  }),
+  Object.freeze({
     id: "low",
     pixelRatioScale: 0.72,
     desktopPixelRatioCap: 1.05,
     mobilePixelRatioCap: 0.9,
     shadowSteps: 4,
+    frameIntervalMs: 30,
   }),
   Object.freeze({
     id: "balanced",
@@ -18,6 +27,7 @@ export const VISUAL_QUALITY_LEVELS = Object.freeze([
     desktopPixelRatioCap: 1.6,
     mobilePixelRatioCap: 1.25,
     shadowSteps: 10,
+    frameIntervalMs: 0,
   }),
   Object.freeze({
     id: "high",
@@ -25,12 +35,39 @@ export const VISUAL_QUALITY_LEVELS = Object.freeze([
     desktopPixelRatioCap: 2,
     mobilePixelRatioCap: 1.7,
     shadowSteps: 14,
+    frameIntervalMs: 0,
   }),
 ]);
 
 function qualityIndex(id) {
   const index = VISUAL_QUALITY_LEVELS.findIndex((quality) => quality.id === id);
-  return index < 0 ? 1 : index;
+  return index < 0 ? 2 : index;
+}
+
+export function initialVisualQualityForDevice({
+  reducedMotion = false,
+  saveData = false,
+  hardwareConcurrency,
+  deviceMemory,
+} = {}) {
+  if (reducedMotion || saveData) return "economy";
+  const cores = Number(hardwareConcurrency);
+  const memory = Number(deviceMemory);
+  if ((Number.isFinite(cores) && cores <= 2) || (Number.isFinite(memory) && memory <= 2)) {
+    return "economy";
+  }
+  if ((Number.isFinite(cores) && cores <= 4) || (Number.isFinite(memory) && memory <= 4)) {
+    return "low";
+  }
+  return "balanced";
+}
+
+export function maximumVisualQualityForBattery({ charging = true, level = 1 } = {}) {
+  const normalizedLevel = clamp(Number(level) || 0, 0, 1);
+  if (charging) return "high";
+  if (normalizedLevel <= 0.15) return "economy";
+  if (normalizedLevel <= 0.3) return "low";
+  return "high";
 }
 
 export class AdaptiveVisualQuality {
@@ -43,6 +80,7 @@ export class AdaptiveVisualQuality {
     upgradeCooldownMs = 8000,
   } = {}) {
     this.index = qualityIndex(initialQuality);
+    this.maximumIndex = VISUAL_QUALITY_LEVELS.length - 1;
     this.warmupMs = warmupMs;
     this.downgradeMs = downgradeMs;
     this.upgradeMs = upgradeMs;
@@ -63,6 +101,15 @@ export class AdaptiveVisualQuality {
     this.activeSince = null;
     this.badTimeMs = 0;
     this.goodTimeMs = 0;
+  }
+
+  setMaximumQuality(id = "high") {
+    this.maximumIndex = qualityIndex(id);
+    if (this.index <= this.maximumIndex) return null;
+    this.index = this.maximumIndex;
+    this.lastChangeAt = -Infinity;
+    this.resetObservation();
+    return this.quality;
   }
 
   observe({
@@ -88,7 +135,10 @@ export class AdaptiveVisualQuality {
 
     if (this.activeSince == null) {
       this.activeSince = timestamp;
-      this.baselineIntervalMs = Math.min(interval, 20);
+      this.baselineIntervalMs = Math.max(
+        Math.min(interval, 20),
+        this.quality.frameIntervalMs || 0,
+      );
       return null;
     }
 
@@ -97,7 +147,11 @@ export class AdaptiveVisualQuality {
     }
     if (timestamp - this.activeSince < this.warmupMs) return null;
 
-    const baseline = clamp(this.baselineIntervalMs, 6.5, 40);
+    const baseline = clamp(
+      Math.max(this.baselineIntervalMs, this.quality.frameIntervalMs || 0),
+      6.5,
+      50,
+    );
     const missedFrame = interval > baseline * 1.42;
     const expensiveRender = rendered && renderCost > baseline * 0.7;
     if (missedFrame || expensiveRender) {
@@ -120,19 +174,17 @@ export class AdaptiveVisualQuality {
     ) {
       this.index -= 1;
       this.lastChangeAt = timestamp;
-      this.badTimeMs = 0;
-      this.goodTimeMs = 0;
+      this.resetObservation();
       return this.quality;
     }
     if (
       this.goodTimeMs >= this.upgradeMs &&
-      this.index < VISUAL_QUALITY_LEVELS.length - 1 &&
+      this.index < this.maximumIndex &&
       timestamp - this.lastChangeAt >= this.upgradeCooldownMs
     ) {
       this.index += 1;
       this.lastChangeAt = timestamp;
-      this.badTimeMs = 0;
-      this.goodTimeMs = 0;
+      this.resetObservation();
       return this.quality;
     }
     return null;
@@ -140,7 +192,7 @@ export class AdaptiveVisualQuality {
 }
 
 export class QuantumPremonitionVisual {
-  constructor(canvas, { reducedMotion = false, quality = VISUAL_QUALITY_LEVELS[1] } = {}) {
+  constructor(canvas, { reducedMotion = false, quality = VISUAL_QUALITY_LEVELS[2] } = {}) {
     this.canvas = canvas;
     this.reducedMotion = reducedMotion;
     this.quality = quality;

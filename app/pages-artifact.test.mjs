@@ -7,8 +7,12 @@ import { fileURLToPath } from "node:url";
 const appDirectory = path.dirname(fileURLToPath(import.meta.url));
 const workflowPath = path.resolve(appDirectory, "../.github/workflows/pages.yml");
 const workflow = fs.readFileSync(workflowPath, "utf8");
+const serviceWorker = fs.readFileSync(path.join(appDirectory, "sw.js"), "utf8");
 const stagedModules = new Set(
   [...workflow.matchAll(/\bapp\/([\w.-]+\.js)\b/g)].map((match) => match[1]),
+);
+const stagedAssets = new Set(
+  [...workflow.matchAll(/\bapp\/([\w./-]+)/g)].map((match) => match[1]),
 );
 
 const importPattern =
@@ -43,4 +47,23 @@ test("Pages artifact includes every browser runtime module", () => {
   );
 
   assert.deepEqual(missingImports, []);
+});
+
+test("Pages staging configuration includes the complete offline precache", () => {
+  const sourceList = serviceWorker.match(
+    /const APP_SHELL_PATHS = Object\.freeze\(\[(?<paths>[\s\S]*?)\]\);/,
+  );
+  assert.ok(sourceList?.groups?.paths);
+  const precached = [
+    ...sourceList.groups.paths.matchAll(/["']\.\/([^"']*)["']/g),
+  ].map((match) => match[1] || "index.html");
+  const missing = precached.filter(
+    (asset) =>
+      ![...stagedAssets].some(
+        (staged) => asset === staged || asset.startsWith(`${staged}/`),
+      ),
+  );
+
+  assert.deepEqual(missing, []);
+  assert.ok(stagedAssets.has("sw.js"));
 });

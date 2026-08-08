@@ -50,6 +50,7 @@ jobs:
             app/generative-utils.js \
             app/trajectory-identity.js \
             app/moment-share.js \
+            app/local-claims.js \
             app/track-dna.js \
             app/synth-genomes.js \
             app/synth-dsp.js \
@@ -58,7 +59,10 @@ jobs:
             app/performance-controls.js \
             app/instrument-preview.js \
             app/signal-deck.js \
+            app/manifest.webmanifest \
+            app/sw.js \
             _site/
+          cp -R app/icons _site/icons
           cp prototype/robots.txt _site/robots.txt
 
       - name: Upload static site

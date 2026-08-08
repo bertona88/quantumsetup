@@ -5,7 +5,9 @@
 - Live: https://quantumsetup.ai/ (published from `main` through GitHub Pages)
 - Audio: synthesized locally with the Web Audio API; no samples or network calls
 - Interaction: one music surface with Vibe, Harmonic Gravity, live performance
-  controls, and a local timbre preference deck
+  controls, one-tap device-local moment claims, and a local timbre preference deck
+- Offline: installable PWA shell; after its first successful activation, the full
+  generator and local ledger can reload without network access
 - Visual: one persistent causal field in which read-only future phrase events bend
   long-lived matter before their audio-clock impact and remain as visual memory
 

@@ -1989,6 +1989,7 @@ export class InfiniteTechnoEngine {
 
     this.queueVisual(eventTime, {
       type: "step",
+      seed: this.seed,
       bar,
       step,
       kick: kickPulse,
@@ -2048,6 +2049,11 @@ export class InfiniteTechnoEngine {
           : null,
       ensembleScene:
         step === 0 ? summarizeEnsembleScene(plan.ensembleScene) : null,
+      claimMaterial: Object.freeze({
+        phraseFingerprint: this.materialState?.phrase?.fingerprint || null,
+        coreSignature: this.materialState?.coreSignature || null,
+        gesture: this.materialState?.gesture || null,
+      }),
       council:
         step === 0 ? summarizeCouncilVerdict(plan.councilVerdict) : null,
       synthEngines: step === 0 ? [...plan.activeSynthEngines] : null,

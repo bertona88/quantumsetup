@@ -449,6 +449,13 @@ export function createShareMomentUrl(href, value) {
   return url.toString();
 }
 
+export function clearReplayStateUrl(href) {
+  const url = new URL(href);
+  url.searchParams.delete("seed");
+  url.searchParams.delete(MOMENT_QUERY_PARAM);
+  return url.toString();
+}
+
 function prepareForEvent(engine, event) {
   const phraseStart = Math.floor(event.bar / 8) * 8;
   if (event.planned) {

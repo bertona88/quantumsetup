@@ -169,6 +169,31 @@ test("runtime material enters exactly once per eight-bar phrase", () => {
   assert.equal(engine.materialState.phraseIndex, 2);
 });
 
+test("hardware-time step events pin the matching local-claim identity", () => {
+  const engine = createEngine();
+  const events = [];
+  attachSilentScheduler(engine);
+  engine.queueVisual = (_time, event) => events.push(event);
+
+  engine.scheduler();
+
+  const firstStep = events.find((event) => event.type === "step");
+  assert.ok(firstStep);
+  assert.equal(firstStep.seed, OLD_SEED);
+  assert.equal(firstStep.bar, 0);
+  assert.equal(firstStep.step, 0);
+  assert.deepEqual(firstStep.claimMaterial, {
+    phraseFingerprint: engine.materialState.phrase.fingerprint,
+    coreSignature: engine.materialState.coreSignature,
+    gesture: engine.materialState.gesture,
+  });
+  assert.equal(Object.isFrozen(firstStep.claimMaterial), true);
+  assert.ok(
+    engine.step > firstStep.step,
+    "the scheduler can advance without mutating the audible event coordinate",
+  );
+});
+
 test("mid-phrase intents cannot replace or mutate cached current-phrase plans", () => {
   const engine = createEngine();
   const firstPlan = engine.preparePlan(0);

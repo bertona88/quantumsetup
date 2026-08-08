@@ -1,0 +1,32 @@
+{
+  "name": "Infinite Techno — QuantumSetup",
+  "short_name": "Infinite Techno",
+  "description": "An endlessly evolving, locally synthesized techno set.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#070609",
+  "theme_color": "#070609",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./icons/quantumsetup-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/quantumsetup-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/quantumsetup-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

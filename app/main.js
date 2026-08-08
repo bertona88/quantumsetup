@@ -16,14 +16,18 @@ import {
 } from "./trajectory-identity.js";
 import {
   MOMENT_QUERY_PARAM,
+  clearReplayStateUrl,
   createShareMomentUrl,
   decodeMomentCapsule,
   normalizeMomentCapsule,
   restoreMomentEngine,
 } from "./moment-share.js";
+import { createLocalClaimLedger } from "./local-claims.js";
 import {
   AdaptiveVisualQuality,
   QuantumPremonitionVisual,
+  initialVisualQualityForDevice,
+  maximumVisualQualityForBattery,
 } from "./quantum-visual.js?v=2.4.0-pattern-priors-1";
 
 const app = document.querySelector("#app");
@@ -39,6 +43,11 @@ const barReadout = document.querySelector("#bar-readout");
 const seedReadout = document.querySelector("#seed-readout");
 const shareMomentButton = document.querySelector("#share-moment-button");
 const shareMomentLabel = document.querySelector("#share-moment-label");
+const claimMomentButton = document.querySelector("#claim-moment-button");
+const claimMomentLabel = document.querySelector("#claim-moment-label");
+const claimTokenCode = document.querySelector("#claim-token-code");
+const claimMeta = document.querySelector("#claim-meta");
+const offlineStatus = document.querySelector("#offline-status");
 const transitionCopy = document.querySelector("#transition-copy");
 const transitionFill = document.querySelector("#transition-fill");
 const liveRegion = document.querySelector("#live-region");
@@ -99,6 +108,19 @@ const replayMoment =
   decodedMoment?.generatorVersion === GENERATOR_VERSION
     ? decodedMoment
     : null;
+if (
+  (params.has("seed") && parsedSeed === undefined) ||
+  (params.has(MOMENT_QUERY_PARAM) && decodedMoment === null)
+) {
+  const cleanUrl = new URL(window.location.href);
+  if (params.has("seed") && parsedSeed === undefined) {
+    cleanUrl.searchParams.delete("seed");
+  }
+  if (params.has(MOMENT_QUERY_PARAM) && decodedMoment === null) {
+    cleanUrl.searchParams.delete(MOMENT_QUERY_PARAM);
+  }
+  window.history.replaceState(null, "", cleanUrl);
+}
 const initialSeed =
   replayMoment?.initial.seed ?? parsedSeed ?? freshTrajectoryId(window.crypto);
 const derivedInitialDirection = deriveInitialDirection(initialSeed);
@@ -147,6 +169,7 @@ const signalDeck = replayMoment
     })
   : new SignalDeckModel();
 const signalAuditioner = new InstrumentAuditioner();
+const localClaimLedger = createLocalClaimLedger();
 let restoringMoment = Boolean(replayMoment);
 let momentEvents = replayMoment ? [...replayMoment.events] : [];
 let momentHistoryOverflow = false;
@@ -187,6 +210,10 @@ let targetDirectionControls =
   performancePreferences.direction;
 let premonitionVisual = null;
 let shareButtonResetTimer = null;
+let claimBusy = false;
+let audibleClaimMoment = null;
+let claimedCoordinate = "";
+let claimedPersistence = "device";
 
 function titleCase(text) {
   return String(text)
@@ -326,6 +353,12 @@ function invalidateSharedMomentUrl() {
   window.history.replaceState(null, "", url);
 }
 
+function clearReplayUrl() {
+  const current = window.location.href;
+  const cleared = clearReplayStateUrl(current);
+  if (cleared !== current) window.history.replaceState(null, "", cleared);
+}
+
 function recordMomentEvent(event) {
   if (restoringMoment) return;
   let entry = null;
@@ -456,6 +489,99 @@ async function shareCurrentMoment() {
     liveRegion.textContent = error?.message || "The replay link could not be copied.";
   } finally {
     shareMomentButton.disabled = false;
+  }
+}
+
+function updateClaimAvailability() {
+  if (!claimMomentButton) return;
+  claimMomentButton.disabled =
+    !engine.running || !audibleClaimMoment || claimBusy;
+  claimMomentButton.setAttribute("aria-busy", String(claimBusy));
+}
+
+function renderHistoricClaimIfNeeded() {
+  if (
+    !claimMomentButton ||
+    claimMomentButton.dataset.state !== "claimed" ||
+    !audibleClaimMoment
+  ) {
+    return;
+  }
+  const audibleCoordinate = `${trajectoryIdForUrl(audibleClaimMoment.seed)}:${audibleClaimMoment.bar}:${audibleClaimMoment.step}`;
+  if (!claimedCoordinate || audibleCoordinate === claimedCoordinate) return;
+  claimMomentButton.dataset.state = "ready";
+  claimMomentLabel.textContent = "CLAIM THIS MOMENT";
+  claimMeta.textContent =
+    claimedPersistence === "device"
+      ? "LAST CLAIM · STORED ON THIS DEVICE"
+      : "LAST CLAIM · SESSION ONLY";
+}
+
+function localClaimMoment(moment) {
+  const instrumentation = moment.instrumentation || [];
+  const instrumentIds = instrumentation
+    .map((item) => item?.id || item?.label)
+    .filter(Boolean)
+    .sort();
+  const materialSummary = [
+    moment.material?.phraseFingerprint,
+    moment.material?.gesture,
+    moment.ensembleScene?.id,
+    ...instrumentIds,
+  ]
+    .filter(Boolean)
+    .join(" / ");
+  return {
+    trajectoryId: trajectoryIdForUrl(moment.seed),
+    generatorVersion: GENERATOR_VERSION,
+    bar: moment.bar,
+    step: moment.step,
+    phraseFingerprint: moment.material?.phraseFingerprint,
+    coreSignature: moment.material?.coreSignature,
+    sceneId: moment.ensembleScene?.id,
+    instrumentation,
+    materialSummary,
+  };
+}
+
+async function claimCurrentMoment() {
+  if (!claimMomentButton || claimMomentButton.disabled || !engine.running) return null;
+  // Step events cross on the audio clock, unlike the scheduler-ahead engine snapshot.
+  const moment = audibleClaimMoment;
+  if (!moment) return null;
+  claimBusy = true;
+  claimMomentButton.dataset.state = "working";
+  claimMomentLabel.textContent = "CLAIMING HERE";
+  updateClaimAvailability();
+  try {
+    const claim = await localClaimLedger.claimMoment(localClaimMoment(moment));
+    const persisted = claim.persistence === "device";
+    claimedCoordinate = `${claim.moment.trajectoryId}:${claim.moment.bar}:${claim.moment.step}`;
+    claimedPersistence = claim.persistence;
+    claimMomentButton.dataset.state = "claimed";
+    claimMomentLabel.textContent = persisted
+      ? "CLAIMED ON THIS DEVICE"
+      : "CLAIMED FOR THIS SESSION";
+    claimTokenCode.textContent = claim.tokenCode;
+    const partCount = moment.instrumentation?.length || 0;
+    claimMeta.textContent = `BAR ${claim.moment.bar + 1} · STEP ${claim.moment.step + 1} · ${partCount} PART${partCount === 1 ? "" : "S"} · ${persisted ? "DEVICE" : "SESSION ONLY"}`;
+    liveRegion.textContent = persisted
+      ? `${claim.tokenCode} saved in this device's offline ledger. It is a local record, not a blockchain transaction.`
+      : `${claim.tokenCode} is kept for this page session because persistent storage is unavailable. Music continues.`;
+    // The digest can complete after the audio clock has crossed another step.
+    // Keep the token visible, but immediately re-arm the action for what is live.
+    renderHistoricClaimIfNeeded();
+    return claim;
+  } catch (error) {
+    claimMomentButton.dataset.state = "error";
+    claimMomentLabel.textContent = "LOCAL CLAIM UNAVAILABLE";
+    claimTokenCode.textContent = "MUSIC CONTINUES";
+    claimMeta.textContent = "WEB CRYPTO OR DEVICE STORAGE IS UNAVAILABLE";
+    liveRegion.textContent = error?.message || "This moment could not be saved locally.";
+    return null;
+  } finally {
+    claimBusy = false;
+    updateClaimAvailability();
   }
 }
 
@@ -716,6 +842,7 @@ function handleEngineEvent(event) {
   if (restoringMoment) return;
   recordMomentEvent(event);
   if (event.type === "state") {
+    audibleClaimMoment = null;
     transportButton.querySelector(".transport-icon").textContent = event.running ? "■" : "▶";
     transportButton.querySelector("strong").textContent = event.running
       ? "STOP THE SET"
@@ -744,6 +871,7 @@ function handleEngineEvent(event) {
     app.dataset.visualEngine = premonitionVisual?.rendererName || "spectrum-mountain";
     if (event.running) void stopSignalAudition();
     updateSignalAvailability();
+    updateClaimAvailability();
   }
 
   if (event.type === "synth-state") {
@@ -804,7 +932,8 @@ function handleEngineEvent(event) {
   if (event.type === "intent") describeIntent(event);
 
   if (event.type === "seed") {
-    updateSeed(event.seed);
+    clearReplayUrl();
+    updateSeed(event.seed, { writeUrl: false });
     premonitionVisual?.setSeed(event.seed);
     visualState.seedFlash = 1;
     transitionCopy.textContent = "NEW MUSICAL DNA ENTERED THE MIX";
@@ -873,6 +1002,16 @@ function handleEngineEvent(event) {
         transitionFill.style.width = `${Math.round(event.sectionProgress * 100)}%`;
       }
     }
+    audibleClaimMoment = Object.freeze({
+      seed: event.seed,
+      bar: event.bar,
+      step: event.step,
+      material: event.claimMaterial,
+      ensembleScene: currentEnsembleScene,
+      instrumentation: Object.freeze([...currentInstrumentation]),
+    });
+    renderHistoricClaimIfNeeded();
+    updateClaimAvailability();
   }
 }
 
@@ -981,6 +1120,7 @@ signalPassButton.addEventListener("click", () => decideSignal("pass"));
 signalAuditionButton.addEventListener("click", auditionSignal);
 signalKeepButton.addEventListener("click", () => decideSignal("like"));
 shareMomentButton.addEventListener("click", shareCurrentMoment);
+claimMomentButton?.addEventListener("click", claimCurrentMoment);
 
 signalCard.addEventListener("pointerdown", (event) => {
   if (
@@ -1115,6 +1255,8 @@ window.QuantumTechno = Object.freeze({
   setBassCharacter: (character) => engine.requestBassCharacter(character),
   getShareUrl: () =>
     createShareMomentUrl(window.location.href, createCurrentMomentCapsule()),
+  claimCurrentMoment,
+  getLocalClaims: () => localClaimLedger.listClaims(),
 });
 
 const startupSnapshot = restoredSnapshot ?? engine.getSnapshot();
@@ -1138,6 +1280,54 @@ if (replayMoment) {
   liveRegion.textContent = `This replay link was made with generator ${decodedMoment.generatorVersion}; the current generator is ${GENERATOR_VERSION}. The trajectory ID was loaded without the incompatible moment state.`;
 }
 renderSignalSpecimen(currentSignal);
+updateClaimAvailability();
+
+let offlineShellReady = Boolean(navigator.serviceWorker?.controller);
+
+function renderOfflineStatus() {
+  if (!offlineStatus) return;
+  const standalone =
+    window.matchMedia?.("(display-mode: standalone)")?.matches === true ||
+    navigator.standalone === true;
+  if (standalone && !navigator.onLine) {
+    offlineStatus.textContent = "INSTALLED · OFFLINE";
+    return;
+  }
+  if (standalone) {
+    offlineStatus.textContent = "INSTALLED";
+    return;
+  }
+  if (!navigator.onLine) {
+    offlineStatus.textContent = "OFFLINE";
+    return;
+  }
+  offlineStatus.textContent = !navigator.serviceWorker
+    ? "ONLINE"
+    : offlineShellReady
+      ? "OFFLINE READY"
+      : "PREPARING OFFLINE";
+}
+
+function handleServiceWorkerControl() {
+  offlineShellReady = Boolean(navigator.serviceWorker?.controller);
+  renderOfflineStatus();
+}
+
+renderOfflineStatus();
+window.addEventListener("online", renderOfflineStatus);
+window.addEventListener("offline", renderOfflineStatus);
+if (navigator.serviceWorker) {
+  navigator.serviceWorker.addEventListener(
+    "controllerchange",
+    handleServiceWorkerControl,
+  );
+  void navigator.serviceWorker.ready
+    .then((registration) => {
+      offlineShellReady = Boolean(registration.active);
+      renderOfflineStatus();
+    })
+    .catch(() => {});
+}
 
 const canvas = document.querySelector("#quantum-contour");
 const transientSpectrum = new Uint8Array(512);
@@ -1146,13 +1336,22 @@ const spectrum = Object.freeze({
   transient: transientSpectrum,
   detail: detailedSpectrum,
 });
-const adaptiveVisualQuality = new AdaptiveVisualQuality();
 const reducedMotion = window.matchMedia
   ? window.matchMedia("(prefers-reduced-motion: reduce)")
   : { matches: false };
+const initialVisualQuality = initialVisualQualityForDevice({
+  reducedMotion: reducedMotion.matches,
+  saveData: navigator.connection?.saveData === true,
+  hardwareConcurrency: navigator.hardwareConcurrency,
+  deviceMemory: navigator.deviceMemory,
+});
+const adaptiveVisualQuality = new AdaptiveVisualQuality({
+  initialQuality: initialVisualQuality,
+});
 let lastFrame = performance.now();
 let renderHandle = null;
 let renderTimer = null;
+let batteryManager = null;
 
 function resizeCanvas() {
   premonitionVisual?.resize();
@@ -1160,6 +1359,16 @@ function resizeCanvas() {
 
 function render(now) {
   if (!premonitionVisual?.context) return;
+  const minimumFrameInterval = adaptiveVisualQuality.quality.frameIntervalMs || 0;
+  if (
+    engine.running &&
+    !reducedMotion.matches &&
+    minimumFrameInterval > 0 &&
+    now - lastFrame < minimumFrameInterval - 1
+  ) {
+    renderHandle = window.requestAnimationFrame(render);
+    return;
+  }
   const frameIntervalMs = Math.max(0, now - lastFrame);
   const delta = Math.min(0.05, frameIntervalMs / 1000);
   lastFrame = now;
@@ -1221,6 +1430,30 @@ premonitionVisual.setSeed(engine.seed);
 app.dataset.visualEngine = premonitionVisual.rendererName;
 app.dataset.visualQuality = adaptiveVisualQuality.quality.id;
 
+function applyBatteryVisualBudget() {
+  if (!batteryManager) return;
+  const maximumQuality = maximumVisualQualityForBattery(batteryManager);
+  app.dataset.powerBudget = maximumQuality;
+  const quality = adaptiveVisualQuality.setMaximumQuality(maximumQuality);
+  if (quality && premonitionVisual.setQuality(quality)) {
+    app.dataset.visualQuality = quality.id;
+  }
+}
+
+async function monitorBatteryVisualBudget() {
+  if (typeof navigator.getBattery !== "function") return;
+  try {
+    batteryManager = await navigator.getBattery();
+    applyBatteryVisualBudget();
+    batteryManager.addEventListener?.("chargingchange", applyBatteryVisualBudget);
+    batteryManager.addEventListener?.("levelchange", applyBatteryVisualBudget);
+  } catch (_) {
+    // Frame timing remains the portable performance governor.
+  }
+}
+
+void monitorBatteryVisualBudget();
+
 if (premonitionVisual.context) {
   if ("ResizeObserver" in window) {
     const observer = new ResizeObserver(resizeCanvas);
@@ -1237,5 +1470,13 @@ if (premonitionVisual.context) {
 window.addEventListener("pagehide", () => {
   if (renderHandle) window.cancelAnimationFrame(renderHandle);
   if (renderTimer) window.clearTimeout(renderTimer);
+  batteryManager?.removeEventListener?.("chargingchange", applyBatteryVisualBudget);
+  batteryManager?.removeEventListener?.("levelchange", applyBatteryVisualBudget);
+  window.removeEventListener("online", renderOfflineStatus);
+  window.removeEventListener("offline", renderOfflineStatus);
+  navigator.serviceWorker?.removeEventListener?.(
+    "controllerchange",
+    handleServiceWorkerControl,
+  );
   premonitionVisual?.dispose();
 });

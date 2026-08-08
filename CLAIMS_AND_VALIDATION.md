@@ -156,7 +156,15 @@ The application may claim that it:
   already-frozen phrase: future pressure, audio-clock crossing, and long visual
   residue are three phases of the same event; the visual does not rewrite the score;
 - projects eleven deterministic phrase-resident structured-light families through
-  ten palettes onto the analyser-driven terrain while retaining a Canvas2D fallback.
+  ten palettes onto the analyser-driven terrain while retaining a Canvas2D fallback;
+- is installable as a standalone PWA and can reload its complete static audio,
+  visual, and claim shell offline after a successful service-worker activation;
+- can save an installation-scoped, bounded local claim for an exact musical
+  coordinate and instrument combination, producing an idempotent `LOCAL-…` code
+  from Web Crypto without contacting a server or interrupting audio;
+- adapts only visual resolution, shadow cost, and render cadence from measured frame
+  pressure and optional device/battery hints, leaving deterministic music and audio
+  scheduling unchanged.
 
 ## Nonclaims
 
@@ -190,6 +198,12 @@ The application does not claim:
   council references;
 - cloud taste sync, identity inference, or personalization beyond explicit local
   instrument feedback;
+- blockchain registration, transferable ownership, legal rights, cross-device
+  priority, or a globally verifiable first occurrence from a device-local claim;
+- survival of local claims after the user clears site data, reinstalls the app, or
+  the browser evicts its storage;
+- offline availability before the service worker has activated and cached the full
+  shell, or after the browser evicts that cache;
 - quantum computation, quantum randomness, scientific sonification, or simulation;
 - calibrated mastering, universal loudness, or safe output level for every device;
 - calibrated acoustic or physical-drum meaning for the kick-timbre fields;
@@ -220,6 +234,9 @@ The application does not claim:
 | first-48-bar trajectory distance tests | every fixed-manifest pair separates in rhythm and phrase grammar plus another musical domain with composite symbolic distance at least `0.20` | rendered-audio separation, masking, spectral balance, arbitrary-seed coverage, or listener discrimination |
 | 10-seed core-engine FFT audit | 20 real OfflineAudioContext renders (four-bar full mix and bass solo), 45 pairwise comparisons, and no pair below `0.08`; nearest combined distance `0.115554` | advanced-worklet contribution, long-form recurrence, listener discrimination, groove quality, mastering, or club translation |
 | taste-model and deck tests | bounded explicit-feedback updates, deterministic specimens, persistence fallback, exploration cadence, and arrangement isolation | whether the learned preference matches a listener's broader taste |
+| local-claim tests | persistent random installation identity, audible-coordinate identity, canonical instrument-order hashing, idempotent timestamps, the default 256-record bound, and honest page-lifetime fallback after read or quota failure | legal ownership, global priority, cross-device verification, or storage durability after site-data deletion |
+| PWA shell and Pages-staging tests | installable manifest/icon metadata, complete static module/worklet precache, bounded same-origin cache handling, release-pinned lifecycle behavior, and complete deployment staging configuration | successful installation or offline audio behavior on every browser/device, cache retention, or background playback |
+| adaptive-visual tests | monotonic economy-to-high budgets, fast sustained-load downgrade, device-hint initialization, and battery quality ceilings | battery savings on every device, Battery Status API availability, or audio stability |
 | preview renderer tests | deterministic, finite, normalized specimen PCM and cleanup | perceived quality on every output device |
 | spectrum-mountain tests | deterministic continuous terrain history, full-depth audio warm start, log-frequency peak retention, bounded five-band extraction, finite indexed geometry, and finite flyover matrices | artistic success, GPU performance on every device, or subjective music responsiveness |
 | pure DSP tests | finite deterministic samples, hard voice endings, and renderer coverage for all 208 base forms | perceived sound quality |

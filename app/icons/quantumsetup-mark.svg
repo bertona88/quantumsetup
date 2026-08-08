@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">QuantumSetup spectral mark</title>
+  <rect width="512" height="512" fill="#070609"/>
+  <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M92 286 164 214 224 274 312 174 420 282" stroke-width="22"/>
+    <path d="M92 334 164 262 224 322 312 222 420 330" stroke-width="10" opacity=".58"/>
+  </g>
+  <circle cx="312" cy="174" r="14" fill="#fff"/>
+</svg>

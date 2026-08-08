@@ -792,7 +792,10 @@ export class SpectrumMountainRenderer {
       antialias: true,
       depth: true,
       premultipliedAlpha: false,
-      powerPreference: "high-performance",
+      powerPreference:
+        quality?.id === "economy" || quality?.id === "low"
+          ? "low-power"
+          : "high-performance",
     }) || null;
     if (!this.gl) throw new Error("WebGL2 unavailable");
     this.context = this.gl;

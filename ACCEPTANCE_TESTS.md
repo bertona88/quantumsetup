@@ -193,7 +193,20 @@ at least one of orchestration, timbre, or harmony.
 
 - [x] `window.QuantumTechno` is versioned `2.4.0`, preserves `getSnapshot()`,
   `requestVibe()`, and `requestTonality()`, and adds bounded mix, direction, and
-  bass-character methods.
+  bass-character methods plus device-local claim/list methods.
+- [x] clean startup keeps its sampled trajectory out of the URL; an accepted New
+  Trajectory clears replay parameters, while explicit seed and Share Moment URLs
+  remain intentional deterministic replay paths.
+- [x] local-claim tests cover random persistent installation identity, canonical
+  phrase/scene/instrument identity, order-insensitive casts, idempotent timestamps,
+  the default 256-record ceiling, readable-but-full storage fallback, and
+  unavailable-Web-Crypto failure.
+- [x] manifest, icon, runtime-graph, and Pages staging-configuration tests cover the
+  complete static offline shell; VM-executed service-worker tests cover bounded
+  request interception, release-pinned replay navigation, content-versioned caches,
+  and install/activate lifecycle work.
+- [x] adaptive visuals expose an economy tier, paced low-cost frames, conservative
+  device initialization, and an optional battery ceiling without mutating audio.
 - [x] snapshots add a deeply frozen material section with gesture, motif lineage,
   lane-clock summaries including resident open-hat, two-bar relation, pulse
   relation, and relation-variant fields,
@@ -234,6 +247,9 @@ at least one of orchestration, timbre, or harmony.
 - [ ] foreground Start/Stop, every performance control, Vibe, Tonality, New
   Trajectory, transition, preview, restart, responsive, reduced-motion, and
   clean-console browser smoke passes on the final `2.1.0` bytes.
+- [ ] a real installed-browser smoke activates the worker online, reloads with the
+  network disabled, starts audio, creates a local claim without stopping playback,
+  and records Worklet or documented core-fallback status.
 - [ ] a 30–60-minute named-device foreground soak is attached.
 - [ ] suspend/resume and audio-device-change behavior is recorded without expanding
   the runtime claim.
